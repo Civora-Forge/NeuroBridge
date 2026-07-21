@@ -1,0 +1,329 @@
+:root {
+  --coord-bg: #e3f2fd;
+  --coord-text: #0c2740;
+  --coord-muted: #355773;
+  --coord-accent: #0d6bb8;
+  --coord-strong: #0a4d85;
+  --coord-border: #0c2740;
+}
+
+.appShell {
+  display: grid;
+  gap: 1rem;
+  color: var(--coord-text);
+}
+
+.topBar {
+  display: flex;
+}
+
+.backLink {
+  color: var(--coord-text);
+  text-decoration: none;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.hero,
+.card,
+.skeletonCard,
+.giantButton,
+.tabButton {
+  border: 3px solid var(--coord-border);
+  border-radius: 20px;
+}
+
+.hero {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #ffffff;
+}
+
+.heroIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--coord-bg);
+  border: 3px solid var(--coord-border);
+  display: grid;
+  place-items: center;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.hero p {
+  margin: 0.2rem 0 0;
+  color: var(--coord-muted);
+}
+
+.screenTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.tabButton {
+  position: relative;
+  min-height: 64px;
+  background: #fff;
+  font-weight: 800;
+  color: var(--coord-text);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.tabButton span {
+  position: relative;
+  z-index: 1;
+}
+
+.tabHighlight {
+  position: absolute;
+  inset: 4px;
+  border-radius: 12px;
+  background: var(--coord-bg);
+}
+
+.skeletonGrid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.skeletonCard {
+  min-height: 220px;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(227, 242, 253, 0.8), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.1s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.card {
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.helper {
+  margin: 0.45rem 0 0.75rem;
+  color: var(--coord-muted);
+}
+
+.giantGrid,
+.aomiList,
+.playerControls {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.giantButton {
+  min-height: 100px;
+  width: 100%;
+  background: var(--coord-bg);
+  color: var(--coord-text);
+  font-size: 1rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  cursor: pointer;
+  padding: 0.6rem;
+}
+
+.giantButton strong {
+  display: block;
+  font-size: 1.04rem;
+}
+
+.giantButton span {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--coord-muted);
+}
+
+.giantActive {
+  background: #bee0fb;
+  border-color: var(--coord-strong);
+}
+
+.playerFrame {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.videoMock {
+  min-height: 220px;
+  border-radius: 20px;
+  border: 3px solid var(--coord-border);
+  background: linear-gradient(160deg, #ffffff, #d4ecff);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1rem;
+}
+
+.videoMock p {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.videoMock small {
+  margin-top: 0.45rem;
+  display: block;
+  color: var(--coord-muted);
+  font-weight: 700;
+}
+
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.rhythmPad {
+  margin: 0.75rem 0;
+  border: 3px solid var(--coord-border);
+  border-radius: 20px;
+  padding: 0.8rem;
+  background: #f7fcff;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.rhythmPulse {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #8bc4f2, #3e8ecb);
+  border: 3px solid var(--coord-border);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 2.2rem;
+  font-weight: 900;
+}
+
+.rhythmPad p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.range {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  accent-color: var(--coord-accent);
+}
+
+.mapScene {
+  margin-top: 0.8rem;
+  border: 3px solid var(--coord-border);
+  border-radius: 20px;
+  background: #f8fcff;
+  padding: 0.9rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.routeLine {
+  position: absolute;
+  left: 2rem;
+  top: 1.2rem;
+  bottom: 1.2rem;
+  width: 6px;
+  border-radius: 99px;
+  background: #84bbeb;
+}
+
+.landmarkRow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.landmarkRow:last-child {
+  margin-bottom: 0;
+}
+
+.landmarkIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 3px solid var(--coord-border);
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.landmarkRow p {
+  margin: 0;
+  font-weight: 800;
+}
+
+.floorArrow {
+  position: absolute;
+  inset: auto 0 0;
+  min-height: 220px;
+  background: rgba(13, 107, 184, 0.16);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--coord-strong);
+  font-weight: 900;
+}
+
+.floorArrow span {
+  display: block;
+  margin-top: -0.4rem;
+  font-size: 1rem;
+}
+
+@media (max-width: 860px) {
+  .screenTabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero h1 {
+    font-size: 1.55rem;
+  }
+}

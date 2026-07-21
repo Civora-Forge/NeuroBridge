@@ -1,0 +1,728 @@
+.moduleShell {
+  display: grid;
+  gap: 1rem;
+}
+
+.moduleHeader {
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--border));
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.moduleHeader h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.moduleHeader p {
+  margin: 0.5rem 0 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.tabButton,
+.tabButtonActive,
+.primaryButton,
+.secondaryButton,
+.emojiButton,
+.emojiButtonActive,
+.targetButton,
+.microStepItem {
+  min-height: 56px;
+  border-radius: 14px;
+  border: 2px solid hsl(var(--border));
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabButton,
+.secondaryButton,
+.emojiButton {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.tabButtonActive,
+.primaryButton,
+.emojiButtonActive,
+.targetButton {
+  background: hsl(var(--mode-dyspraxia));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--mode-dyspraxia));
+}
+
+.tabButton,
+.tabButtonActive {
+  padding: 0.5rem 0.85rem;
+}
+
+.card {
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--border));
+  border-radius: 16px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.helper {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.fieldLabel {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.fieldInput,
+.fieldTextarea,
+.rangeInput {
+  width: 100%;
+  border: 2px solid hsl(var(--border));
+  border-radius: 12px;
+  min-height: 50px;
+  padding: 0.65rem;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.fieldTextarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.scoreBoard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+}
+
+.scoreBoard p {
+  margin: 0;
+  background: hsl(var(--secondary));
+  border-radius: 12px;
+  border: 2px solid hsl(var(--border));
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.gameArena {
+  position: relative;
+  min-height: 280px;
+  border: 2px dashed hsl(var(--border));
+  border-radius: 16px;
+  background: hsl(var(--background));
+  overflow: hidden;
+}
+
+.targetButton {
+  position: absolute;
+  width: 88px;
+  transform: translate(-50%, -50%);
+}
+
+.progressRow {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.progressText {
+  margin: 0;
+  font-weight: 700;
+}
+
+.progressTrack {
+  height: 14px;
+  background: hsl(var(--secondary));
+  border: 2px solid hsl(var(--border));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: hsl(var(--mode-dyspraxia));
+}
+
+.nestedList {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.nestedStepCard {
+  border: 2px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--background));
+  padding: 0.7rem;
+}
+
+.nestedStepTitle {
+  margin: 0 0 0.5rem;
+}
+
+.microStepList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.microStepItem {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.65rem;
+  background: hsl(var(--card));
+}
+
+.microStepItem input {
+  width: 20px;
+  height: 20px;
+}
+
+.inlineForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.routineBlock {
+  border: 2px solid hsl(var(--border));
+  border-radius: 14px;
+  padding: 0.8rem;
+  min-height: 76px;
+}
+
+.routineBlockA { background: hsl(var(--mode-dyspraxia) / 0.15); }
+.routineBlockB { background: hsl(var(--mode-ocd) / 0.15); }
+.routineBlockC { background: hsl(var(--accent) / 0.2); }
+.routineBlockD { background: hsl(var(--success) / 0.2); }
+
+.routineTime,
+.routineTitle,
+.chartTitle {
+  margin: 0;
+}
+
+.routineTime {
+  font-weight: 800;
+}
+
+.cameraControls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cameraFrame {
+  position: relative;
+  min-height: 280px;
+  border-radius: 16px;
+  border: 2px solid hsl(var(--border));
+  overflow: hidden;
+  background: hsl(var(--secondary));
+}
+
+.cameraVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.alignmentFrame {
+  position: absolute;
+  left: 35%;
+  top: 30%;
+  width: 30%;
+  height: 40%;
+  border: 3px solid hsl(var(--primary));
+  border-radius: 8px;
+}
+
+.bodyMarker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: hsl(var(--destructive));
+  border: 2px solid hsl(var(--background));
+  transform: translate(-50%, -50%);
+}
+
+.alignedText,
+.notAlignedText {
+  margin: 0;
+  font-weight: 700;
+}
+
+.alignedText { color: hsl(var(--success)); }
+.notAlignedText { color: hsl(var(--warning)); }
+
+.emojiRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+}
+
+.emojiButton,
+.emojiButtonActive {
+  display: grid;
+  place-items: center;
+  padding: 0.45rem;
+  text-align: center;
+}
+
+.emojiButton span:first-child,
+.emojiButtonActive span:first-child {
+  font-size: 1.4rem;
+}
+
+.chartContainer {
+  border: 2px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY LAYER — OCD + DCD intersection
+   • All interactive elements enforce ≥48px touch target (WCAG 2.5.5)
+   • prefers-reduced-motion disables ALL transitions and animations
+   • High-contrast outlines preserved for keyboard users
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Enforce 48px minimum on every interactive element globally within this module */
+.moduleShell button,
+.moduleShell input[type="range"],
+.moduleShell input[type="checkbox"],
+.moduleShell select {
+  min-height: 48px;
+}
+
+/* Disable all animations/transitions for users who opted out */
+@media (prefers-reduced-motion: reduce) {
+  .moduleShell *,
+  .moduleShell *::before,
+  .moduleShell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Trust-your-memory overlay ──────────────────────────────────────────── */
+.trustOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+}
+
+.trustCard {
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--border));
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  max-width: 420px;
+  width: 100%;
+  display: grid;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+.trustIcon {
+  font-size: 2.8rem;
+  margin: 0;
+}
+
+.trustTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0;
+  color: hsl(var(--foreground));
+}
+
+.trustBody {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+/* ─── JITAI circuit-breaker overlay ─────────────────────────────────────── */
+.jitaiOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(6, 78, 59, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.jitaiCard {
+  background: hsl(var(--card));
+  border: 2px solid #10b981;
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  max-width: 440px;
+  width: 100%;
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+}
+
+.jitaiHeadline {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+  color: #065f46;
+}
+
+.jitaiBody {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.65;
+}
+
+.jitaiActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ─── Progressive reveal / step navigation ───────────────────────────────── */
+.stepNavRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stepNavCount {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.undoButton {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 2px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 1rem;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.undoButton:hover:not(:disabled) {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+.undoButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── Encouragement text (replaces progress bar) ─────────────────────────── */
+.encourageText,
+.encourageTextDone {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+}
+
+.encourageText {
+  background: hsl(var(--mode-dyspraxia) / 0.1);
+  color: hsl(var(--mode-dyspraxia));
+}
+
+.encourageTextDone {
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+
+/* ─── Micro-step card (replaces checkbox list) ────────────────────────────── */
+.microStepCard {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 14px;
+  padding: 0.6rem 0.9rem;
+  background: hsl(var(--card));
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 56px;
+}
+
+.microStepDone {
+  border-color: hsl(var(--success));
+  background: hsl(var(--success) / 0.07);
+}
+
+.microStepToggle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--background));
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.microStepToggleChecked {
+  background: hsl(var(--success));
+  border-color: hsl(var(--success));
+  color: #fff;
+}
+
+.checkMark {
+  pointer-events: none;
+  user-select: none;
+}
+
+.microStepLabel {
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.microStepLabelDone {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* ─── Task Decomposition Engine ──────────────────────────────────────────── */
+.levelSlider {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.levelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.levelDescriptor {
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+}
+
+.rangeTickRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.voiceRow {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.voiceInputGroup {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.voiceInputGroup .fieldInput {
+  flex: 1;
+}
+
+.micButton,
+.micButtonActive {
+  min-height: 50px;
+  min-width: 112px;
+  border-radius: 14px;
+  border: 2px solid hsl(var(--border));
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.85rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.micButton {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.micButtonActive {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.stepReveal {
+  display: grid;
+  gap: 1rem;
+}
+
+.stepCounter {
+  margin: 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.stepCard {
+  border: 2px solid hsl(var(--mode-dyspraxia));
+  border-radius: 18px;
+  padding: 1.5rem 1.25rem;
+  background: hsl(var(--mode-dyspraxia) / 0.06);
+  text-align: center;
+}
+
+.stepText {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+}
+
+.stepActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.stepEncourage {
+  margin: 0;
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  font-style: italic;
+}
+
+.stepDone {
+  display: grid;
+  gap: 0.8rem;
+  text-align: center;
+  padding: 1rem;
+  border: 2px solid hsl(var(--success));
+  border-radius: 16px;
+  background: hsl(var(--success) / 0.07);
+}
+
+.stepDoneIcon {
+  font-size: 2.4rem;
+}
+
+.stepDoneTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: hsl(var(--foreground));
+}
+
+.stepDoneNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ─── Motor exercises — compassionate summary ─────────────────────────────── */
+.liveTimer {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
+}
+
+.arenaPrompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+  pointer-events: none;
+  margin: 0;
+}
+
+.sessionSummary {
+  border: 2px solid hsl(var(--border));
+  border-radius: 14px;
+  padding: 1rem;
+  background: hsl(var(--secondary));
+  display: grid;
+  gap: 0.4rem;
+}
+
+.summaryLine {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.summarySubLine {
+  margin: 0;
+  font-size: 0.82rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ─── Generic helpers ─────────────────────────────────────────────────────── */
+.errorText {
+  margin: 0;
+  font-size: 0.85rem;
+  color: hsl(var(--destructive));
+  font-weight: 600;
+}
+
+.helperSmall {
+  margin: 0;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.5;
+}

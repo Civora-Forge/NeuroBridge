@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 97%;
+    --foreground: 220 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 15%;
+
+    --primary: 142 72% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 25% 93%;
+    --secondary-foreground: 220 20% 15%;
+
+    --muted: 40 15% 94%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 35 90% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 15% 89%;
+    --input: 40 15% 89%;
+    --ring: 142 72% 36%;
+
+    --radius: 1rem;
+
+    /* Mode Colors */
+    --mode-asd: 220 70% 55%;
+    --mode-adhd: 25 90% 55%;
+    --mode-dyslexia: 145 55% 42%;
+    --mode-dyscalculia: 270 55% 55%;
+    --mode-ocd: 142 72% 36%;
+    --mode-dyspraxia: 10 70% 60%;
+    --mode-apd: 240 55% 55%;
+    --mode-depression: 340 65% 55%;
+
+    /* Semantic tokens */
+    --success: 145 55% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 35 90% 55%;
+    --warning-foreground: 0 0% 100%;
+    --calm: 200 60% 90%;
+    --calm-foreground: 200 60% 30%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px hsl(220 20% 15% / 0.06);
+    --shadow-md: 0 4px 12px hsl(220 20% 15% / 0.08);
+    --shadow-lg: 0 8px 30px hsl(220 20% 15% / 0.1);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 15%;
+    --sidebar-primary: 142 72% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 25% 95%;
+    --sidebar-accent-foreground: 220 20% 15%;
+    --sidebar-border: 40 15% 89%;
+    --sidebar-ring: 142 72% 36%;
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 40 15% 94%;
+    --card: 220 18% 14%;
+    --card-foreground: 40 15% 94%;
+    --popover: 220 18% 14%;
+    --popover-foreground: 40 15% 94%;
+    --primary: 142 66% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 40 15% 94%;
+    --muted: 220 15% 20%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 35 85% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30.6%;
+    --destructive-foreground: 40 15% 94%;
+    --border: 220 15% 22%;
+    --input: 220 15% 22%;
+    --ring: 142 66% 42%;
+    --sidebar-background: 220 18% 12%;
+    --sidebar-foreground: 40 15% 94%;
+    --sidebar-primary: 142 66% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 18%;
+    --sidebar-accent-foreground: 40 15% 94%;
+    --sidebar-border: 220 15% 22%;
+    --sidebar-ring: 142 66% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .neuro-card {
+    @apply bg-card rounded-2xl p-6 transition-all duration-300;
+    box-shadow: var(--shadow-md);
+  }
+
+  .neuro-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .mode-card {
+    @apply neuro-card cursor-pointer flex flex-col items-center justify-center text-center gap-3 min-h-[180px];
+  }
+
+  .neuro-btn {
+    @apply inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200 min-h-[56px] px-6;
+  }
+
+  .neuro-btn-primary {
+    @apply neuro-btn bg-primary text-primary-foreground hover:opacity-90;
+  }
+
+  .neuro-btn-accent {
+    @apply neuro-btn bg-accent text-accent-foreground hover:opacity-90;
+  }
+
+  .neuro-btn-outline {
+    @apply neuro-btn border-2 border-border bg-transparent hover:bg-secondary;
+  }
+
+  .neuro-btn-ghost {
+    @apply neuro-btn bg-transparent hover:bg-secondary;
+  }
+
+  /* Dyspraxia large hit-boxes */
+  .dyspraxia-btn {
+    @apply neuro-btn min-h-[80px] text-lg px-8 rounded-2xl;
+  }
+
+  .neuro-input {
+    @apply w-full rounded-xl border-2 border-border bg-card px-4 py-3 text-base transition-colors focus:border-primary focus:outline-none;
+    min-height: 56px;
+  }
+
+  .neuro-textarea {
+    @apply neuro-input min-h-[120px] resize-y;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold tracking-tight;
+  }
+
+  .section-subtitle {
+    @apply text-muted-foreground text-base;
+  }
+
+  /* Floating ACT button */
+  .act-sos-btn {
+    @apply fixed bottom-8 right-8 z-50 flex items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-lg transition-all duration-300 hover:scale-110;
+    width: 72px;
+    height: 72px;
+    box-shadow: 0 4px 20px hsl(35 90% 55% / 0.4);
+  }
+
+  /* Wave animation */
+  .wave-container {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(180deg, hsl(200 60% 90%) 0%, hsl(200 60% 80%) 100%);
+  }
+}
+
+@layer utilities {
+  .animate-wave {
+    animation: wave 3s ease-in-out infinite;
+  }
+
+  @keyframes wave {
+    0%, 100% { transform: translateY(0px) scaleY(1); }
+    50% { transform: translateY(-8px) scaleY(1.05); }
+  }
+
+  @keyframes wave-path {
+    0% { d: path("M 0 40 Q 50 20 100 40 Q 150 60 200 40 L 200 80 L 0 80 Z"); }
+    50% { d: path("M 0 40 Q 50 60 100 40 Q 150 20 200 40 L 200 80 L 0 80 Z"); }
+    100% { d: path("M 0 40 Q 50 20 100 40 Q 150 60 200 40 L 200 80 L 0 80 Z"); }
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+  }
+
+  @keyframes metronome {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(100%); }
+  }
+
+  .animate-metronome {
+    animation: metronome 1s ease-in-out infinite;
+  }
+
+  .gradient-ocd {
+    background: linear-gradient(135deg, hsl(142 72% 36%) 0%, hsl(160 60% 45%) 100%);
+  }
+
+  .gradient-dyspraxia {
+    background: linear-gradient(135deg, hsl(10 70% 60%) 0%, hsl(25 80% 60%) 100%);
+  }
+}

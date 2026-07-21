@@ -1,0 +1,188 @@
+.moduleShell {
+  display: grid;
+  gap: 1rem;
+}
+
+.moduleHeader {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 2px solid hsl(var(--border));
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.moduleHeader h1 {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.moduleHeader p {
+  margin: 0.5rem 0 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tabButton,
+.tabButtonActive,
+.primaryButton,
+.secondaryButton,
+.chip,
+.chipActive {
+  min-height: 48px;
+  border-radius: 12px;
+  border: 2px solid hsl(var(--border));
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabButton,
+.secondaryButton,
+.chip {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.tabButtonActive,
+.primaryButton,
+.chipActive {
+  background: hsl(var(--mode-ocd));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--mode-ocd));
+}
+
+.tabButton,
+.tabButtonActive {
+  padding: 0.5rem 0.85rem;
+}
+
+.card {
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--border));
+  border-radius: 16px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.helper {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.fieldLabel {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.fieldInput,
+.fieldTextarea,
+.rangeInput {
+  width: 100%;
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-radius: 12px;
+  min-height: 46px;
+  padding: 0.65rem;
+}
+
+.fieldTextarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 0.6rem 0.9rem;
+}
+
+.treeList,
+.treeChildren,
+.logList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.treeChildren {
+  margin-left: 1rem;
+  margin-top: 0.6rem;
+}
+
+.treeItem,
+.logCard,
+.timerBox,
+.goalPanel,
+.chartContainer {
+  border: 2px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--background));
+  padding: 0.8rem;
+}
+
+.treeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.treeTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.treeMeta,
+.logMeta {
+  margin: 0.2rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+}
+
+.timerTitle,
+.timerValue,
+.badgeText,
+.chartTitle {
+  margin: 0;
+}
+
+.timerValue {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.timerActions,
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.chip,
+.chipActive {
+  padding: 0 0.8rem;
+}
+
+.chartContainer {
+  background: hsl(var(--card));
+}
