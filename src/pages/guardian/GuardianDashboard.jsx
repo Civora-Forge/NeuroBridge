@@ -7,8 +7,8 @@ import {
   ShieldAlert, Sparkles, BarChart2, Link2, ListChecks, Plus, Pencil, Trash2,
 } from "lucide-react";
 import { useAuth, MOCK_WARD_ACTIVITY } from "@/context/AuthContext";
-import { loadWardTasks, saveWardTasks } from "@/lib/wardTaskStore";
-import { loadWardSyncData, pushWardActivity, pushWardAlert } from "@/lib/careSyncStore";
+import { loadWardTasks, saveWardTasks } from "@/support/stores/wardTaskStore";
+import { loadWardSyncData, pushWardActivity, pushWardAlert } from "@/support/stores/careSyncStore";
 import AdaptiveOutcomePanel from "@/components/adaptive/AdaptiveOutcomePanel";
 
 const PROFILE_COLORS = {

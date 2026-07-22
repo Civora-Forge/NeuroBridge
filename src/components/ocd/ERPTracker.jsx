@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Play, Pause, CheckCircle, Plus, ChevronDown, ChevronRight, Award, Brain, AlertTriangle, BarChart2, Layers } from "lucide-react";
-import { getHierarchy, saveHierarchy, getSessions, addSession, checkAndMarkMastery, buildErpCoachingMessage, OCD_SUBTYPES } from "@/lib/ocdStore";
+import { getHierarchy, saveHierarchy, getSessions, addSession, checkAndMarkMastery, buildErpCoachingMessage, OCD_SUBTYPES } from "@/support/specialized/ocdStore";
 
 const PRE_COLOR  = "#f97316";
 const POST_COLOR = "#0d9488";

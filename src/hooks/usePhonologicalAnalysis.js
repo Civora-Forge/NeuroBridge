@@ -3,7 +3,7 @@ import {
   calculateDynamicPhonemeErrors,
   identifyWeaknesses,
   calculatePhonologicalScore,
-} from "@/lib/phonologicalAnalysis";
+} from "@/support/learning/phonologicalAnalysis";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 /**

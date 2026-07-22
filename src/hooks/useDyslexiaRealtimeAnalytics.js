@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAnalyticsStreamUrl } from "@/lib/dyslexiaApi";
+import { getAnalyticsStreamUrl } from "@/support/api/dyslexiaApi";
 
 export function useDyslexiaRealtimeAnalytics(userId) {
   const [analytics, setAnalytics] = useState({

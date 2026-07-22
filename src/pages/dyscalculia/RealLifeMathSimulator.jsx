@@ -28,7 +28,7 @@ import {
   recordResponse,
   saveUserProfile,
   initializeUserProfile,
-} from '@/lib/dyscalculiaAdaptiveEngine';
+} from '@/support/learning/dyscalculiaAdaptiveEngine';
 
 const formatPrice = (price) => {
   if (Number.isInteger(price)) {

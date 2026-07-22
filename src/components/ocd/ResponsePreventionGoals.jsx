@@ -13,7 +13,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Target, Clock, RotateCcw, Plus, CheckCircle, Sparkles, ChevronUp, Zap } from "lucide-react";
-import { getGoals, updateGoal, addGoal, suggestGoals } from "@/lib/ocdStore";
+import { getGoals, updateGoal, addGoal, suggestGoals } from "@/support/specialized/ocdStore";
 
 // ─── Divert-While-Waiting activities ──────────────────────────────────────────
 // Purposeful, non-OCD-related micro-tasks. Clinically: engaging working memory

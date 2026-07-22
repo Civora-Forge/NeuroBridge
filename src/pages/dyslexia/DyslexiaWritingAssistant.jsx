@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, PenLine } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { analyzeWriting } from "@/lib/dyslexiaApi";
+import { analyzeWriting } from "@/support/api/dyslexiaApi";
 
 export default function DyslexiaWritingAssistant() {
   const [userId, setUserId] = useState("demo-user");

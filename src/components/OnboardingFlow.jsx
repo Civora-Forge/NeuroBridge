@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { CHALLENGE_CATEGORIES, MODULES_REGISTRY } from "@/data/modulesRegistry";
-import { getQuestionsForChallenges } from "@/utils/questionEngine";
-import { selectModulesForUser } from "@/utils/moduleSelector";
+import { getQuestionsForChallenges } from "@/adaptive/reasoning/questionEngine";
+import { selectModulesForUser } from "@/adaptive/reasoning/moduleSelector";
 import Questionnaire from "@/components/Questionnaire";
 import { Brain } from "lucide-react";
 

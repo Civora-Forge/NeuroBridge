@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { resolveEnabledFeatures } from "@/lib/featureRegistry";
 import { DISORDERS } from "@/lib/disorders";
-import { pushWardNote } from "@/lib/careSyncStore";
+import { pushWardNote } from "@/support/stores/careSyncStore";
 import { supabase } from "@/lib/supabaseClient";
 
 function buildProfileFromSupabase(supabaseUser) {

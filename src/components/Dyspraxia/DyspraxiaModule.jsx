@@ -10,7 +10,7 @@ import {
   stopJITAIMonitor,
   subscribeToJITAI,
   JITAI_EVENTS,
-} from "@/lib/jitaiService";
+} from "@/adaptive/context/jitaiService";
 import styles from "./DyspraxiaModule.module.css";
 
 const TABS = [

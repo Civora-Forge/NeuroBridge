@@ -464,16 +464,21 @@ src/
 │   │   ├── moodAgent.js
 │   │   ├── environmentContext.js
 │   │   ├── activityTracker.js
-│   │   └── contextFusion.js
+│   │   ├── contextFusion.js
+│   │   └── jitaiService.js
 │   │
 │   ├── state/
-│   │   └── userStateModel.js
+│   │   ├── userStateModel.js
+│   │   └── useAdaptiveBehavioralEngine.js
 │   │
 │   ├── reasoning/
 │   │   ├── cognitiveReasoning.js
 │   │   ├── planner.js
 │   │   ├── interventionRanking.js
-│   │   └── adaptationPolicy.js
+│   │   ├── adaptationPolicy.js
+│   │   ├── disorderFeatureRegistry.js
+│   │   ├── moduleSelector.js
+│   │   └── questionEngine.js
 │   │
 │   ├── ui/
 │   │   └── uiAdapter.js
@@ -486,23 +491,39 @@ src/
 │       └── memorySystem.js
 │
 ├── support/
+│   │
 │   ├── executive/
+│   │
 │   ├── emotional/
+│   │
 │   ├── learning/
+│   │   ├── dyscalculiaAdaptiveEngine.js
+│   │   ├── phonologicalAnalysis.js
+│   │   ├── pronunciationAnalysis.js
+│   │   ├── readingMetrics.js
+│   │   ├── struggleDetection.js
+│   │   └── PhonemeWeaknessDetector.jsx
+│   │
 │   ├── sensory/
-│   └── specialized/
+│   │
+│   ├── specialized/
+│   │   └── ocdStore.js
+│   │
+│   ├── api/
+│   │   ├── moduleApi.js
+│   │   ├── dyslexiaApi.js
+│   │   ├── asdSupportApi.js
+│   │   └── patternMatchingAlerts.js
+│   │
+│   └── stores/
+│       ├── careSyncStore.js
+│       └── wardTaskStore.js
 │
 ├── context/
 │   └── AuthContext.jsx
 │
 ├── lib/
-│   ├── adaptive/
-│   │   ├── disorderFeatureRegistry.js
-│   │   ├── personalizationEngine.js
-│   │   └── questionEngine.js
-│   │
-│   ├── jitaiService.js
-│   ├── careSyncStore.js
+│   ├── disorders.js
 │   ├── featureRegistry.js
 │   ├── supabaseClient.js
 │   └── utils.js
@@ -511,11 +532,8 @@ src/
 │   ├── useDyslexiaRealtimeAnalytics.js
 │   ├── usePhonologicalAnalysis.js
 │   ├── useVoiceRecording.js
+│   ├── use-mobile.jsx
 │   └── use-toast.js
-│
-├── utils/
-│   ├── moduleSelector.js
-│   └── questionEngine.js
 │
 ├── data/
 │   ├── modulesRegistry.js
@@ -526,6 +544,8 @@ src/
 │   ├── adaptive/
 │   ├── anxiety/
 │   ├── Dyspraxia/
+│   ├── ocd/
+│   ├── asd/
 │   ├── AppLayout.jsx
 │   ├── FeatureGate.jsx
 │   ├── OnboardingFlow.jsx
@@ -546,6 +566,7 @@ src/
 │   ├── anxiety/
 │   ├── guardian/
 │   ├── support/
+│   ├── user/
 │   └── admin/
 │
 └── test/

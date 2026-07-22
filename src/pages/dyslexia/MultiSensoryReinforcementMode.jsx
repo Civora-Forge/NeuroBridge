@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Volume2, Puzzle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { trackReinforcementEvent } from "@/lib/dyslexiaApi";
+import { trackReinforcementEvent } from "@/support/api/dyslexiaApi";
 
 const sourceText = "Learning happens when the brain connects sound, shape, and movement together.";
 

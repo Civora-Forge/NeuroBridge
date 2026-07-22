@@ -17,7 +17,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
 } from "recharts";
 import { TrendingDown, TrendingUp, BarChart2, Activity, FileDown, Sparkles, Info } from "lucide-react";
-import { getSessions, getJournalEntries, getMindfulRuns, buildWeeklyInsight } from "@/lib/ocdStore";
+import { getSessions, getJournalEntries, getMindfulRuns, buildWeeklyInsight } from "@/support/specialized/ocdStore";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function shortDate(iso) {
