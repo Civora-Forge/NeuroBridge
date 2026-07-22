@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Activity } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getLearningProfile } from "@/lib/dyslexiaApi";
+import { getLearningProfile } from "@/support/api/dyslexiaApi";
 import { useDyslexiaRealtimeAnalytics } from "@/hooks/useDyslexiaRealtimeAnalytics";
 
 const scoreItems = [

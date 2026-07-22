@@ -1,4 +1,4 @@
-import { SUPPORT_MODULE_REGISTRY } from "@/lib/adaptive/disorderFeatureRegistry";
+import { SUPPORT_MODULE_REGISTRY } from "@/adaptive/reasoning/disorderFeatureRegistry";
 
 const DEFAULT_THRESHOLD = 2;
 const DEFAULT_MIN_MODULES = 3;

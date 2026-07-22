@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
-import { PhonemeWeaknessDetector } from "@/lib/PhonemeWeaknessDetector";
+import { PhonemeWeaknessDetector } from "@/support/learning/PhonemeWeaknessDetector";
 
 const MODE_TABS = [
   { key: "my-text", label: "My Text Mode", icon: BookText },

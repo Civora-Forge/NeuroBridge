@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, AudioLines, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { logPhonologyErrors, generatePhonologyDrills } from "@/lib/dyslexiaApi";
+import { logPhonologyErrors, generatePhonologyDrills } from "@/support/api/dyslexiaApi";
 
 export default function PhonologicalTrainingGenerator() {
   const [userId, setUserId] = useState("demo-user");

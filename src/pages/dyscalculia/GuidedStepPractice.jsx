@@ -17,7 +17,7 @@ import {
   saveUserProfile,
   initializeUserProfile,
   determineScaffoldLevel
-} from '@/lib/dyscalculiaAdaptiveEngine';
+} from '@/support/learning/dyscalculiaAdaptiveEngine';
 
 // Problem definitions with step-by-step breakdowns
 const PRACTICE_PROBLEMS = {

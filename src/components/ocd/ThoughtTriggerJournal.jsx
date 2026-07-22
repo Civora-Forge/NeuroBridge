@@ -13,7 +13,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Zap, AlertCircle, Smile, Flame, Plus, X, TrendingUp, Info, Wind, Waves, ArrowRight } from "lucide-react";
-import { getJournalEntries, addJournalEntry, inferSubtype, buildWeeklyInsight } from "@/lib/ocdStore";
+import { getJournalEntries, addJournalEntry, inferSubtype, buildWeeklyInsight } from "@/support/specialized/ocdStore";
 import ACTSOSModal from "./ACTSOSModal";
 
 const ENTRY_TYPES = [

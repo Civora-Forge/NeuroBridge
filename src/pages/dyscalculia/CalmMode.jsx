@@ -28,7 +28,7 @@ import {
   shouldActivateCalmMode,
   recordSessionExit,
   saveUserProfile
-} from '@/lib/dyscalculiaAdaptiveEngine';
+} from '@/support/learning/dyscalculiaAdaptiveEngine';
 
 /**
  * Breathing Exercise Component

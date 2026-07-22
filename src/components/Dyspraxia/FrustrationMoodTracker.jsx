@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { createEntry, getEntries } from "@/lib/moduleApi";
+import { createEntry, getEntries } from "@/support/api/moduleApi";
 import styles from "./DyspraxiaModule.module.css";
 
 const TASK_OPTIONS = ["Virtual Pegboard", "Writing", "Dressing", "Meal Prep", "Walking Route"];

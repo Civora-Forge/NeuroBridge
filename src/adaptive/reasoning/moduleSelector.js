@@ -11,7 +11,7 @@
  */
 
 import { CHALLENGE_MODULE_MAP, getModulesForChallenges } from "@/data/modulesRegistry";
-import { getQuestionsForChallenges } from "@/utils/questionEngine";
+import { getQuestionsForChallenges } from "@/adaptive/reasoning/questionEngine";
 
 const THRESHOLD   = 2;   // min score to unlock a module
 const MIN_MODULES = 2;   // never show fewer than this

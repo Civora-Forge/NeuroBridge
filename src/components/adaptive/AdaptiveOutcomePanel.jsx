@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { buildAdaptiveOutcomeModel } from "@/lib/adaptiveOutcomeEngine";
+import { buildAdaptiveOutcomeModel } from "@/adaptive/reflection/outcomeAnalysis";
 
 function riskVariant(level) {
   if (level === "High") return "destructive";

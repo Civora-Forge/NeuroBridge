@@ -18,7 +18,7 @@ import {
   shouldEnableVisualAids,
   getAdaptiveRecommendations,
   setPreferredRepresentation
-} from '@/lib/dyscalculiaAdaptiveEngine';
+} from '@/support/learning/dyscalculiaAdaptiveEngine';
 
 // Sample math problems with progressive difficulty
 const MATH_PROBLEMS = {

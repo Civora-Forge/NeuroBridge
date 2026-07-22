@@ -20,7 +20,7 @@ import {
   saveUserProfile,
   initializeUserProfile,
   getAdaptiveRecommendations
-} from '@/lib/dyscalculiaAdaptiveEngine';
+} from '@/support/learning/dyscalculiaAdaptiveEngine';
 
 /**
  * Missing Number Exercise

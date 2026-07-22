@@ -21,7 +21,7 @@
  */
 
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { createEntry } from "@/lib/moduleApi";
+import { createEntry } from "@/support/api/moduleApi";
 import styles from "./DyspraxiaModule.module.css";
 
 const INITIAL_TASKS = [

@@ -19,7 +19,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wind, Brain, Waves, Eye, Scan, Lightbulb, Play, Pause, StopCircle, Star, TrendingUp } from "lucide-react";
-import { getMindfulRuns, addMindfulRun, getJournalEntries, inferSubtype } from "@/lib/ocdStore";
+import { getMindfulRuns, addMindfulRun, getJournalEntries, inferSubtype } from "@/support/specialized/ocdStore";
 
 const SESSION_TYPES = [
   {
