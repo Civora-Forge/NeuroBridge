@@ -60,7 +60,6 @@ NeuroBridge currently provides support across domains including OCD, ADHD, Dysle
 * [Environment Variables](#environment-variables)
 * [Current Implementation](#current-implementation)
 * [Roadmap](#roadmap)
-* [License](#license)
 
 ---
 
