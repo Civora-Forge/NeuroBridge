@@ -36,8 +36,8 @@ import FocusSessions from "./pages/adhd/FocusSessions";
 import Soundscapes from "./pages/adhd/SoundScapes";
 import BodyDoubling from "./pages/adhd/BodyDoubling";
 
-import DyslexiaPage from "./pages/DyslexiaPage";
-import AdaptiveReadingIntelligence from "./pages/dyslexia/AdaptiveReadingIntelligence";
+import DyslexiaDashboard from "./pages/dyslexia/DyslexiaDashboard";
+import DyslexiaReader from "./pages/dyslexia/DyslexiaReader";
 import PhonologicalTrainingGenerator from "./pages/dyslexia/PhonologicalTrainingGenerator";
 import MultiSensoryReinforcementMode from "./pages/dyslexia/MultiSensoryReinforcementMode";
 import DyslexiaWritingAssistant from "./pages/dyslexia/DyslexiaWritingAssistant";
@@ -231,7 +231,7 @@ function ShellRoutes() {
           path="/dyslexia"
           element={
             <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <DyslexiaPage />
+              <DyslexiaDashboard />
             </ProtectedRoute>
           }
         />
@@ -239,7 +239,7 @@ function ShellRoutes() {
           path="/dyslexia/adaptive-reading"
           element={
             <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <AdaptiveReadingIntelligence />
+              <DyslexiaReader />
             </ProtectedRoute>
           }
         />
