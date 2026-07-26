@@ -24,6 +24,20 @@
  * Ownership: Support & Learning Engineer
  */
 
+import {
+  listUserMemories,
+  saveUserMemory,
+  deleteRole4Record,
+} from "@/support/persistence/role4Store";
+import { runRole4LocalMigrations } from "@/support/persistence/role4Migrations";
+import { ROLE4_COLLECTIONS } from "@/support/schemas/storageKeys";
+import {
+  ConfidenceLevel,
+  MemoryType,
+  OutcomeSource,
+  PrivacyLevel,
+} from "@/support/schemas/supportSchemas";
+
 const MEMORY_KEYS = {
   PREFERENCES: "nb_memory_preferences",
   STRATEGIES: "nb_memory_strategies",
@@ -157,4 +171,132 @@ export function getMemorySummary() {
     strategies: load(MEMORY_KEYS.STRATEGIES, []).length,
     patternTypes: Object.keys(load(MEMORY_KEYS.PATTERNS, {})).length,
   };
+}
+
+/**
+ * Store a user-scoped memory record using the Role 4 canonical schema.
+ * Existing global memory helpers above are retained for backward compatibility.
+ *
+ * @param {string} userId
+ * @param {object} memory
+ * @returns {object}
+ */
+export function storeUserMemory(userId, memory) {
+  return saveUserMemory(userId, {
+    confidence: ConfidenceLevel.MODERATE,
+    privacy: PrivacyLevel.PRIVATE,
+    source: OutcomeSource.SYSTEM_INFERENCE,
+    ...memory,
+    userId,
+  });
+}
+
+/**
+ * List user-scoped Role 4 memory records.
+ * @param {string} userId
+ * @param {{ type?: string, includeArchived?: boolean }} [filters]
+ * @returns {object[]}
+ */
+export function getUserMemory(userId, filters = {}) {
+  const records = listUserMemories(userId);
+  return records.filter((record) => {
+    if (!filters.includeArchived && record.archivedAt) return false;
+    if (filters.type && record.type !== filters.type) return false;
+    return true;
+  });
+}
+
+/**
+ * Archive a user-scoped memory record without deleting the underlying evidence.
+ * @param {string} userId
+ * @param {string} memoryId
+ * @returns {object | null}
+ */
+export function archiveUserMemory(userId, memoryId) {
+  const existing = listUserMemories(userId).find((record) => record.id === memoryId);
+  if (!existing) return null;
+  return saveUserMemory(userId, {
+    ...existing,
+    archivedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Permanently delete a user-scoped memory record.
+ * @param {string} userId
+ * @param {string} memoryId
+ * @returns {boolean}
+ */
+export function deleteUserMemory(userId, memoryId) {
+  return deleteRole4Record(userId, ROLE4_COLLECTIONS.MEMORIES, memoryId);
+}
+
+/**
+ * Summarize user-scoped memory records.
+ * @param {string} userId
+ * @returns {object}
+ */
+export function getUserMemorySummary(userId) {
+  const records = listUserMemories(userId);
+  const activeRecords = records.filter((record) => !record.archivedAt);
+  const byType = activeRecords.reduce((acc, record) => {
+    acc[record.type] = (acc[record.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    total: records.length,
+    active: activeRecords.length,
+    archived: records.length - activeRecords.length,
+    byType,
+  };
+}
+
+/**
+ * Record a user-scoped strategy outcome in canonical memory form.
+ * @param {string} userId
+ * @param {string} interventionType
+ * @param {boolean} successful
+ * @param {object} [context]
+ * @returns {object}
+ */
+export function recordUserStrategyOutcome(userId, interventionType, successful, context = {}) {
+  return storeUserMemory(userId, {
+    id: `strategy-${interventionType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: successful ? MemoryType.SUCCESSFUL_STRATEGY : MemoryType.INEFFECTIVE_STRATEGY,
+    key: interventionType,
+    value: {
+      interventionType,
+      successful,
+      context,
+    },
+    source: OutcomeSource.MODULE_EVENT,
+  });
+}
+
+/**
+ * Get user-scoped strategy effectiveness.
+ * Falls back to neutral effectiveness when there is no user-specific history.
+ * @param {string} userId
+ * @param {string} interventionType
+ * @returns {{ effective: number, total: number, rate: number }}
+ */
+export function getUserStrategyEffectiveness(userId, interventionType) {
+  const records = getUserMemory(userId).filter(
+    (record) =>
+      record.key === interventionType &&
+      [MemoryType.SUCCESSFUL_STRATEGY, MemoryType.INEFFECTIVE_STRATEGY].includes(record.type),
+  );
+  const effective = records.filter((record) => record.type === MemoryType.SUCCESSFUL_STRATEGY).length;
+  const total = records.length;
+  return {
+    effective,
+    total,
+    rate: total > 0 ? effective / total : 0.5,
+  };
+}
+
+export function migrateLegacyMemory(userId) {
+  return runRole4LocalMigrations({ userId });
 }
