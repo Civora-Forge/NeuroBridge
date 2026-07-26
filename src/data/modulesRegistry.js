@@ -148,6 +148,14 @@ export const MODULES_REGISTRY = {
     launchRoute: "/dyslexia/adaptive-reading",
     tags: ["reading_fatigue", "focus"],
   },
+  [FEATURES.DYSLEXIA_ADAPTIVE_READING]: {
+    id: FEATURES.DYSLEXIA_ADAPTIVE_READING,
+    title: "Adaptive Reading Module",
+    description: "OpenDyslexic reader with TTS, focus mode, reading ruler, and full accessibility controls.",
+    icon: "BookOpenText",
+    launchRoute: "/dyslexia/reading-module",
+    tags: ["reading_fatigue", "focus", "tts", "accessibility"],
+  },
   "dyscalculia.number-sense": {
     id: "dyscalculia.number-sense",
     title: "Number Sense Engine",
@@ -256,6 +264,7 @@ export const CHALLENGE_MODULE_MAP = {
   ],
   dyslexia: [
     "dyslexia.adaptive-reading",
+    FEATURES.DYSLEXIA_ADAPTIVE_READING,
     FEATURES.ADHD_FOCUS,
     FEATURES.ADHD_SOUNDS,
   ],
