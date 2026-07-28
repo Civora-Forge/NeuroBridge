@@ -237,6 +237,16 @@ export default function DyslexiaDashboard() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="h-12 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+              >
+                <Link to="/dyslexia/reading-module">
+                  <Sparkles className="h-4 w-4" />
+                  New Reading Module
+                </Link>
+              </Button>
             </div>
           </div>
         </motion.section>

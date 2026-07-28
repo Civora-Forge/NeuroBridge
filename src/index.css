@@ -1,4 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;700&family=Lexend:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+/* OpenDyslexic — hosted via CDN */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/fonts/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/fonts/OpenDyslexic-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/fonts/OpenDyslexic-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -228,5 +251,38 @@
 
   .gradient-dyspraxia {
     background: linear-gradient(135deg, hsl(10 70% 60%) 0%, hsl(25 80% 60%) 100%);
+  }
+
+  /* Dyslexia reading module — spoken-word highlight */
+  .tts-word-active {
+    background-color: rgba(251, 191, 36, 0.55);
+    border-radius: 3px;
+    padding: 0 2px;
+    transition: background-color 0.12s ease;
+  }
+
+  /* Dyslexia reading ruler overlay */
+  .reading-ruler {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: 3.2em;
+    background: rgba(251, 191, 36, 0.14);
+    border-top: 2px solid rgba(251, 191, 36, 0.45);
+    border-bottom: 2px solid rgba(251, 191, 36, 0.45);
+    pointer-events: none;
+    z-index: 35;
+    transition: top 0.05s linear;
+  }
+
+  /* Focus-mode dimming for inactive paragraphs */
+  .para-dimmed {
+    opacity: 0.22;
+    transition: opacity 0.2s ease;
+  }
+
+  .para-focused {
+    opacity: 1;
+    transition: opacity 0.2s ease;
   }
 }

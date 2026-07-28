@@ -51,8 +51,9 @@ export const FEATURES = /** @type {const} */ ({
   ADHD_DOUBLING:  "adhd.body-doubling",
 
   // ── Dyslexia sub-features ───────────────────
-  DYSLEXIA_READER:   "dyslexia.reader-mode",
-  DYSLEXIA_WORDBANK: "dyslexia.word-bank",
+  DYSLEXIA_READER:           "dyslexia.reader-mode",
+  DYSLEXIA_WORDBANK:         "dyslexia.word-bank",
+  DYSLEXIA_ADAPTIVE_READING: "dyslexia.adaptive-reading-module",
 
   // ── Dyspraxia sub-features ──────────────────
   DYSPRAXIA_DECOMPOSE: "dyspraxia.task-decompose",
@@ -204,6 +205,10 @@ export const FEATURE_REGISTRY = {
   },
   [FEATURES.DYSLEXIA_WORDBANK]: {
     label: "Word Bank",
+    disorders: [DISORDERS.DYSLEXIA],
+  },
+  [FEATURES.DYSLEXIA_ADAPTIVE_READING]: {
+    label: "Adaptive Reading Module",
     disorders: [DISORDERS.DYSLEXIA],
   },
 
