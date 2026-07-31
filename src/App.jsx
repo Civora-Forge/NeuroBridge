@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { ContextProvider } from "@/context/ContextProvider";
+import ContextInspector from "@/components/dev/ContextInspector";
 import { FEATURES } from "@/lib/featureRegistry";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -74,8 +76,9 @@ const queryClient = new QueryClient();
 
 function ShellRoutes() {
   return (
-    <AppLayout>
-      <Routes>
+    <ContextProvider>
+      <AppLayout>
+        <Routes>
         {/* Support-only */}
         <Route
           path="/support-dashboard"
@@ -444,7 +447,9 @@ function ShellRoutes() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </AppLayout>
+      </AppLayout>
+      <ContextInspector />
+    </ContextProvider>
   );
 }
 

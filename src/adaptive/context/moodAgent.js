@@ -154,6 +154,7 @@ function inferFromActivity(activityData) {
  * @param {string} [inputs.explicitMood] - Direct user check-in mood (e.g. "stressed", "calm")
  * @param {object} [inputs.conversation] - Conversation context object or text message
  * @param {object} [inputs.activity] - Recent activity tracking object
+ * @param {boolean} [inputs.persist=true] - When false, skip store/event writes (pipeline handles ingestion)
  * @returns {{ value: string, confidence: number, sources: string[], timestamp: string }}
  */
 export function inferMood(inputs = {}) {
@@ -259,7 +260,8 @@ export function inferMood(inputs = {}) {
 
   _lastInferredMood = { ...result };
 
-  // Update Context Store under mood category
+  const persist = inputs.persist !== false;
+
   const storeMoodData = {
     primaryMood: result.value,
     valence: result.value === "positive" || result.value === "calm" ? 0.8 : result.value === "neutral" ? 0.5 : 0.25,
@@ -269,6 +271,10 @@ export function inferMood(inputs = {}) {
     confidence: result.confidence,
     sources: result.sources,
   };
+
+  if (!persist) {
+    return result;
+  }
 
   contextStore.updateContext("mood", storeMoodData, "moodAgent", result.confidence);
 

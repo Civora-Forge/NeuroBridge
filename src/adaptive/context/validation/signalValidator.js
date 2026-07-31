@@ -121,8 +121,9 @@ export function detectSignalConflicts(category, payload, currentContext) {
   if (!payload || !currentContext) return conflicts;
 
   // Conflict 1: Explicit mood check-in vs conversation text sentiment
-  if (category === "mood" && payload.value && currentContext.conversation) {
-    const explicitVal = String(payload.value).toLowerCase();
+  const moodValue = payload.value || payload.primaryMood;
+  if (category === "mood" && moodValue && currentContext.conversation) {
+    const explicitVal = String(moodValue).toLowerCase();
     const sentimentScore = currentContext.conversation.sentimentScore;
 
     if ((explicitVal === "calm" || explicitVal === "positive") && sentimentScore !== null && sentimentScore < -0.5) {

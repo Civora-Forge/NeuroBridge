@@ -13,7 +13,8 @@
  * Ownership: Context & Perception Engineer
  */
 
-import { contextEngine } from "../contextEngine.js";
+import { contextStore } from "../contextStore.js";
+import { fuseContext } from "../contextFusion.js";
 
 /**
  * Express / Vite / Service handler for GET /api/context/current.
@@ -24,7 +25,7 @@ import { contextEngine } from "../contextEngine.js";
  */
 export function handleGetUnifiedContext(req = {}) {
   const timestamp = new Date().toISOString();
-  const contextSnapshot = contextEngine.getLatestContext();
+  const contextSnapshot = fuseContext({});
 
   return {
     status: "success",

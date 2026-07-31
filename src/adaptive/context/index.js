@@ -70,3 +70,7 @@ export {
 
 // Unified Context API & Services
 export { handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+
+// Pipeline orchestration & observability
+export { processUserMessage, syncProfileContext } from "./contextPipeline.js";
+export { initContextLogger, logFusion, teardownContextLogger, isDebugEnabled } from "./contextLogger.js";

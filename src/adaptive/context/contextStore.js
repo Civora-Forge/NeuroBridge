@@ -124,9 +124,10 @@ class ContextStore {
    * @param {object} updateData - Partial or full properties for the category
    * @param {string} [source="unknown"] - Source component/agent generating the update
    * @param {number} [confidence] - Optional confidence score for this dimension update
+   * @param {{ emitEvent?: boolean }} [options] - When false, skip ContextUpdated (engine handles material-change emission)
    * @returns {import("./types/contextTypes.js").UnifiedContextObject} Updated context snapshot
    */
-  updateContext(category, updateData, source = "unknown", confidence) {
+  updateContext(category, updateData, source = "unknown", confidence, options = {}) {
     if (!this.state[category]) {
       console.warn(`[ContextStore] Invalid category '${category}' specified for update.`);
       return this.getContext();
@@ -151,14 +152,15 @@ class ContextStore {
 
     const snapshot = this.getContext();
 
-    // Emit ContextUpdated event
-    contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
-      category,
-      updatedData: snapshot[category],
-      context: snapshot,
-      timestamp: now,
-      source,
-    });
+    if (options.emitEvent === true) {
+      contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
+        category,
+        updatedData: snapshot[category],
+        context: snapshot,
+        timestamp: now,
+        source,
+      });
+    }
 
     return snapshot;
   }

@@ -22,6 +22,8 @@ import { createContextSignal } from "./types/contextTypes.js";
 import { validateContextSignal } from "./validation/signalValidator.js";
 import { fuseContext, detectMaterialChange } from "./contextFusion.js";
 import { handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+import { initContextLogger } from "./contextLogger.js";
+import { processUserMessage as runPipelineMessage, syncProfileContext } from "./contextPipeline.js";
 
 class ContextEngine {
   constructor() {
@@ -55,6 +57,8 @@ class ContextEngine {
 
     // 4. Perform initial context fusion
     fuseContext({}, { conflicts: this.activeConflicts });
+
+    initContextLogger();
 
     this.isInitialized = true;
 
@@ -130,6 +134,22 @@ class ContextEngine {
       contextStore.updateContext(targetCategory, payload, source, confidence);
     }
 
+    // Emit typed perception events for pipeline observability
+    if (type === ContextEvents.CONVERSATION_UPDATED) {
+      contextEventBus.emit(ContextEvents.CONVERSATION_UPDATED, {
+        conversation: payload,
+        analysis: payload.analysis,
+        signal,
+        timestamp: signal.timestamp,
+      });
+    } else if (type === ContextEvents.MOOD_UPDATED) {
+      contextEventBus.emit(ContextEvents.MOOD_UPDATED, {
+        mood: payload,
+        signal,
+        timestamp: signal.timestamp,
+      });
+    }
+
     // 3. Fuse full context snapshot with metadata
     const fusedContext = fuseContext({}, { conflicts: this.activeConflicts });
 
@@ -189,8 +209,44 @@ class ContextEngine {
    * @param {object} [data]
    */
   trackNavigation(moduleName, data = {}) {
+    const previousContext = contextStore.getContext();
     updateSessionNavigation(moduleName);
     trackActivity(moduleName, { module: moduleName, ...data });
+
+    const fusedContext = fuseContext({}, { conflicts: this.activeConflicts });
+    const changeCheck = detectMaterialChange(previousContext, fusedContext);
+
+    if (changeCheck.isMaterialChange) {
+      contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
+        category: "activity",
+        updatedData: fusedContext.activity,
+        context: fusedContext,
+        timestamp: new Date().toISOString(),
+        source: "activityTracker",
+        isMaterialChange: true,
+        materialChanges: changeCheck.materialChanges,
+      });
+    }
+
+    return fusedContext;
+  }
+
+  /**
+   * Process user message through conversation → mood → fusion pipeline.
+   * @param {string} text
+   * @param {object} [options]
+   * @returns {Promise<{ analysis: object, mood: object, context: object }>}
+   */
+  processUserMessage(text, options = {}) {
+    return runPipelineMessage(text, options);
+  }
+
+  /**
+   * Sync authenticated user profile into context dimensions.
+   * @param {object} profile
+   */
+  syncProfile(profile) {
+    syncProfileContext(profile);
   }
 
   /**

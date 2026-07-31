@@ -230,7 +230,11 @@ export function analyzeConversation(text, options = {}) {
       analysis: validated,
     };
 
-    // Update Context Store conversation category
+    if (options.persist === false) {
+      return validated;
+    }
+
+    // Update Context Store conversation category (silent — engine emits ContextUpdated)
     contextStore.updateContext("conversation", conversationData, "conversationAgent", validated.confidence);
 
     // Construct and emit ConversationUpdated signal & event

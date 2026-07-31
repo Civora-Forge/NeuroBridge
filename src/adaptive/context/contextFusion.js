@@ -112,7 +112,7 @@ export function detectMaterialChange(prevContext, newContext) {
  * @returns {import("./types/contextTypes.js").UnifiedContextObject} Fused Unified Context Snapshot
  */
 export function fuseContext(signals = {}, options = {}) {
-  // 1. Ingest provided signals into contextStore cleanly
+  // Optional signal ingestion (used in tests); production path uses contextEngine.ingestSignal
   if (signals.activity) contextStore.updateContext("activity", signals.activity, "contextFusion");
   if (signals.environment) contextStore.updateContext("environment", signals.environment, "contextFusion");
   if (signals.conversation) contextStore.updateContext("conversation", signals.conversation, "contextFusion");
@@ -120,7 +120,6 @@ export function fuseContext(signals = {}, options = {}) {
   if (signals.session) contextStore.updateContext("session", signals.session, "contextFusion");
   if (signals.profile) contextStore.updateContext("profile", signals.profile, "contextFusion");
 
-  // 2. Fetch raw snapshot
   const rawSnapshot = contextStore.getContext();
   const now = new Date().toISOString();
 
