@@ -37,7 +37,7 @@ describe('Focus Session learning pipeline', () => {
   });
 
   it('derives thresholded Focus Session memory and advisory hints from repeated reflected evidence', async () => {
-    await session(1); 
+    await session(1);
     expect(deriveMemoryFromReflections(USER_ID, MODULE_ID).created).toEqual([]);
     await session(2);
     const two = deriveMemoryFromReflections(USER_ID, MODULE_ID);
