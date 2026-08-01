@@ -1,0 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { clearEvidenceJournalEntries, listEvidenceJournalEntries, saveEvidenceJournalEntry } from '@/support/persistence/evidenceJournalStore';
+const entry = (userId) => ({ id: `entry-${userId}`, userId, moduleId: 'support.evidence_journal', category: 'growth', content: 'private entry', starred: false, retentionMode: 'user_scoped', safetyLevel: 'sensitive', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
+describe('evidence journal store', () => { beforeEach(() => localStorage.clear()); it('isolates durable entries by user and leaves legacy data untouched', () => { localStorage.setItem('evidence-folder-v1', '[]'); saveEvidenceJournalEntry('a', entry('a')); expect(listEvidenceJournalEntries('b')).toEqual([]); clearEvidenceJournalEntries('a'); expect(localStorage.getItem('evidence-folder-v1')).toBe('[]'); }); });

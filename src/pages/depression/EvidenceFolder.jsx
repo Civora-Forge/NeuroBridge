@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Shield, Star, TrendingUp, Award, Heart } from "lucide-react";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { assessSupportInput } from '@/support/safety';
+import { clearEvidenceJournalEntries, deleteEvidenceJournalEntry, listEvidenceJournalEntries, saveEvidenceJournalEntry } from '@/support/persistence/evidenceJournalStore';
+import { buildEvidenceJournalOutcome, canSaveEvidenceEntry, normalizeEvidenceCategory } from '@/support/modules/evidenceJournal/evidenceJournalService';
+import { EVIDENCE_JOURNAL_MODULE_ID } from '@/support/modules/evidenceJournal/evidenceJournalTypes';
 
 const evidenceCategories = {
   survival: { icon: <Shield className="w-4 h-4" />, label: "Survival", hint: "I got through something hard" },
@@ -13,56 +19,59 @@ const evidenceCategories = {
 };
 
 export default function EvidenceFolder() {
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [input, setInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("survival");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
+  const [savedCount, setSavedCount] = useState(0);
+  const [deletedCount, setDeletedCount] = useState(0);
+  const [categoriesUsed, setCategoriesUsed] = useState([]);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [rated, setRated] = useState(false);
+  const startedAtRef = useRef(null);
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: EVIDENCE_JOURNAL_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { allowedCategories: Object.keys(evidenceCategories), retentionMode: user?.id ? 'user_scoped' : 'ephemeral', requiresSafetyCheck: true } });
 
   // load saved
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("evidence-folder-v1") : null;
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setItems(parsed);
-      } catch {}
-    }
-  }, []);
+    setItems(user?.id ? listEvidenceJournalEntries(user.id) : []);
+  }, [user?.id]);
 
-  // persist
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("evidence-folder-v1", JSON.stringify(items));
-    }
-  }, [items]);
-
-  const add = () => {
+  const add = async () => {
     if (!input.trim()) return;
+    const safety = assessSupportInput({ userId: user?.id, moduleId: EVIDENCE_JOURNAL_MODULE_ID, action: 'save_entry', inputType: 'free_text', text: input });
+    if (!canSaveEvidenceEntry(safety)) return;
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
     const now = new Date().toISOString();
-    setItems([
-      {
-        id: Date.now(),
+    const entry = {
+        id: String(Date.now()), userId: user?.id,
         text: input.trim(),
-        category: selectedCategory,
+        content: input.trim(), category: normalizeEvidenceCategory(selectedCategory),
         createdAt: now,
-        starred: false
-      },
-      ...items
-    ]);
+        updatedAt: now, starred: false, moduleId: EVIDENCE_JOURNAL_MODULE_ID, retentionMode: 'user_scoped', safetyLevel: 'sensitive'
+      };
+    const next = user?.id ? saveEvidenceJournalEntry(user.id, entry) : { ...entry, userId: null, retentionMode: 'ephemeral' };
+    setItems([next, ...items]); setSavedCount((count) => count + 1); setCategoriesUsed((categories) => [...new Set([...categories, entry.category])]);
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'evidence_journal_saved', completedUnits: savedCount + 1, totalUnits: savedCount + 1, progressRatio: 1 });
     setInput("");
   };
 
   const toggleStar = (id) => {
-    setItems(items.map(i => i.id === id ? { ...i, starred: !i.starred } : i));
+    setItems(items.map(i => { const next = i.id === id ? { ...i, starred: !i.starred, updatedAt: new Date().toISOString() } : i; if (next.id === id && user?.id) saveEvidenceJournalEntry(user.id, next); return next; }));
   };
 
   const remove = (id) => {
-    setItems(items.filter(i => i.id !== id));
+    if (user?.id) deleteEvidenceJournalEntry(user.id, id);
+    setItems(items.filter(i => i.id !== id)); setDeletedCount((count) => count + 1);
   };
+  const outcome = (confirmed = false) => buildEvidenceJournalOutcome({ created: savedCount, saved: user?.id ? savedCount : 0, deleted: deletedCount, categories: categoriesUsed, confirmed, startedAt: startedAtRef.current });
+  const completeSession = async () => { if (!savedCount || sessionComplete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(outcome(true)); setSessionComplete(true); };
+  const discardSession = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_discard', {}, outcome(false)); lifecycle.reset(); setSavedCount(0); setDeletedCount(0); setCategoriesUsed([]); setSessionComplete(false); setRated(false); setInput(''); };
+  const clearAll = async () => { if (!window.confirm('Clear all saved entries?')) return; const count = items.length; if (user?.id) clearEvidenceJournalEntries(user.id); setItems([]); setDeletedCount((value) => value + count); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'evidence_journal_cleared', completedUnits: savedCount, totalUnits: savedCount, progressRatio: 1 }); };
 
   const filtered = items.filter(i => {
-    const matchesText = i.text.toLowerCase().includes(search.toLowerCase());
+    const matchesText = i.content.toLowerCase().includes(search.toLowerCase());
     const matchesCat = filterCat === "all" || i.category === filterCat;
     return matchesText && matchesCat;
   });
@@ -172,6 +181,9 @@ export default function EvidenceFolder() {
         <p className="text-[11px] text-gray-500">
           Tip: Aim for 1â€“3 logs per day, no matter how small. Futureâ€‘you will thank you.
         </p>
+        {!user?.id && <p className="text-[11px] text-gray-500">Entries are local and temporary. Sign in to retain them in this browser under your account.</p>}
+        <div className="flex gap-3"><button type="button" onClick={completeSession} disabled={!savedCount || sessionComplete} className="secondaryButton px-4 py-2 text-xs disabled:opacity-50">Complete journal session</button><button type="button" onClick={discardSession} className="text-xs text-gray-500">Discard session</button>{items.length > 0 && <button type="button" onClick={clearAll} className="text-xs text-red-500">Clear all saved entries</button>}</div>
+        {sessionComplete && !rated && <div className="text-xs text-gray-600">How helpful was this journal session? {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={async () => { if (user?.id) { const result = await lifecycle.rate({ rating: value }); if (!result.ok) return; } setRated(true); }} className="ml-2 px-2 py-1 border rounded">{value}</button>)}</div>}
       </motion.div>
 
       {/* Filters */}
@@ -266,7 +278,7 @@ export default function EvidenceFolder() {
                         </span>
                       </div>
                       <p className="text-sm md:text-base text-gray-800 leading-relaxed">
-                        {i.text}
+                         {i.content}
                       </p>
                     </div>
                     <div className="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

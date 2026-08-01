@@ -100,6 +100,16 @@ const recordBase = {
   updatedAt: isoDateString.default(() => new Date().toISOString()),
 };
 
+export const EvidenceJournalEntrySchema = z.object({
+  ...recordBase,
+  moduleId: z.literal('support.evidence_journal'),
+  category: z.enum(['survival', 'growth', 'social', 'achievement', 'selfworth']),
+  content: z.string().trim().min(1),
+  starred: z.boolean(),
+  retentionMode: z.literal('user_scoped'),
+  safetyLevel: z.literal('sensitive'),
+});
+
 export const InterventionSchema = z.object({
   ...recordBase,
   moduleId: idSchema,
