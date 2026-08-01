@@ -100,6 +100,17 @@ describe("public support lifecycle commands", () => {
     expect((await failSupportModule(command(failed.interventionId))).intervention.status).toBe("failed");
   });
 
+  it("persists an optional canonical outcome with abandonment", async () => {
+    const started = await startIntervention({ moduleId: "support.focus_session" });
+    const abandoned = await abandonSupportModule(command(started.interventionId, {
+      moduleId: "support.focus_session",
+      outcome: { completionStatus: "partially_completed", durationMs: 60000, metrics: { completionRatio: 0.5 }, finalConfiguration: { plannedDurationMinutes: 15 } },
+    }));
+
+    expect(abandoned.intervention.status).toBe("abandoned");
+    expect(abandoned.outcome).toMatchObject({ status: "abandoned", durationMs: 60000, metrics: { completionRatio: 0.5 } });
+  });
+
   it("validates ratings and rejects duplicate rating submissions", async () => {
     const started = await startIntervention();
     await completeSupportModule(command(started.interventionId));

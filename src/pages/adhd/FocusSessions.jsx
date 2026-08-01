@@ -423,7 +423,10 @@ const FocusSessions = () => {
     milestonesRef.current = new Set();
     completedRef.current = false;
     startedAtRef.current = Date.now();
-    if (user?.id) await lifecycle.start();
+    if (user?.id) {
+      const started = await lifecycle.start();
+      if (!started.ok) return;
+    }
     setPhase('running');
   };
 
@@ -441,7 +444,7 @@ const FocusSessions = () => {
 
   const resetToSetup = async () => {
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal && !completedRef.current) {
-      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) });
+      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) }, buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: secondsLeft, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current }));
     }
     setPhase('setup');
     setSecondsLeft(focusMinutes * 60);

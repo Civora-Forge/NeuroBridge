@@ -144,7 +144,22 @@ export async function completeSupportModule(request) {
 }
 
 export async function abandonSupportModule(request) {
-  return runTransition(request, LifecycleAction.ABANDON, InterventionStatus.ABANDONED, "intervention_abandoned");
+  const parsed = parseCommand(request, LifecycleAction.ABANDON);
+  if (parsed.error) return parsed.error;
+  const transition = runTransition(parsed.command, LifecycleAction.ABANDON, InterventionStatus.ABANDONED, "intervention_abandoned");
+  if (!transition.ok || !parsed.command.outcome) return transition;
+  const outcome = parsed.command.outcome;
+  return {
+    ...transition,
+    outcome: recordInterventionOutcome({
+      userId: parsed.command.userId,
+      interventionId: parsed.command.interventionId,
+      status: InterventionStatus.ABANDONED,
+      completed: false,
+      durationMs: outcome.durationMs,
+      metrics: { ...outcome.metrics, finalConfiguration: outcome.finalConfiguration },
+    }),
+  };
 }
 
 export async function cancelSupportModule(request) {

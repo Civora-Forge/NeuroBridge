@@ -139,8 +139,9 @@ export function useInterventionLifecycle({
   const pause = useCallback((metadata = {}) => runCommand(pauseSupportModule, { metadata }), [runCommand]);
   const resume = useCallback((metadata = {}) => runCommand(resumeSupportModule, { metadata }), [runCommand]);
   const complete = useCallback((outcome = {}) => runCommand(completeSupportModule, { outcome }), [runCommand]);
-  const abandon = useCallback((reason, metadata = {}) => runCommand(abandonSupportModule, {
+  const abandon = useCallback((reason, metadata = {}, outcome) => runCommand(abandonSupportModule, {
     metadata: { ...metadata, reason },
+    ...(outcome ? { outcome } : {}),
   }), [runCommand]);
   const cancel = useCallback((reason, metadata = {}) => runCommand(cancelSupportModule, {
     metadata: { ...metadata, reason },
