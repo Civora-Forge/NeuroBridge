@@ -57,3 +57,12 @@ export function buildFocusSessionHints(memories) {
     return [];
   });
 }
+
+export function buildGentleActivityHints(memories) {
+  return memories.flatMap((memory) => {
+    const observed = observedAssociation(memory);
+    if (memory.key === 'gentle_activity_completion_band' && observed === 'partial') return [hint(memory, 'reduceStepCount', true, 'repeated_partial_completion')].filter(Boolean);
+    if (memory.key === 'high_step_abandonment') return [hint(memory, 'useLowEffortProtocol', true, 'high_step_abandonment')].filter(Boolean);
+    return [];
+  });
+}

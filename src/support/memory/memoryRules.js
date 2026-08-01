@@ -68,3 +68,14 @@ export function buildFocusSessionMemoryObservations(reflections) {
   });
   return observations;
 }
+
+export function buildGentleActivityMemoryObservations(reflections) {
+  const observations = [];
+  reflections.forEach((reflection) => {
+    const completion = insightValue(reflection, 'gentle_activity_completion');
+    const steps = insightValue(reflection, 'gentle_activity_step_pattern');
+    if (Number.isFinite(completion)) add(observations, MemoryCategory.COMPLETION_PATTERN, 'gentle_activity_completion_band', completion >= 0.8 ? 'high' : completion >= 0.3 ? 'partial' : 'low', reflection);
+    if (reflection.outcomeSummary?.completionStatus === 'abandoned' && Number.isInteger(steps) && steps >= 4) add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, 'high_step_abandonment', 'observed', reflection);
+  });
+  return observations;
+}

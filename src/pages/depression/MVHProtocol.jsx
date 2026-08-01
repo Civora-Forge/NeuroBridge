@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gentleActivityService';
+import { GENTLE_ACTIVITY_MODULE_ID } from '@/support/modules/gentleActivity/gentleActivityTypes';
 
 const steps = [
   {
@@ -37,13 +41,31 @@ const steps = [
 ];
 
 export default function MVHProtocol() {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
+  const [energyBefore, setEnergyBefore] = useState(null);
+  const [energyAfter, setEnergyAfter] = useState(null);
+  const startedAtRef = useRef(null);
+  const completedRef = useRef(false);
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GENTLE_ACTIVITY_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { pacing: 'gentle', totalSteps: steps.length } });
 
   const percentage = Math.round((step / (steps.length - 1)) * 100);
 
-  const next = () => {
-    setStep(prev => (prev < steps.length - 1 ? prev + 1 : 0));
+  const next = async () => {
+    const completedSteps = Math.min(step + 1, steps.length);
+    if (!lifecycle.hasStarted && user?.id) {
+      const started = await lifecycle.start();
+      if (!started.ok) return;
+      startedAtRef.current = Date.now();
+    }
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'gentle_activity_step', completedUnits: completedSteps, totalUnits: steps.length, progressRatio: completedSteps / steps.length });
+    if (completedSteps === steps.length) {
+      if (user?.id && !completedRef.current) { completedRef.current = true; await lifecycle.complete(buildGentleActivityOutcome({ configuration: { pacing: 'gentle', totalSteps: steps.length }, completedSteps, energyBefore, energyAfter, startedAt: startedAtRef.current })); }
+      setStep(0); lifecycle.reset(); completedRef.current = false; return;
+    }
+    setStep(completedSteps);
   };
+  const reset = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_reset', {}, buildGentleActivityOutcome({ configuration: { pacing: 'gentle', totalSteps: steps.length }, completedSteps: step, energyBefore, energyAfter, startedAt: startedAtRef.current })); setStep(0); lifecycle.reset(); };
 
   return (
     <div className="max-w-md mx-auto p-6 md:p-8 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm space-y-6 text-center">
@@ -124,6 +146,8 @@ export default function MVHProtocol() {
         </motion.div>
       </AnimatePresence>
 
+      <div className="flex justify-center gap-3 text-xs text-gray-600"><label>Energy before <select value={energyBefore ?? ''} onChange={(event) => setEnergyBefore(event.target.value ? Number(event.target.value) : null)}><option value="">Optional</option>{[1,2,3,4,5].map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>Energy after <select value={energyAfter ?? ''} onChange={(event) => setEnergyAfter(event.target.value ? Number(event.target.value) : null)}><option value="">Optional</option>{[1,2,3,4,5].map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
+
       {/* Completion badge */}
       {step === steps.length - 1 && (
         <motion.div
@@ -145,6 +169,8 @@ export default function MVHProtocol() {
       >
         {step === steps.length - 1 ? "Restart protocol" : "I did this â†’ Next"}
       </motion.button>
+      {step > 0 && <button onClick={reset} className="text-xs text-gray-500">Reset protocol</button>}
+      {!user?.id && <p role="alert" className="text-xs text-amber-700">Sign in to save protocol progress and outcomes. You can still use this locally.</p>}
 
       {/* Tiny footer reassurance */}
       <p className="text-[11px] text-gray-500 text-left">

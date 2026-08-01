@@ -9,6 +9,11 @@ const buildFocusSessionInsights = ({ outcomeSummary, metrics }) => [
 const MODULE_REFLECTION_RULES = {
   "support.task_breakdown": buildTaskBreakdownInsights,
   "support.focus_session": buildFocusSessionInsights,
+  "support.gentle_activity": ({ outcomeSummary, metrics }) => [
+    ...(Number.isFinite(metrics.completionRate) ? [{ type: 'gentle_activity_completion', value: metrics.completionRate, confidence: 1 }] : []),
+    ...(Number.isFinite(metrics.energyDelta) ? [{ type: 'gentle_activity_energy_change', value: metrics.energyDelta > 0 ? 'improved' : metrics.energyDelta < 0 ? 'decreased' : 'unchanged', confidence: 1 }] : []),
+    ...(Number.isInteger(metrics.stepsCompleted) ? [{ type: 'gentle_activity_step_pattern', value: metrics.stepsCompleted, confidence: 1 }] : []),
+  ],
 };
 
 export function getModuleReflectionRule(moduleId) {
