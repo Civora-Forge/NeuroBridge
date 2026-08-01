@@ -33,7 +33,7 @@
 /**
  * Generate UI configuration from an adaptation plan.
  * @param {string} uiMode - The recommended UI mode
- * @param {import("../state/userStateModel.js").UserState} userState
+ * @param {import("../../../backend/adaptive/state/userStateModel.js").UserState} userState
  * @returns {UIConfiguration}
  */
 export function adaptUI(uiMode, userState) {
