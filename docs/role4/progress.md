@@ -27,7 +27,7 @@
 - [x] Phase 3: Add shared module execution and lifecycle integration boundary
 - [x] Phase 4: Complete reusable intervention lifecycle boundary and hook
 - [x] Phase 5: Integrate Task Breakdown lifecycle and canonical outcomes
-- [ ] Phase 6: Implement reflection for canonical intervention outcomes
+- [x] Phase 6: Implement reflection for canonical intervention outcomes
 - [ ] Phase 7: Derive user-scoped memory from reflected outcomes
 - [ ] Phase 8: Add memory-informed personalization hints
 - [ ] Phase 9: Integrate ADHD Focus Sessions lifecycle and outcomes
@@ -62,3 +62,6 @@
 - Phase 5: Task Breakdown now starts `support.task_breakdown` only through the shared execution API. Checklist generation is deterministic and local until an explicit start, first checked step, or timer start. Completion requires every step; replacement/discard abandons active unfinished work, while unmount and pre-start reset do not.
 - Phase 5: Canonical outcomes contain aggregate step, configuration, timer, edit/reorder, and duration metrics only. Raw task and step text are not persisted. Missing `user.id` keeps the checklist local and displays a non-destructive sign-in message. Reflection and memory remain deferred to Phases 6 and 7.
 - Phase 5 tests: added deterministic Task Breakdown service tests, component/lifecycle coverage for explicit and implicit start, completion, privacy, and unauthenticated local-only operation, plus hook reset coverage.
+- Phase 6: Added the deterministic, explicit `reflectIntervention(intervention)` boundary under `src/support/reflection/`. It turns one completed, partially completed, or abandoned intervention into a versioned user-scoped reflection without adapting, ranking, recommending, writing memory, updating evidence, or notifying Role 2.
+- Phase 6: Generic reflections cover completion, completion rate, duration category, engagement, satisfaction, and intervention quality. `support.task_breakdown` rules use only aggregate completion, timer, and edit metrics. The reflection store never copies raw task text, steps, feedback, conversation text, or PHI.
+- Phase 6: Confidence is a deterministic 0-1 sum of available terminal status, completion rate, duration, rating, and recognized module-metric evidence. `docs/role4/reflection.md` documents the schema, rules, weights, privacy, and versioning.
