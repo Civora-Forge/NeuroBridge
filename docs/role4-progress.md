@@ -22,7 +22,7 @@
 ## Phase Checklist
 
 - [x] Phase 0: Establish branch and implementation baseline
-- [ ] Phase 1: Finalize ADHD and depression module contracts
+- [x] Phase 1: Finalize ADHD and depression module contracts
 - [ ] Phase 2: Align feature, module, and support registries
 - [ ] Phase 3: Add shared module execution and lifecycle integration boundary
 - [ ] Phase 4: Integrate ADHD Task Breakdown lifecycle and outcomes
@@ -40,4 +40,8 @@
 ## Commits and Notes
 
 - `ac9c5c6`: Baseline inherited from `origin/main`; 107 documented tests pass.
-- Pending: `chore(role4): establish implementation baseline`.
+- `b727b62`: Established the Role 4 branch and baseline tracker.
+- Phase 1: Replaced Role 4 ADHD/depression registry identities with need-based `support.*` IDs. Canonical IDs are `support.focus_session`, `support.task_breakdown`, `support.visual_timeline`, `support.mood_checkin`, `support.gentle_activity`, `support.grounding`, `support.cognitive_reframing`, `support.social_connection`, `support.evidence_journal`, `support.accountability_session`, and `support.soundscape`. `support.routine_support` has no dedicated retained ADHD/depression implementation; Visual Timeline declares `routine_support` as a supported need instead.
+- Phase 1 safety decision: Void Whisper (`depression.void-whisper`) is not standardized or aliased until Phase 10 establishes its free-text safety and escalation boundary.
+- Phase 1 commit: `refactor(role4): standardize support module definitions`.
+- Compatibility: legacy feature IDs such as `adhd.task-breakdown` and `depression.mvh` resolve to their canonical `support.*` definitions. Existing routes and feature flags remain unchanged for Phase 2.

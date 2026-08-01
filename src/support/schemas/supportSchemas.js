@@ -99,6 +99,9 @@ export const InterventionSchema = z.object({
 
 export const SupportModuleDefinitionSchema = z.object({
   id: idSchema,
+  // `id` remains the runtime lookup key. New need-based modules also expose
+  // `moduleId` explicitly so UI ownership and routes do not define identity.
+  moduleId: idSchema.optional(),
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   category: z.nativeEnum(ModuleCategory),
@@ -114,6 +117,23 @@ export const SupportModuleDefinitionSchema = z.object({
     windowHours: z.number().positive(),
   }).default({ maxCount: 2, windowHours: 24 }),
   supportedRoles: z.array(z.enum(["user", "guardian", "support"])).default(["user"]),
+  developmentDomain: idSchema.optional(),
+  supportedNeeds: tagsSchema,
+  potentiallyRelevantDomains: tagsSchema,
+  actions: tagsSchema,
+  configurableParameters: z.record(z.unknown()).default({}),
+  launchPolicy: z.enum(["user_initiated", "recommendation", "confirmation_required"]).default("user_initiated"),
+  lifecycleEvents: z.array(z.nativeEnum(InterventionStatus)).default([]),
+  outcomeFields: tagsSchema,
+  legacyIds: tagsSchema,
+}).superRefine((module, context) => {
+  if (module.moduleId && module.moduleId !== module.id) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "moduleId must match the runtime id",
+      path: ["moduleId"],
+    });
+  }
 });
 
 export const InterventionLifecycleEventSchema = z.object({
