@@ -65,6 +65,20 @@ export const MemoryType = {
   INTERACTION_PATTERN: "interaction_pattern",
 };
 
+export const MemoryCategory = {
+  PREFERRED_CONFIGURATION: "preferred_configuration",
+  SUCCESSFUL_STRATEGY: "successful_strategy",
+  UNSUCCESSFUL_CONFIGURATION: "unsuccessful_configuration",
+  COMPLETION_PATTERN: "completion_pattern",
+  FEEDBACK_PATTERN: "feedback_pattern",
+};
+
+export const MemoryStatus = {
+  ACTIVE: "active",
+  SUPERSEDED: "superseded",
+  DELETED: "deleted",
+};
+
 export const SafetyLevel = {
   STANDARD: "standard",
   CAUTION: "caution",
@@ -206,10 +220,23 @@ export const ReflectionSchema = z.object({
 
 export const UserMemorySchema = z.object({
   ...recordBase,
+  memoryId: idSchema.optional(),
+  moduleId: idSchema.optional(),
+  category: z.nativeEnum(MemoryCategory).optional(),
   type: z.nativeEnum(MemoryType),
   key: idSchema,
   value: z.unknown(),
-  confidence: z.nativeEnum(ConfidenceLevel).default(ConfidenceLevel.MODERATE),
+  evidenceCount: z.number().int().nonnegative().optional(),
+  supportingReflectionIds: z.array(idSchema).default([]),
+  confidence: z.union([z.number().min(0).max(1), z.nativeEnum(ConfidenceLevel)]).default(ConfidenceLevel.MODERATE),
+  confidenceLevel: z.nativeEnum(ConfidenceLevel).optional(),
+  firstObservedAt: isoDateString.optional(),
+  lastUpdatedAt: isoDateString.optional(),
+  version: z.literal(1).default(1),
+  status: z.nativeEnum(MemoryStatus).default(MemoryStatus.ACTIVE),
+  contradictionCount: z.number().int().nonnegative().default(0),
+  metadata: z.record(z.unknown()).default({}),
+  deletedAt: isoDateString.nullable().optional(),
   privacy: z.nativeEnum(PrivacyLevel).default(PrivacyLevel.PRIVATE),
   source: z.nativeEnum(OutcomeSource).default(OutcomeSource.SYSTEM_INFERENCE),
   evidenceIds: z.array(idSchema).default([]),

@@ -28,7 +28,7 @@
 - [x] Phase 4: Complete reusable intervention lifecycle boundary and hook
 - [x] Phase 5: Integrate Task Breakdown lifecycle and canonical outcomes
 - [x] Phase 6: Implement reflection for canonical intervention outcomes
-- [ ] Phase 7: Derive user-scoped memory from reflected outcomes
+- [x] Phase 7: Derive user-scoped memory from reflected outcomes
 - [ ] Phase 8: Add memory-informed personalization hints
 - [ ] Phase 9: Integrate ADHD Focus Sessions lifecycle and outcomes
 - [ ] Phase 10: Restore depression dashboard routing and MVH lifecycle
@@ -65,3 +65,7 @@
 - Phase 6: Added the deterministic, explicit `reflectIntervention(intervention)` boundary under `src/support/reflection/`. It turns one completed, partially completed, or abandoned intervention into a versioned user-scoped reflection without adapting, ranking, recommending, writing memory, updating evidence, or notifying Role 2.
 - Phase 6: Generic reflections cover completion, completion rate, duration category, engagement, satisfaction, and intervention quality. `support.task_breakdown` rules use only aggregate completion, timer, and edit metrics. The reflection store never copies raw task text, steps, feedback, conversation text, or PHI.
 - Phase 6: Confidence is a deterministic 0-1 sum of available terminal status, completion rate, duration, rating, and recognized module-metric evidence. `docs/role4/reflection.md` documents the schema, rules, weights, privacy, and versioning.
+- Phase 7: Added `src/support/memory/` as the public reflection-derived memory boundary. Its user-scoped APIs derive, inspect, tombstone-delete, clear by module, and control memory learning without exposing Role 4 persistence internals to UI callers.
+- Phase 7: Memory records are versioned, evidence-backed, module-scoped, and inspectable. Two consistent reflections create 0.40 confidence, three to four create 0.65, and five or more create 0.85; each contradictory reflection deducts 0.10 up to 0.30. Unsupported reflection versions are ignored.
+- Phase 7: Task Breakdown rules use aggregate completion, duration, timer, satisfaction, and sanctioned configuration metadata only. Reflection v1 does not normally expose selected style or step count, so those configuration-specific rules remain inactive until sanitized metadata is available. No ranking, Role 2 changes, UI personalization, or reflection changes were made.
+- Phase 7 tests: added thresholds, conflict, idempotency, unsupported-version, user-scope, tombstone deletion, module clearing, learning-toggle, serialization, privacy, and Task Breakdown aggregate rule coverage. Commit message: `feat(role4): add reflection-derived memory system`.
