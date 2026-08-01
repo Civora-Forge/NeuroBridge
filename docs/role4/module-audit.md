@@ -11,3 +11,5 @@
 | `support.evidence_journal` | `/depression/evidence` | sensitive free text | registered | explicit session completion | isolated user-scoped journal store | integrated |
 
 Deferred: Visual Timeline and Mood Check-in are registered-only with no canonical Role 4 lifecycle/learning completion. Accountability Session is experimental only: it has no peer or external accountability service and must not claim live body-doubling. Soundscape is unavailable for missing verified assets. All four return `module_unavailable` from public execution. Void Whisper is hidden, unregistered, and blocked from ordinary execution.
+
+Final verification confirms the seven integrated rows above are the complete executable MVP set. Deferred availability is checked before adapter registry lookup so Soundscape returns `module_unavailable`, while truly unknown IDs return `unknown_module`.
