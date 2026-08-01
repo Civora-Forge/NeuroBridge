@@ -282,6 +282,11 @@ export const PersonalizationHintsResponseSchema = z.object({
   version: z.literal(1),
 });
 
+export const UnsuccessfulConfigurationEvidenceSchema = z.object({ key: idSchema, value: z.unknown(), evidenceCount: z.number().int().positive(), confidence: z.number().min(0).max(1), reasonCode: idSchema });
+export const PreferredConfigurationEvidenceSchema = z.object({ values: z.record(z.unknown()), sourceHintIds: z.array(idSchema).min(1), confidence: z.number().min(0).max(1), advisory: z.literal(true) });
+export const SupportEvidenceEntrySchema = z.object({ moduleId: idSchema, evidenceCount: z.number().int().nonnegative(), startedCount: z.number().int().nonnegative(), completedCount: z.number().int().nonnegative(), partiallyCompletedCount: z.number().int().nonnegative(), abandonedCount: z.number().int().nonnegative(), completionRate: z.number().min(0).max(1).nullable(), effectivenessRate: z.number().min(0).max(1).nullable(), averageUserRating: z.number().min(1).max(5).nullable(), recentOutcomeTrend: z.enum(["improving", "stable", "declining", "mixed", "insufficient_evidence"]), preferredConfiguration: PreferredConfigurationEvidenceSchema.nullable(), unsuccessfulConfigurations: z.array(UnsuccessfulConfigurationEvidenceSchema), personalizationHints: z.array(PersonalizationHintSchema), lastUsedAt: isoDateString.nullable(), confidence: z.number().min(0).max(1), reasonCodes: z.array(idSchema), version: z.literal(1) });
+export const SupportEvidenceResponseSchema = z.object({ userId: idSchema.nullable(), generatedAt: isoDateString.nullable(), modules: z.array(SupportEvidenceEntrySchema), version: z.literal(1), reasonCodes: z.array(idSchema) });
+
 export const Role4Schemas = {
   intervention: InterventionSchema,
   supportModuleDefinition: SupportModuleDefinitionSchema,
@@ -291,6 +296,7 @@ export const Role4Schemas = {
   memory: UserMemorySchema,
   personalizationProfile: PersonalizationProfileSchema,
   personalizationHints: PersonalizationHintsResponseSchema,
+  supportEvidence: SupportEvidenceResponseSchema,
 };
 
 export function validateIntervention(data) {
@@ -324,3 +330,5 @@ export function validatePersonalizationProfile(data) {
 export function validatePersonalizationHints(data) {
   return PersonalizationHintsResponseSchema.parse(data);
 }
+
+export function validateSupportEvidenceResponse(data) { return SupportEvidenceResponseSchema.parse(data); }

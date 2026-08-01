@@ -30,7 +30,7 @@
 - [x] Phase 6: Implement reflection for canonical intervention outcomes
 - [x] Phase 7: Derive user-scoped memory from reflected outcomes
 - [x] Phase 8: Add memory-informed personalization hints
-- [ ] Phase 9: Integrate ADHD Focus Sessions lifecycle and outcomes
+- [x] Phase 9: Add support evidence API
 - [ ] Phase 10: Restore depression dashboard routing and MVH lifecycle
 - [ ] Phase 11: Add depression free-text safety and escalation boundary
 - [ ] Phase 12: Integrate remaining retained ADHD and depression modules
@@ -73,3 +73,6 @@
 - Phase 8: Hints below 0.40 are omitted; 0.40-0.64 are observational; 0.65-0.84 are usable recommendations; 0.85+ are strong recommendations. All remain user-overridable. Conflicting values emit non-applicable `conflicting_evidence` hints rather than using the latest memory.
 - Phase 8: Task Breakdown supports style, timer, partial-completion, high-step abandonment, low-satisfaction style, and low-helpfulness signals only where matching active sanitized memory exists. Reflection v1 normally lacks style and requested-step-count metadata, so those hint types are not invented.
 - Phase 8 tests: added empty, disabled-learning, lifecycle-status filtering, confidence, conflict, determinism, user scope, Task Breakdown, privacy, serialization/schema, and pure resolver coverage. Commit: `0c7f8df feat(role4): add memory-informed personalization hints`.
+- Phase 9: Added `getSupportEvidence(userId, candidateModuleIds)` under `src/support/evidence/`. It returns ordered, user-scoped historical evidence for each candidate without ranking, selecting, filtering, or creating plans.
+- Phase 9: Completion uses completed plus half partial completions over starts. Effectiveness requires completed plus rating 4-5 or explicit strong quality. Evidence count is valid terminal v1 reflections; trend uses the last five reflected quality outcomes.
+- Phase 9: Preferred configuration includes only usable/strong non-conflicting hints. Learning-disabled use returns lifecycle/reflection aggregates but omits hints and memory-derived configuration. Raw private text and context are never exposed. Commit message: `feat(role4): add support evidence API`.
