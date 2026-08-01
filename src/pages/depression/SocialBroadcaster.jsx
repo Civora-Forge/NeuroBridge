@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Share2, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildSocialConnectionOutcome } from '@/support/modules/socialConnection/socialConnectionService';
+import { SOCIAL_CONNECTION_MODULE_ID } from '@/support/modules/socialConnection/socialConnectionTypes';
 
 export default function SocialBroadcaster() {
+  const { user } = useAuth();
   const [status, setStatus] = useState("Yellow");
   const [copied, setCopied] = useState(false);
+  const [prepared, setPrepared] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const startedAtRef = useRef(null);
+  const configuration = { actionType: 'status_update', channelType: 'clipboard', requiresConfirmation: true };
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: SOCIAL_CONNECTION_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration });
+  const start = async () => { if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return false; startedAtRef.current = Date.now(); } return true; };
 
   const codes = {
     Red: {
@@ -48,10 +59,19 @@ export default function SocialBroadcaster() {
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(codes[status].message);
+    if (!await start()) return;
+    try {
+      await navigator.clipboard.writeText(codes[status].message);
+    } catch {
+      return;
+    }
     setCopied(true);
+    setPrepared(true);
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_prepared', completedUnits: 1, totalUnits: 2, progressRatio: 0.5 });
     setTimeout(() => setCopied(false), 1500);
   };
+  const confirmReady = async () => { if (!prepared || complete || !await start()) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildSocialConnectionOutcome({ configuration, prepared: true, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); };
+  const reset = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_discard', {}, buildSocialConnectionOutcome({ configuration, prepared, startedAt: startedAtRef.current })); lifecycle.reset(); setPrepared(false); setComplete(false); setCopied(false); };
 
   const shortBubble = {
     Red: "Low power: resting. Responses may be very slow.",
@@ -88,7 +108,7 @@ export default function SocialBroadcaster() {
                 ? `chipActive bg-gradient-to-r ${palette[m].bg} text-white shadow-lg border-none`
                 : `${palette[m].chip} hover:shadow-md`
             }`}
-            onClick={() => setStatus(m)}
+            onClick={async () => { if (!await start()) return; setStatus(m); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }}
           >
             <span>{m === "Red" ? "ðŸ”´" : m === "Yellow" ? "ðŸŸ¡" : "ðŸŸ¢"}</span>
             <span>{m}</span>
@@ -141,6 +161,9 @@ export default function SocialBroadcaster() {
         <Share2 size={16} />
         {copied ? "Copied!" : "Copy status message"}
       </motion.button>
+      <button disabled={!prepared || complete} onClick={confirmReady} className="secondaryButton w-full rounded-2xl py-3 text-xs font-semibold disabled:opacity-50">Confirm connection plan is ready</button>
+      <button onClick={reset} className="w-full text-xs text-gray-500">Discard and restart</button>
+      {!user?.id && <p className="text-[11px] text-gray-500 text-center">You can prepare this locally. Sign in to save structured progress.</p>}
 
       <p className="text-[11px] text-gray-500 text-center">
         You are allowed to send these without overâ€‘explaining or apologizing.

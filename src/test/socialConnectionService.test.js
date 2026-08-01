@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import { buildSocialConnectionOutcome, validateSocialConnectionConfiguration } from '@/support/modules/socialConnection/socialConnectionService';
+describe('social connection service', () => { it('only returns structured, privacy-safe preparation data', () => { const outcome = buildSocialConnectionOutcome({ configuration: validateSocialConnectionConfiguration(), prepared: true, confirmed: true }); expect(outcome).toMatchObject({ completionStatus: 'completed', metrics: { externalActionAttempted: false, externalActionConfirmed: false } }); expect(JSON.stringify(outcome)).not.toContain('Status:'); }); });
