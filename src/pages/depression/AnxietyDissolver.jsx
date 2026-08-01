@@ -2,13 +2,26 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildGroundingOutcome } from '@/support/modules/grounding/groundingService';
+import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
 
 export default function AnxietyDissolver() {
+  const { user } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [timer, setTimer] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [durationReached, setDurationReached] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [reachedCount, setReachedCount] = useState(0);
+  const [earlyCount, setEarlyCount] = useState(0);
   const intervalRef = useRef(null);
+  const startedAtRef = useRef(null);
+  const configuration = { exerciseType: 'timed_grounding', pacing: 'timed', totalSteps: 4, techniqueOrder: ['4-7-8', '5-4-3-2-1', 'muscle_relaxation', 'box_breathing'], suggestedDurations: [4, 2, 3, 5] };
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GROUNDING_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration });
 
   const techniques = [
     {
@@ -63,26 +76,43 @@ export default function AnxietyDissolver() {
     }
   ];
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
+    if (durationReached) { setTimer(0); setDurationReached(false); }
     setIsRunning(true);
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev >= techniques[activeStep].duration * 60) {
           clearInterval(intervalRef.current);
           setIsRunning(false);
-          setActiveStep((prev) => (prev + 1) % techniques.length);
-          setTimer(0);
+          setDurationReached(true); setIsRunning(false);
           return 0;
         }
         return prev + 1;
       });
     }, 1000);
-  }, [activeStep, techniques]);
+  }, [activeStep, techniques, lifecycle, user?.id, durationReached]);
 
   const stopTimer = () => {
     setIsRunning(false);
     clearInterval(intervalRef.current);
   };
+
+  const nextTechnique = async () => {
+    if (!lifecycle.hasStarted || completed) return;
+    const completedSteps = completedCount + 1;
+    const reached = reachedCount + (durationReached ? 1 : 0);
+    const early = earlyCount + (durationReached ? 0 : 1);
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'grounding_technique', completedUnits: completedSteps, totalUnits: techniques.length, progressRatio: completedSteps / techniques.length, suggestedDurationReached: durationReached, completedBeforeSuggestedDuration: !durationReached });
+    setCompletedCount(completedSteps); setReachedCount(reached); setEarlyCount(early);
+    if (completedSteps === techniques.length) {
+      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current }));
+      stopTimer(); setCompleted(true); return;
+    }
+    stopTimer(); setActiveStep((prev) => prev + 1); setTimer(0); setDurationReached(false);
+  };
+  const restart = async () => { stopTimer(); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_restart', {}, buildGroundingOutcome({ configuration, completedSteps: completedCount, suggestedDurationsReached: reachedCount, techniquesCompletedEarly: earlyCount, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current })); lifecycle.reset(); setActiveStep(0); setTimer(0); setCompleted(false); setCompletedCount(0); setReachedCount(0); setEarlyCount(0); setDurationReached(false); };
 
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
@@ -207,14 +237,17 @@ export default function AnxietyDissolver() {
         </motion.button>
 
         <motion.button
-          onClick={() => setActiveStep((prev) => (prev + 1) % techniques.length)}
+          onClick={nextTechnique}
           className="px-6 py-4 bg-white/90 hover:bg-white text-gray-800 backdrop-blur-sm rounded-2xl font-bold shadow-xl border border-gray-200 hover:border-[hsl(142_72%_36%)]/30 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 active:scale-[0.98]"
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
           â†» Next Technique
         </motion.button>
+        <button onClick={restart} className="px-4 py-2 text-sm text-gray-600">Restart</button>
       </div>
+      {durationReached && !completed && <p className="text-center text-sm text-gray-600">Suggested duration reached. Confirm with Next Technique when ready.</p>}
+      {completed && <p className="text-center font-semibold text-[hsl(142_72%_36%)]">Grounding session complete. Restart when you are ready for another session.</p>}
 
       {/* Progress indicator - FIXED VISIBILITY */}
       <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-2xl border-2 border-[hsl(142_72%_36%)]/30 mx-4 mb-8 pt-6"> {/* Increased padding, better contrast, more spacing */}
