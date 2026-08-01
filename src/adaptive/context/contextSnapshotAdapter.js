@@ -7,6 +7,8 @@
  * This adapter is intentionally stateless and does not mutate the source object.
  */
 
+import { getInteractionSnapshot } from "./contextInteractionTracker.js";
+
 const DEFAULT_SNAPSHOT_VERSION = "1.0.0";
 
 function createSnapshotId(timestamp, userId) {
@@ -63,6 +65,7 @@ function buildConversation(conversation = {}) {
   const analysis = clone(conversation.analysis) ?? null;
   const lastUserMessage = conversation.lastUserMessage ?? null;
   const detectedIntent = conversation.detectedIntent ?? analysis?.intent ?? null;
+  const conversationExplicitRequest = conversation.explicitRequest ? clone(conversation.explicitRequest) : null;
   const explicitRequest = lastUserMessage
     ? {
         intent: detectedIntent,
@@ -82,7 +85,7 @@ function buildConversation(conversation = {}) {
     keyTopics: Array.isArray(conversation.keyTopics) ? [...conversation.keyTopics] : [],
     emotionalCues: Array.isArray(conversation.emotionalCues) ? [...conversation.emotionalCues] : [],
     analysis,
-    explicitRequest,
+    explicitRequest: conversationExplicitRequest || explicitRequest,
   };
 }
 
@@ -183,6 +186,7 @@ export function toContextSnapshot(unifiedContext, options = {}) {
   const timestamp = source.metadata?.lastUpdated || new Date().toISOString();
   const metadata = buildMetadata(source, options.snapshotVersion, timestamp, userId);
   const snapshotId = options.snapshotId || metadata.snapshotId || createSnapshotId(timestamp, userId);
+  const liveInteractionSnapshot = getInteractionSnapshot();
 
   return {
     snapshotId,
@@ -194,6 +198,10 @@ export function toContextSnapshot(unifiedContext, options = {}) {
     conversation: buildConversation(source.conversation),
     mood: buildMood(source.mood),
     session: buildSession(source.session),
+    behavior: liveInteractionSnapshot.behavior,
+    deviceInteraction: liveInteractionSnapshot.deviceInteraction,
+    explicitRequests: liveInteractionSnapshot.explicitRequests,
+    biometrics: liveInteractionSnapshot.biometrics,
     metadata: {
       snapshotVersion: metadata.snapshotVersion,
       lastUpdated: metadata.lastUpdated,

@@ -25,6 +25,7 @@ import { handleGetContextSnapshot } from "./api/contextApi.js";
 import { initContextLogger } from "./contextLogger.js";
 import { processUserMessage as runPipelineMessage, syncProfileContext } from "./contextPipeline.js";
 import { toContextSnapshot } from "./contextSnapshotAdapter.js";
+import { recordNavigationSignal } from "./contextInteractionTracker.js";
 
 class ContextEngine {
   constructor() {
@@ -223,6 +224,7 @@ class ContextEngine {
    */
   trackNavigation(moduleName, data = {}) {
     const previousContext = contextStore.getContext();
+    recordNavigationSignal(data.path || moduleName);
     updateSessionNavigation(moduleName);
     trackActivity(moduleName, { module: moduleName, ...data });
 

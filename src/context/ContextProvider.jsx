@@ -6,6 +6,7 @@ import {
   ContextEvents,
   getContextSnapshotAPI,
 } from "@/adaptive/context";
+import { startInteractionTracking, stopInteractionTracking } from "@/adaptive/context/contextInteractionTracker.js";
 import { useAuth } from "@/context/AuthContext";
 
 const ContextStateContext = createContext(null);
@@ -42,9 +43,13 @@ export function ContextProvider({ children }) {
 
   useEffect(() => {
     contextEngine.init({ initialScreen: resolveModuleFromPath(location.pathname) });
+    startInteractionTracking();
     getContextSnapshotAPI().then(setContext);
 
-    return () => contextEngine.stop();
+    return () => {
+      stopInteractionTracking();
+      contextEngine.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -70,6 +75,14 @@ export function ContextProvider({ children }) {
         setContext(nextContext);
         setLastUpdated(payload.timestamp || new Date().toISOString());
       }
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const unsub = contextEventBus.subscribe(ContextEvents.INTERACTION_UPDATED, () => {
+      getContextSnapshotAPI().then(setContext);
+      setLastUpdated(new Date().toISOString());
     });
     return unsub;
   }, []);
