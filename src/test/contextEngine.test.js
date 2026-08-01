@@ -13,7 +13,8 @@ import {
   computeFreshnessIndex,
   detectMaterialChange,
   handleGetUnifiedContext,
-  getUnifiedContextAPI,
+  getContextSnapshotAPI,
+  ContextSnapshotAdapter,
   trackActivity,
   resetActivityTracker,
   collectEnvironmentContext,
@@ -155,6 +156,18 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
   });
 
   describe("3. Unified Context API & Interface", () => {
+    it("should adapt UnifiedContext into a public ContextSnapshot without internal-only fields", () => {
+      const unified = fuseContext({});
+      const snapshot = ContextSnapshotAdapter.toContextSnapshot(unified);
+
+      expect(snapshot).toHaveProperty("snapshotId");
+      expect(snapshot).toHaveProperty("timestamp");
+      expect(snapshot).toHaveProperty("metadata.snapshotVersion");
+      expect(snapshot).not.toHaveProperty("emotion");
+      expect(snapshot).not.toHaveProperty("task");
+      expect(snapshot).not.toHaveProperty("confidence.overall");
+    });
+
     it("should handle GET /api/context/current endpoint request correctly", () => {
       contextEngine.init({ initialScreen: "reader" });
 
@@ -163,6 +176,8 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(res.status).toBe("success");
       expect(res.statusCode).toBe(200);
       expect(res.timestamp).toBeDefined();
+      expect(res.data).toHaveProperty("snapshotId");
+      expect(res.data).toHaveProperty("userId");
       expect(res.data).toHaveProperty("profile");
       expect(res.data).toHaveProperty("activity");
       expect(res.data).toHaveProperty("environment");
@@ -172,11 +187,12 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(res.data).toHaveProperty("metadata");
     });
 
-    it("should allow client helper getUnifiedContextAPI to retrieve snapshot", async () => {
+    it("should allow client helper getContextSnapshotAPI to retrieve snapshot", async () => {
       contextEngine.init();
 
-      const data = await getUnifiedContextAPI();
+      const data = await getContextSnapshotAPI();
 
+      expect(data).toHaveProperty("snapshotId");
       expect(data).toHaveProperty("profile");
       expect(data).toHaveProperty("metadata");
     });

@@ -277,7 +277,8 @@ Responsibilities include:
 * Tracking user activity
 * Processing environmental context
 * Combining multiple signals
-* Producing a structured `ContextSnapshot`
+* Producing an internal `UnifiedContext`
+* Publishing a structured `ContextSnapshot` for downstream modules
 
 ---
 
@@ -583,6 +584,8 @@ The exact directory structure may evolve as the adaptive architecture is impleme
 
 The Context Engine is responsible for collecting signals that describe the user's current situation.
 
+Internally, Role 1 maintains a `UnifiedContext` for fusion and validation. Downstream modules consume the public `ContextSnapshot`, not the internal fused object.
+
 ### Context Sources
 
 ```text
@@ -608,7 +611,7 @@ The system may derive signals such as:
 
 The Context Engine produces structured context rather than directly deciding what intervention to provide.
 
-Example:
+Internal example (pre-adapter UnifiedContext):
 
 ```json
 {
@@ -657,6 +660,8 @@ The fusion layer is responsible for:
 * Estimating confidence
 * Avoiding over-reliance on a single signal
 * Preparing input for the User State Model
+
+The fusion engine works on the internal `UnifiedContext`. Before anything leaves Role 1, the `ContextSnapshotAdapter` converts that internal representation into the public `ContextSnapshot` contract.
 
 ---
 

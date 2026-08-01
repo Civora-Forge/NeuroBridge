@@ -85,6 +85,44 @@
  */
 
 /**
+ * @typedef {UnifiedContextObject} UnifiedContext
+ * Internal representation owned by the Context & Perception layer.
+ */
+
+/**
+ * @typedef {object} ContextSnapshotMetadata
+ * @property {string} snapshotVersion - Version of the public snapshot schema
+ * @property {string} lastUpdated - ISO 8601 snapshot publication time
+ * @property {{ earliest: string, latest: string }} observedAt - Observation window used during fusion
+ * @property {number} overallConfidence - Aggregated snapshot confidence (0.0 to 1.0)
+ * @property {Record<string, number>} dimensionalConfidence - Confidence per top-level domain
+ * @property {number} freshnessIndex - Aggregate freshness score (0.0 to 1.0)
+ * @property {Record<string, boolean>} stalenessFlags - Per-domain stale-state flags
+ * @property {Record<string, string>} sourceMap - Provenance map for each top-level domain
+ * @property {Array<object>} [conflicts] - Active validation conflicts, if any
+ */
+
+/**
+ * @typedef {object} ContextSnapshot
+ * @property {string} snapshotId - Unique identifier for the public snapshot
+ * @property {string|null} userId - Stable user identifier
+ * @property {string} timestamp - ISO 8601 snapshot publication time
+ * @property {ProfileContext} profile - Public profile context
+ * @property {ActivityContext} activity - Public activity context
+ * @property {EnvironmentContext} environment - Public environment context
+ * @property {ConversationContext} conversation - Public conversation context
+ * @property {MoodContext} mood - Public mood context
+ * @property {SessionContext} session - Public session context
+ * @property {ContextSnapshotMetadata} metadata - Snapshot freshness, provenance, and confidence metadata
+ */
+
+/**
+ * @typedef {object} ContextSnapshotOptions
+ * @property {string} [snapshotVersion] - Override the default snapshot version
+ * @property {string} [snapshotId] - Override the generated snapshot identifier
+ */
+
+/**
  * Helper to construct a standardized ContextSignal envelope.
  * @param {Omit<ContextSignal, 'id'|'timestamp'> & Partial<ContextSignal>} params
  * @returns {ContextSignal}

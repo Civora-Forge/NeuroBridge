@@ -68,8 +68,11 @@ export {
   detectMaterialChange,
 } from "./contextFusion.js";
 
-// Unified Context API & Services
-export { handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+// Public ContextSnapshot API & Services
+export { handleGetContextSnapshot, getContextSnapshotAPI, handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+
+// Public ContextSnapshot Adapter
+export { ContextSnapshotAdapter, toContextSnapshot } from "./contextSnapshotAdapter.js";
 
 // Pipeline orchestration & observability
 export { processUserMessage, syncProfileContext } from "./contextPipeline.js";

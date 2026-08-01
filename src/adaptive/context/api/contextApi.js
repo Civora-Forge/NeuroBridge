@@ -5,7 +5,7 @@
  *
  * Provides the clean REST API endpoint handler and client service interface for external modules
  * (such as the Adaptive Intelligence layer, User State Model, and frontend components)
- * to retrieve the current Unified Context Object.
+ * to retrieve the public ContextSnapshot.
  *
  * ENDPOINT:
  * GET /api/context/current
@@ -13,19 +13,20 @@
  * Ownership: Context & Perception Engineer
  */
 
-import { contextStore } from "../contextStore.js";
 import { fuseContext } from "../contextFusion.js";
+import { toContextSnapshot } from "../contextSnapshotAdapter.js";
 
 /**
  * Express / Vite / Service handler for GET /api/context/current.
  * Answers: "What do we currently know about the user right now and how fresh/reliable is it?"
  *
  * @param {object} [req] - Optional HTTP request object
- * @returns {{ status: string, statusCode: number, timestamp: string, data: import("../types/contextTypes.js").UnifiedContextObject }}
+ * @returns {{ status: string, statusCode: number, timestamp: string, data: import("../types/contextTypes.js").ContextSnapshot }}
  */
-export function handleGetUnifiedContext(req = {}) {
+export function handleGetContextSnapshot(req = {}) {
   const timestamp = new Date().toISOString();
-  const contextSnapshot = fuseContext({});
+  const unifiedContext = fuseContext({});
+  const contextSnapshot = toContextSnapshot(unifiedContext);
 
   return {
     status: "success",
@@ -41,9 +42,9 @@ export function handleGetUnifiedContext(req = {}) {
  *
  * @param {object} [options]
  * @param {string} [options.apiBaseUrl] - Optional API base URL override
- * @returns {Promise<import("../types/contextTypes.js").UnifiedContextObject>}
+ * @returns {Promise<import("../types/contextTypes.js").ContextSnapshot>}
  */
-export async function getUnifiedContextAPI(options = {}) {
+export async function getContextSnapshotAPI(options = {}) {
   const apiBaseUrl = options.apiBaseUrl || (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) || "";
 
   if (apiBaseUrl) {
@@ -64,6 +65,9 @@ export async function getUnifiedContextAPI(options = {}) {
   }
 
   // Local synchronous fallback
-  const res = handleGetUnifiedContext();
+  const res = handleGetContextSnapshot();
   return res.data;
 }
+
+export const handleGetUnifiedContext = handleGetContextSnapshot;
+export const getUnifiedContextAPI = getContextSnapshotAPI;
