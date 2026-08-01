@@ -261,6 +261,27 @@ export const PersonalizationProfileSchema = z.object({
   privacy: z.nativeEnum(PrivacyLevel).default(PrivacyLevel.PRIVATE),
 });
 
+export const PersonalizationHintSchema = z.object({
+  id: idSchema,
+  key: idSchema,
+  value: z.unknown(),
+  sourceMemoryIds: z.array(idSchema).min(1),
+  evidenceCount: z.number().int().positive(),
+  confidence: z.number().min(0).max(1),
+  advisory: z.enum(["observational", "usable", "strong"]),
+  reasonCode: idSchema,
+});
+
+export const PersonalizationHintsResponseSchema = z.object({
+  userId: idSchema,
+  moduleId: idSchema,
+  hints: z.array(PersonalizationHintSchema),
+  generatedAt: isoDateString.nullable(),
+  evidenceCount: z.number().int().nonnegative(),
+  confidence: z.number().min(0).max(1),
+  version: z.literal(1),
+});
+
 export const Role4Schemas = {
   intervention: InterventionSchema,
   supportModuleDefinition: SupportModuleDefinitionSchema,
@@ -269,6 +290,7 @@ export const Role4Schemas = {
   reflection: ReflectionSchema,
   memory: UserMemorySchema,
   personalizationProfile: PersonalizationProfileSchema,
+  personalizationHints: PersonalizationHintsResponseSchema,
 };
 
 export function validateIntervention(data) {
@@ -297,4 +319,8 @@ export function validateUserMemory(data) {
 
 export function validatePersonalizationProfile(data) {
   return PersonalizationProfileSchema.parse(data);
+}
+
+export function validatePersonalizationHints(data) {
+  return PersonalizationHintsResponseSchema.parse(data);
 }

@@ -29,7 +29,7 @@
 - [x] Phase 5: Integrate Task Breakdown lifecycle and canonical outcomes
 - [x] Phase 6: Implement reflection for canonical intervention outcomes
 - [x] Phase 7: Derive user-scoped memory from reflected outcomes
-- [ ] Phase 8: Add memory-informed personalization hints
+- [x] Phase 8: Add memory-informed personalization hints
 - [ ] Phase 9: Integrate ADHD Focus Sessions lifecycle and outcomes
 - [ ] Phase 10: Restore depression dashboard routing and MVH lifecycle
 - [ ] Phase 11: Add depression free-text safety and escalation boundary
@@ -69,3 +69,7 @@
 - Phase 7: Memory records are versioned, evidence-backed, module-scoped, and inspectable. Two consistent reflections create 0.40 confidence, three to four create 0.65, and five or more create 0.85; each contradictory reflection deducts 0.10 up to 0.30. Unsupported reflection versions are ignored.
 - Phase 7: Task Breakdown rules use aggregate completion, duration, timer, satisfaction, and sanctioned configuration metadata only. Reflection v1 does not normally expose selected style or step count, so those configuration-specific rules remain inactive until sanitized metadata is available. No ranking, Role 2 changes, UI personalization, or reflection changes were made.
 - Phase 7 tests: added thresholds, conflict, idempotency, unsupported-version, user-scope, tombstone deletion, module clearing, learning-toggle, serialization, privacy, and Task Breakdown aggregate rule coverage. Commit: `2e1268f feat(role4): add reflection-derived memory system`.
+- Phase 8: Added `src/support/personalization/` with `getPersonalizationHints(userId, moduleId)`, module-batch lookup, and a pure unintegrated advisory configuration resolver. Hints consume active user-scoped memory only and neither rank/select modules nor write memory, invoke Role 2, alter reflections, or change module UI defaults.
+- Phase 8: Hints below 0.40 are omitted; 0.40-0.64 are observational; 0.65-0.84 are usable recommendations; 0.85+ are strong recommendations. All remain user-overridable. Conflicting values emit non-applicable `conflicting_evidence` hints rather than using the latest memory.
+- Phase 8: Task Breakdown supports style, timer, partial-completion, high-step abandonment, low-satisfaction style, and low-helpfulness signals only where matching active sanitized memory exists. Reflection v1 normally lacks style and requested-step-count metadata, so those hint types are not invented.
+- Phase 8 tests: added empty, disabled-learning, lifecycle-status filtering, confidence, conflict, determinism, user scope, Task Breakdown, privacy, serialization/schema, and pure resolver coverage. Commit message: `feat(role4): add memory-informed personalization hints`.
