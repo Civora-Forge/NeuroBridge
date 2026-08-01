@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { assessSupportInput } from '@/support/safety';
+import { COGNITIVE_REFRAMING_CONFIGURATION, COGNITIVE_REFRAMING_MODULE_ID } from '@/support/modules/cognitiveReframing/cognitiveReframingTypes';
+import { buildCognitiveReframingOutcome, buildReframingClipboardPayload, canProcessReframingInput } from '@/support/modules/cognitiveReframing/cognitiveReframingService';
 
 const cognitiveDistortions = {
   "all or nothing": {
@@ -107,13 +112,23 @@ const cognitiveDistortions = {
 };
 
 export default function CognitiveReframer() {
+  const { user } = useAuth();
   const [thought, setThought] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [showReframe, setShowReframe] = useState(false);
   const textareaRef = React.useRef(null);
+  const startedAtRef = useRef(null);
+  const [safetyBlocked, setSafetyBlocked] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const [includeOriginalThought, setIncludeOriginalThought] = useState(false);
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: COGNITIVE_REFRAMING_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: COGNITIVE_REFRAMING_CONFIGURATION });
 
-  const analyzeThought = () => {
+  const analyzeThought = async () => {
     if (!thought.trim()) return;
+    const safety = assessSupportInput({ userId: user?.id, moduleId: COGNITIVE_REFRAMING_MODULE_ID, action: 'analyze', inputType: 'free_text', text: thought });
+    if (!canProcessReframingInput(safety)) { setSafetyBlocked(true); return; }
+    setSafetyBlocked(false);
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
     
     const lowerThought = thought.toLowerCase();
     let bestMatch = null;
@@ -137,6 +152,7 @@ export default function CognitiveReframer() {
       reframe: "I'm practicing clearer thinking"
     });
     setShowReframe(true);
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'reframing_analysis', completedUnits: 2, totalUnits: 3, progressRatio: 2 / 3 });
     textareaRef.current?.blur();
   };
 
@@ -144,6 +160,8 @@ export default function CognitiveReframer() {
     setAnalysis(null);
     setShowReframe(false);
     setThought("");
+    setComplete(false); setSafetyBlocked(false);
+    setIncludeOriginalThought(false);
     textareaRef.current?.focus();
   };
 
@@ -163,9 +181,10 @@ export default function CognitiveReframer() {
           Cognitive Distortion Detector
         </h1>
         <p className="text-lg text-gray-600 mt-2 font-medium max-w-md mx-auto">
-          Write your anxious thought. AI detects distortions & provides evidence-based reframes.
+           Use structured questions to consider a more balanced perspective. This tool does not diagnose thoughts.
         </p>
       </motion.div>
+      {safetyBlocked && <p className="text-sm text-center text-gray-600">This entry cannot be processed here. Consider reaching out to local emergency services or a trusted support person if you are in immediate danger.</p>}
 
       {/* Input */}
       <motion.div className="relative" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -213,7 +232,7 @@ export default function CognitiveReframer() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-gray-900">{analysis.original}</h3>
-                  <p className="text-gray-700 font-medium mt-1">Detected cognitive distortion</p>
+                  <p className="text-gray-700 font-medium mt-1">Structured reflection prompt</p>
                 </div>
               </div>
               <p className="text-lg text-gray-700 leading-relaxed">{analysis.explanation}</p>
@@ -270,9 +289,12 @@ export default function CognitiveReframer() {
               >
                 âœï¸ New Thought
               </motion.button>
+              <motion.button onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 px-8 rounded-2xl font-bold">Confirm exercise complete</motion.button>
               <motion.button
-                onClick={() => {
-                  navigator.clipboard.writeText(`"${thought}" â†’ ${analysis.original} â†’ "${analysis.reframe}"`);
+                onClick={async () => {
+                  const content = buildReframingClipboardPayload({ label: analysis.original, reframe: analysis.reframe, originalThought: thought, includeOriginalThought, safety: assessSupportInput({ userId: user?.id, moduleId: COGNITIVE_REFRAMING_MODULE_ID, action: 'copy', inputType: 'free_text', text: thought }) });
+                  if (!content) return;
+                  try { await navigator.clipboard.writeText(content); } catch { return; }
                 }}
                 className="px-8 py-4 bg-white/90 hover:bg-white text-gray-800 backdrop-blur-sm rounded-2xl font-bold shadow-xl border border-gray-200 hover:border-[hsl(142_72%_36%)]/30 hover:shadow-2xl hover:scale-105 transition-all duration-300"
                 whileHover={{ y: -2 }}
@@ -281,6 +303,7 @@ export default function CognitiveReframer() {
                 ðŸ“‹ Copy Reframe
               </motion.button>
             </div>
+            <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={includeOriginalThought} onChange={(event) => setIncludeOriginalThought(event.target.checked)} /> Include original thought</label>
           </motion.div>
         )}
       </AnimatePresence>
@@ -294,7 +317,7 @@ export default function CognitiveReframer() {
           <div className="w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)]/10 to-[hsl(142_66%_42%)]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
             <span className="text-3xl">ðŸ”</span>
           </div>
-          <p className="text-lg font-medium">Write any anxious or negative thought above â†’ Get instant CBT analysis & healthy reframes</p>
+          <p className="text-lg font-medium">Write a thought above to explore structured reflection prompts.</p>
         </motion.div>
       )}
     </div>
