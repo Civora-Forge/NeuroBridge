@@ -46,3 +46,14 @@ export function buildTaskBreakdownHints(memories) {
     return [];
   });
 }
+
+export function buildFocusSessionHints(memories) {
+  return memories.flatMap((memory) => {
+    const observed = observedAssociation(memory);
+    if (memory.key === 'naturally_completed_duration' && Number.isFinite(Number(observed))) return [hint(memory, 'preferredDurationMinutes', Number(observed), 'naturally_completed_duration')].filter(Boolean);
+    if (memory.key === 'long_session_abandonment' && observed === 'abandoned') return [hint(memory, 'avoidLongSessions', true, 'long_session_abandonment')].filter(Boolean);
+    if (memory.key === 'low_pause_completion') return [hint(memory, 'lowPausePatternObserved', true, 'low_pause_completion')].filter(Boolean);
+    if (memory.key === 'focus_completion_ratio_band' && observed === 'partial') return [hint(memory, 'useShorterSession', true, 'repeated_partial_completion')].filter(Boolean);
+    return [];
+  });
+}

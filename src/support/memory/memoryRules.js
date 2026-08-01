@@ -52,3 +52,19 @@ export function buildTaskBreakdownMemoryObservations(reflections) {
   });
   return observations;
 }
+
+export function buildFocusSessionMemoryObservations(reflections) {
+  const observations = [];
+  reflections.forEach((reflection) => {
+    const summary = reflection.outcomeSummary ?? {};
+    const ratio = summary.completionRate;
+    const duration = insightValue(reflection, 'focus_session_duration');
+    const pauses = insightValue(reflection, 'focus_session_pause_pattern');
+    const natural = insightValue(reflection, 'focus_session_natural_completion');
+    if (Number.isFinite(ratio)) add(observations, MemoryCategory.COMPLETION_PATTERN, 'focus_completion_ratio_band', ratio >= 0.8 ? 'high' : ratio >= 0.3 ? 'partial' : 'low', reflection);
+    if (summary.completionStatus === 'abandoned' && Number.isFinite(duration) && duration >= 45) add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, 'long_session_abandonment', 'abandoned', reflection);
+    if (natural === true && Number.isFinite(duration)) add(observations, MemoryCategory.SUCCESSFUL_STRATEGY, 'naturally_completed_duration', String(duration), reflection);
+    if (pauses === 0 && summary.completionStatus === 'completed') add(observations, MemoryCategory.SUCCESSFUL_STRATEGY, 'low_pause_completion', 'observed', reflection);
+  });
+  return observations;
+}

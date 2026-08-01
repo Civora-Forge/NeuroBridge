@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Sun, Moon, Coffee, Crosshair, Tag } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildFocusSessionOutcome, completionRatio } from '@/support/modules/focusSession/focusSessionService';
+import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
 
 const PRESETS = [
   { label: '15 min Sprint', minutes: 15, emoji: 'Ã¢Å¡Â¡' },
@@ -296,6 +300,7 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
 };
 
 const FocusSessions = () => {
+  const { user } = useAuth();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
   const [focusMinutes, setFocusMinutes] = useState(25);
@@ -316,6 +321,20 @@ const FocusSessions = () => {
     weeklyMinutes: 0,
     lastDay: null,
   });
+  const pauseCountRef = useRef(0);
+  const resumeCountRef = useRef(0);
+  const milestonesRef = useRef(new Set());
+  const completedRef = useRef(false);
+  const startedAtRef = useRef(null);
+  const lifecycle = useInterventionLifecycle({
+    userId: user?.id ?? null,
+    moduleId: FOCUS_SESSION_MODULE_ID,
+    planId: null,
+    contextSnapshotId: null,
+    triggerSource: 'manual',
+    selectionMode: 'explicit_request',
+    configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false },
+  });
 
   const { streak, weeklyMinutes } = streakState;
 
@@ -332,6 +351,10 @@ const FocusSessions = () => {
         if (prev <= 1) {
           clearInterval(interval);
           setPhase('celebration');
+          if (!completedRef.current && user?.id) {
+            completedRef.current = true;
+            lifecycle.complete(buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: 0, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current, completedNaturally: true }));
+          }
           setCompletedCount((c) => c + 1);
           if (mode === 'focus') {
             setTotalFocusedMinutes((t) => t + focusMinutes);
@@ -365,7 +388,7 @@ const FocusSessions = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [phase, focusMinutes, mode]);
+  }, [phase, focusMinutes, mode, lifecycle, user?.id]);
 
   // break timer
   useEffect(() => {
@@ -388,24 +411,42 @@ const FocusSessions = () => {
     setSecondsLeft(m * 60);
   }, []);
 
-  const startSession = () => {
+  const startSession = async () => {
     setSecondsLeft(focusMinutes * 60);
     setMicroGoals([
       { label: 'Open the thing', done: false },
       { label: 'One small chunk', done: false },
       { label: 'Note where you stop', done: false },
     ]);
+    pauseCountRef.current = 0;
+    resumeCountRef.current = 0;
+    milestonesRef.current = new Set();
+    completedRef.current = false;
+    startedAtRef.current = Date.now();
+    if (user?.id) await lifecycle.start();
     setPhase('running');
   };
 
-  const togglePause = () => {
-    setPhase((p) => (p === 'running' ? 'paused' : 'running'));
+  const togglePause = async () => {
+    if (phase === 'running') {
+      pauseCountRef.current += 1;
+      if (user?.id) await lifecycle.pause({ pauseCount: pauseCountRef.current });
+      setPhase('paused');
+    } else {
+      resumeCountRef.current += 1;
+      if (user?.id) await lifecycle.resume({ resumeCount: resumeCountRef.current });
+      setPhase('running');
+    }
   };
 
-  const resetToSetup = () => {
+  const resetToSetup = async () => {
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal && !completedRef.current) {
+      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) });
+    }
     setPhase('setup');
     setSecondsLeft(focusMinutes * 60);
     setBreakSecondsLeft(5 * 60);
+    lifecycle.reset();
   };
 
   const startBreak = () => {
@@ -421,6 +462,15 @@ const FocusSessions = () => {
   const totalSeconds = focusMinutes * 60;
   const elapsed = totalSeconds - secondsLeft;
   const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
+  useEffect(() => {
+    if (phase !== 'running' || !user?.id || !lifecycle.hasStarted) return;
+    const ratio = completionRatio(totalSeconds, secondsLeft);
+    const milestone = [0.25, 0.5, 0.75].find((point) => ratio >= point && !milestonesRef.current.has(point));
+    if (milestone) {
+      milestonesRef.current.add(milestone);
+      lifecycle.progress({ progressType: 'focus_milestone', progressRatio: milestone, completedUnits: Math.round(milestone * 4), totalUnits: 4, elapsedMs: Math.max(0, Date.now() - (startedAtRef.current ?? Date.now())) });
+    }
+  }, [phase, secondsLeft, totalSeconds, user?.id, lifecycle]);
   const minutes = Math.floor(secondsLeft / 60)
     .toString()
     .padStart(2, '0');
@@ -525,6 +575,9 @@ const FocusSessions = () => {
                   intent={intent}
                   focusMinutes={focusMinutes}
                 />
+              )}
+              {!user?.id && (
+                <p role="alert" className="text-xs text-amber-700">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>
               )}
 
               {phase === 'break' && (

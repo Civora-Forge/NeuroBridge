@@ -31,7 +31,7 @@
 - [x] Phase 7: Derive user-scoped memory from reflected outcomes
 - [x] Phase 8: Add memory-informed personalization hints
 - [x] Phase 9: Add support evidence API
-- [ ] Phase 10: Restore depression dashboard routing and MVH lifecycle
+- [x] Phase 10: Integrate Focus Sessions lifecycle and outcomes
 - [ ] Phase 11: Add depression free-text safety and escalation boundary
 - [ ] Phase 12: Integrate remaining retained ADHD and depression modules
 - [ ] Phase 13: Add agent-ready module executor interfaces
@@ -76,3 +76,4 @@
 - Phase 9: Added `getSupportEvidence(userId, candidateModuleIds)` under `src/support/evidence/`. It returns ordered, user-scoped historical evidence for each candidate without ranking, selecting, filtering, or creating plans.
 - Phase 9: Completion uses completed plus half partial completions over starts. Effectiveness requires completed plus rating 4-5 or explicit strong quality. Evidence count is valid terminal v1 reflections; trend uses the last five reflected quality outcomes.
 - Phase 9: Preferred configuration includes only usable/strong non-conflicting hints. Learning-disabled use returns lifecycle/reflection aggregates but omits hints and memory-derived configuration. Raw private text and context are never exposed. Commit message: `feat(role4): add support evidence API`.
+- Phase 10: Focus Sessions now uses `support.focus_session` lifecycle start, milestone progress, pause/resume, natural completion, and explicit-reset abandonment while preserving its timer UI and `focusforge-streak` compatibility key.

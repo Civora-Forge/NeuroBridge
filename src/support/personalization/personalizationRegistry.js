@@ -1,7 +1,8 @@
-import { buildTaskBreakdownHints } from "./personalizationRules";
+import { buildFocusSessionHints, buildTaskBreakdownHints } from "./personalizationRules";
 
 const MODULE_HINT_RULES = {
   "support.task_breakdown": buildTaskBreakdownHints,
+  "support.focus_session": buildFocusSessionHints,
 };
 
 export function getModuleHintRule(moduleId) {
