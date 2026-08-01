@@ -112,7 +112,7 @@ await lifecycle.progress({ completedUnits: 1, totalUnits: 3 });
 await lifecycle.complete({ durationMs: 120000 });
 ```
 
-The hook exposes `start`, `progress`, `pause`, `resume`, `complete`, `abandon`, `cancel`, `fail`, and `rate`, plus `interventionId`, `status`, `isStarting`, `isUpdating`, `error`, `hasStarted`, and `isTerminal`. It resets local state when `userId` changes and does not infer abandonment when a component unmounts.
+The hook exposes `start`, `progress`, `pause`, `resume`, `complete`, `abandon`, `cancel`, `fail`, `rate`, and `reset`, plus `interventionId`, `status`, `isStarting`, `isUpdating`, `error`, `hasStarted`, and `isTerminal`. `reset()` clears only the hook's local session after a caller has completed or otherwise handled its persisted intervention. The hook resets local state when `userId` changes and does not infer abandonment when a component unmounts.
 
 ## Supported Triggers and Selection Modes
 

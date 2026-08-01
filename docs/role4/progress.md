@@ -26,16 +26,17 @@
 - [x] Phase 2: Align feature, module, and support registries
 - [x] Phase 3: Add shared module execution and lifecycle integration boundary
 - [x] Phase 4: Complete reusable intervention lifecycle boundary and hook
-- [ ] Phase 5: Implement reflection for canonical intervention outcomes
-- [ ] Phase 6: Derive user-scoped memory from reflected outcomes
-- [ ] Phase 7: Add memory-informed personalization hints
-- [ ] Phase 8: Integrate ADHD Focus Sessions lifecycle and outcomes
-- [ ] Phase 9: Restore depression dashboard routing and MVH lifecycle
-- [ ] Phase 10: Add depression free-text safety and escalation boundary
-- [ ] Phase 11: Integrate remaining retained ADHD and depression modules
-- [ ] Phase 12: Add agent-ready module executor interfaces
-- [ ] Phase 13: Add component, integration, privacy, and accessibility tests
-- [ ] Phase 14: Complete end-to-end verification and documentation
+- [x] Phase 5: Integrate Task Breakdown lifecycle and canonical outcomes
+- [ ] Phase 6: Implement reflection for canonical intervention outcomes
+- [ ] Phase 7: Derive user-scoped memory from reflected outcomes
+- [ ] Phase 8: Add memory-informed personalization hints
+- [ ] Phase 9: Integrate ADHD Focus Sessions lifecycle and outcomes
+- [ ] Phase 10: Restore depression dashboard routing and MVH lifecycle
+- [ ] Phase 11: Add depression free-text safety and escalation boundary
+- [ ] Phase 12: Integrate remaining retained ADHD and depression modules
+- [ ] Phase 13: Add agent-ready module executor interfaces
+- [ ] Phase 14: Add component, integration, privacy, and accessibility tests
+- [ ] Phase 15: Complete end-to-end verification and documentation
 
 ## Commits and Notes
 
@@ -58,3 +59,6 @@
 - Phase 4: Commands validate ownership, module identity, transitions, ratings, and idempotency. Completion persists outcomes only; no reflection, memory, evidence aggregation, Role 1 context processing, or Role 2 ranking is performed.
 - Phase 4 tests: lifecycle command and hook coverage includes duplicate starts, progress, pause/resume, terminal states, ratings, wrong-user/module rejection, unmount behavior, and user switching. `npm.cmd test` passed: 10 files, 136 tests.
 - Phase 4 commit: `feat(role4): complete intervention lifecycle boundary`.
+- Phase 5: Task Breakdown now starts `support.task_breakdown` only through the shared execution API. Checklist generation is deterministic and local until an explicit start, first checked step, or timer start. Completion requires every step; replacement/discard abandons active unfinished work, while unmount and pre-start reset do not.
+- Phase 5: Canonical outcomes contain aggregate step, configuration, timer, edit/reorder, and duration metrics only. Raw task and step text are not persisted. Missing `user.id` keeps the checklist local and displays a non-destructive sign-in message. Reflection and memory remain deferred to Phases 6 and 7.
+- Phase 5 tests: added deterministic Task Breakdown service tests, component/lifecycle coverage for explicit and implicit start, completion, privacy, and unauthenticated local-only operation, plus hook reset coverage.

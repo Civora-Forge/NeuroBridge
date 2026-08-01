@@ -90,4 +90,16 @@ describe("useInterventionLifecycle", () => {
     expect(second.result.current.interventionId).toBeNull();
     expect(second.result.current.status).toBeNull();
   });
+
+  it("can reset its local session after a terminal transition", async () => {
+    const { result } = renderHook(() => useInterventionLifecycle(baseProps));
+    await act(async () => { await result.current.start(); });
+    await act(async () => { await result.current.abandon("restart"); });
+    act(() => { result.current.reset(); });
+
+    expect(result.current.interventionId).toBeNull();
+    expect(result.current.status).toBeNull();
+    await act(async () => { await result.current.start(); });
+    expect(getInterventionHistory(baseProps.userId)).toHaveLength(2);
+  });
 });

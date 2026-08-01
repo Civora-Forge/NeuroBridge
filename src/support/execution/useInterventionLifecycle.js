@@ -56,12 +56,14 @@ export function useInterventionLifecycle({
   const operationRef = useRef(false);
   const terminalRef = useRef(false);
   const activeUserRef = useRef(userId);
+  const interventionIdRef = useRef(null);
 
   useEffect(() => {
     if (activeUserRef.current !== userId) {
       activeUserRef.current = userId;
       operationRef.current = false;
       terminalRef.current = false;
+      interventionIdRef.current = null;
       setState(initialState());
     }
   }, [userId]);
@@ -69,6 +71,7 @@ export function useInterventionLifecycle({
   const applyResult = useCallback((result) => {
     const status = result.intervention?.status ?? result.status;
     terminalRef.current = TERMINAL_STATUSES.has(status);
+    interventionIdRef.current = result.interventionId ?? interventionIdRef.current;
     setState((current) => ({
       ...current,
       interventionId: result.interventionId ?? current.interventionId,
@@ -81,7 +84,7 @@ export function useInterventionLifecycle({
   }, []);
 
   const start = useCallback(async (metadata = {}) => {
-    if (operationRef.current || state.interventionId) {
+    if (operationRef.current || interventionIdRef.current) {
       return clientFailure("An intervention has already been started", "duplicate_start");
     }
     if (!userId || !moduleId) {
@@ -104,10 +107,10 @@ export function useInterventionLifecycle({
     } finally {
       operationRef.current = false;
     }
-  }, [applyResult, configuration, contextSnapshotId, moduleId, planId, selectionMode, state.interventionId, triggerSource, userId]);
+  }, [applyResult, configuration, contextSnapshotId, moduleId, planId, selectionMode, triggerSource, userId]);
 
   const runCommand = useCallback(async (command, options = {}) => {
-    if (!state.interventionId) {
+    if (!interventionIdRef.current) {
       return clientFailure("Start an intervention before updating it", "intervention_not_started");
     }
     if (operationRef.current) {
@@ -122,7 +125,7 @@ export function useInterventionLifecycle({
     try {
       const result = await command({
         userId,
-        interventionId: state.interventionId,
+        interventionId: interventionIdRef.current,
         moduleId,
         ...options,
       });
@@ -130,7 +133,7 @@ export function useInterventionLifecycle({
     } finally {
       operationRef.current = false;
     }
-  }, [applyResult, moduleId, state.interventionId, userId]);
+  }, [applyResult, moduleId, userId]);
 
   const progress = useCallback((metadata = {}) => runCommand(progressSupportModule, { progress: metadata }), [runCommand]);
   const pause = useCallback((metadata = {}) => runCommand(pauseSupportModule, { metadata }), [runCommand]);
@@ -150,6 +153,13 @@ export function useInterventionLifecycle({
     outcome: { userRating: rating, userFeedback: feedback },
   }), [runCommand]);
 
+  const reset = useCallback(() => {
+    operationRef.current = false;
+    terminalRef.current = false;
+    interventionIdRef.current = null;
+    setState(initialState());
+  }, []);
+
   return {
     ...state,
     hasStarted: Boolean(state.interventionId),
@@ -163,5 +173,6 @@ export function useInterventionLifecycle({
     cancel,
     fail,
     rate,
+    reset,
   };
 }
