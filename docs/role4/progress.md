@@ -24,7 +24,7 @@
 - [x] Phase 0: Establish branch and implementation baseline
 - [x] Phase 1: Finalize ADHD and depression module contracts
 - [x] Phase 2: Align feature, module, and support registries
-- [ ] Phase 3: Add shared module execution and lifecycle integration boundary
+- [x] Phase 3: Add shared module execution and lifecycle integration boundary
 - [ ] Phase 4: Integrate ADHD Task Breakdown lifecycle and outcomes
 - [ ] Phase 5: Implement reflection for canonical intervention outcomes
 - [ ] Phase 6: Derive user-scoped memory from reflected outcomes
@@ -50,3 +50,7 @@
 - Deferred: Soundscapes is hidden because checked-in audio assets and playback error handling are absent. Evidence Folder is hidden because it stores sensitive free text globally. Void Whisper is hidden pending Phase 10 free-text safety and escalation work.
 - Phase 2 tests: navigation coverage was added for canonical landing pages, visible card routes, deferred modules, and feature resolution. `npm.cmd test` passed: 7 files, 115 tests.
 - Phase 2 commit: `fix(role4): unify ADHD and depression navigation`.
+- Phase 3: Added `src/support/execution/` with the public `executeSupportModule(request)` API, serializable request/result contracts, execution states, canonical placeholder executors, availability checks, safety checks, and start-lifecycle persistence.
+- Phase 3 limitations: the executor does not render UI, invoke Role 1 or Role 2, complete or abandon sessions, reflect, write memory, or launch deferred Soundscape/Evidence Journal modules.
+- Phase 3 tests: `src/test/supportExecution.test.js` covers validation, module IDs, availability, lifecycle start persistence, canonical module independence, and safety blocking. `npm.cmd test` passed: 8 files, 121 tests.
+- Phase 3 commit: `feat(role4): add shared intervention executor`.
