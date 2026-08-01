@@ -67,12 +67,10 @@ describe("Support module registry and selection", () => {
       "support.focus_session": "/adhd/focus",
       "support.visual_timeline": "/adhd/timeline",
       "support.mood_checkin": "/adhd/emotion-coach",
-      "support.soundscape": "/adhd/sounds",
       "support.accountability_session": "/adhd/doubling",
       "support.gentle_activity": "/depression/mvh",
       "support.grounding": "/depression/anxietydissolver",
       "support.social_connection": "/depression/social",
-      "support.evidence_journal": "/depression/proof",
       "support.cognitive_reframing": "/depression/reality",
     };
 

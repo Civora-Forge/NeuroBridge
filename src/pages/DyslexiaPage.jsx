@@ -1,4 +1,4 @@
-import { BookOpen, Activity, Mic, PenTool, User, Headphones } from "lucide-react";
+import { BookOpen, Activity, Mic, PenTool, User } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const tools = [
@@ -7,7 +7,6 @@ const tools = [
   { to: "/dyslexia/reinforcement",     icon: Activity,    title: "Multi-Sensory Learning",desc: "Reinforce literacy with multi-sensory cues." },
   { to: "/dyslexia/writing-assistant", icon: PenTool,     title: "Writing Assistant",     desc: "Structured writing support with real-time feedback." },
   { to: "/dyslexia/personal-profile",  icon: User,        title: "Learning Profile",      desc: "Your AI-driven reading insights and recommendations." },
-  { to: "/adhd/sounds",                icon: Headphones,  title: "Focus Soundscapes",     desc: "Ambient audio to reduce reading fatigue." },
 ];
 
 export default function DyslexiaPage() {

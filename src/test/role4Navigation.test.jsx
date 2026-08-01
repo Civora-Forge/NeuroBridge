@@ -1,0 +1,113 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import App from "@/App";
+import ADHDPage, { ADHD_LANDING_TOOLS } from "@/pages/adhd/ADHDPage";
+import DepressionDashboard, { DEPRESSION_LANDING_TOOLS } from "@/pages/depression/DepressionDashboard";
+import { FEATURES, resolveEnabledFeatures } from "@/lib/featureRegistry";
+import { MODULES_REGISTRY } from "@/data/modulesRegistry";
+import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
+
+vi.mock("@/context/AuthContext", () => ({
+  AuthProvider: ({ children }) => children,
+  useAuth: () => ({
+    user: {
+      id: "role4-navigation-user",
+      name: "Role 4 Test",
+      disorders: ["adhd", "depression"],
+      accessibility: {},
+      onboardingCompleted: true,
+    },
+    role: "user",
+    isAuthenticated: true,
+    isLoading: false,
+    hasFeature: () => true,
+    logout: () => {},
+  }),
+}));
+
+vi.mock("@/context/ContextProvider", () => ({
+  ContextProvider: ({ children }) => children,
+}));
+
+vi.mock("@/components/dev/ContextInspector", () => ({
+  default: () => null,
+}));
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  window.history.replaceState({}, "", "/");
+});
+
+function renderLandingPage(Page) {
+  return render(
+    <MemoryRouter>
+      <Page />
+    </MemoryRouter>,
+  );
+}
+
+describe("Role 4 ADHD and depression navigation", () => {
+  it("renders ADHDPage as one canonical landing page with only available module cards", () => {
+    renderLandingPage(ADHDPage);
+
+    expect(screen.getByRole("heading", { name: "Focus and Planning" })).toBeInTheDocument();
+    expect(screen.queryByText("ADHD Hub")).not.toBeInTheDocument();
+    expect(screen.queryByText("Soundscapes")).not.toBeInTheDocument();
+    expect(ADHD_LANDING_TOOLS.map((tool) => tool.moduleId)).toEqual([
+      "support.visual_timeline",
+      "support.task_breakdown",
+      "support.focus_session",
+      "support.mood_checkin",
+      "support.accountability_session",
+    ]);
+  });
+
+  it("registers the canonical ADHD and depression landing routes in the application", () => {
+    window.history.pushState({}, "", "/adhd");
+    const { unmount } = render(<App />);
+    expect(screen.getByRole("heading", { name: "Focus and Planning" })).toBeInTheDocument();
+    unmount();
+
+    window.history.pushState({}, "", "/depression");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Daily Momentum" })).toBeInTheDocument();
+  });
+
+  it("renders DepressionDashboard as one canonical landing page without deferred free-text tools", () => {
+    renderLandingPage(DepressionDashboard);
+
+    expect(screen.getByRole("heading", { name: "Daily Momentum" })).toBeInTheDocument();
+    expect(screen.queryByText("Evidence Folder")).not.toBeInTheDocument();
+    expect(screen.queryByText("Void Whisper")).not.toBeInTheDocument();
+    expect(DEPRESSION_LANDING_TOOLS.map((tool) => tool.moduleId)).toEqual([
+      "support.gentle_activity",
+      "support.grounding",
+      "support.social_connection",
+      "support.cognitive_reframing",
+    ]);
+  });
+
+  it("maps every visible landing card to one active Role 4 module route", () => {
+    [...ADHD_LANDING_TOOLS, ...DEPRESSION_LANDING_TOOLS].forEach((tool) => {
+      expect(getSupportModuleById(tool.moduleId)?.route).toBe(tool.to);
+    });
+  });
+
+  it("does not advertise deferred modules through the home module registry", () => {
+    expect(MODULES_REGISTRY[FEATURES.ADHD_SOUNDS]).toBeUndefined();
+    expect(MODULES_REGISTRY[FEATURES.DEPRESSION_PROOF]).toBeUndefined();
+    expect(MODULES_REGISTRY[FEATURES.DEPRESSION_VOID]).toBeUndefined();
+  });
+
+  it("preserves existing diagnosis-based feature resolution for protected leaf routes", () => {
+    const adhdFeatures = resolveEnabledFeatures({ disorders: ["adhd"] });
+    const depressionFeatures = resolveEnabledFeatures({ disorders: ["depression"] });
+
+    expect(adhdFeatures.has(FEATURES.ADHD_FOCUS)).toBe(true);
+    expect(adhdFeatures.has(FEATURES.ADHD_BREAKDOWN)).toBe(true);
+    expect(depressionFeatures.has(FEATURES.DEPRESSION_MVH)).toBe(true);
+    expect(depressionFeatures.has(FEATURES.DEPRESSION_REALITY)).toBe(true);
+  });
+});

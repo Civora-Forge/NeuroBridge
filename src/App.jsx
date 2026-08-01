@@ -30,12 +30,10 @@ import ASDStoriesPage from "./pages/asd/ASDStoriesPage";
 import ASDMeltdownPage from "./pages/asd/ASDMeltdownPage";
 import ASDEmotionPage from "./pages/asd/ASDEmotionPage";
 
-import ADHDDashboard from "./pages/adhd/ADHDDashboard";
 import EmotionCoach from "./pages/adhd/EmotionCoach";
 import VisualTimeline from "./pages/adhd/VisualTimeline";
 import TaskBreakdown from "./pages/adhd/TaskBreakdown";
 import FocusSessions from "./pages/adhd/FocusSessions";
-import Soundscapes from "./pages/adhd/SoundScapes";
 import BodyDoubling from "./pages/adhd/BodyDoubling";
 
 import DyslexiaDashboard from "./pages/dyslexia/DyslexiaDashboard";
@@ -68,9 +66,7 @@ import DepressionDashboard from "./pages/depression/DepressionDashboard";
 import MVHProtocol from "./pages/depression/MVHProtocol";
 import AnxietyDissolver from "./pages/depression/AnxietyDissolver";
 import SocialBroadcaster from "./pages/depression/SocialBroadcaster";
-import EvidenceFolder from "./pages/depression/EvidenceFolder";
 import CognitiveReframer from "./pages/depression/CognitiveReframer";
-import VoidWhisper from "./pages/depression/VoidWhisper";
 
 const queryClient = new QueryClient();
 
@@ -195,14 +191,6 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.ADHD_FOCUS}>
               <FocusSessions />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/adhd/sounds"
-          element={
-            <ProtectedRoute feature={FEATURES.ADHD_SOUNDS}>
-              <Soundscapes />
             </ProtectedRoute>
           }
         />
@@ -388,6 +376,14 @@ function ShellRoutes() {
 
         {/* Depression */}
         <Route
+          path="/depression"
+          element={
+            <ProtectedRoute feature={FEATURES.DEPRESSION}>
+              <DepressionDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/depression/mvh"
           element={
             <ProtectedRoute feature={FEATURES.DEPRESSION_MVH}>
@@ -412,26 +408,10 @@ function ShellRoutes() {
           }
         />
         <Route
-          path="/depression/proof"
-          element={
-            <ProtectedRoute feature={FEATURES.DEPRESSION_PROOF}>
-              <EvidenceFolder />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/depression/reality"
           element={
             <ProtectedRoute feature={FEATURES.DEPRESSION_REALITY}>
               <CognitiveReframer />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/depression/void"
-          element={
-            <ProtectedRoute feature={FEATURES.DEPRESSION_VOID}>
-              <VoidWhisper />
             </ProtectedRoute>
           }
         />

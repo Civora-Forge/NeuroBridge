@@ -44,14 +44,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/adhd/focus",
     tags: ["focus", "distraction"],
   },
-  [FEATURES.ADHD_SOUNDS]: {
-    id: FEATURES.ADHD_SOUNDS,
-    title: "Soundscapes",
-    description: "Stabilize attention with supportive ambient audio.",
-    icon: "Leaf",
-    launchRoute: "/adhd/sounds",
-    tags: ["focus", "noise_sensitivity", "sleep"],
-  },
   [FEATURES.ADHD_EMOTION]: {
     id: FEATURES.ADHD_EMOTION,
     title: "Emotion Coach",
@@ -221,14 +213,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/depression/social",
     tags: ["social_stress", "low_mood"],
   },
-  [FEATURES.DEPRESSION_PROOF]: {
-    id: FEATURES.DEPRESSION_PROOF,
-    title: "Evidence Folder",
-    description: "Collect positive evidence to challenge negative beliefs.",
-    icon: "Brain",
-    launchRoute: "/depression/proof",
-    tags: ["rumination", "low_mood"],
-  },
   [FEATURES.DEPRESSION_REALITY]: {
     id: FEATURES.DEPRESSION_REALITY,
     title: "Cognitive Reframer",
@@ -236,14 +220,6 @@ export const MODULES_REGISTRY = {
     icon: "Timer",
     launchRoute: "/depression/reality",
     tags: ["intrusive_thoughts", "rumination"],
-  },
-  [FEATURES.DEPRESSION_VOID]: {
-    id: FEATURES.DEPRESSION_VOID,
-    title: "Void Whisper",
-    description: "Use guided prompts during emotional low points.",
-    icon: "Activity",
-    launchRoute: "/depression/void",
-    tags: ["low_mood", "emotion_regulation"],
   },
 };
 
@@ -266,7 +242,6 @@ export const CHALLENGE_MODULE_MAP = {
     "dyslexia.adaptive-reading",
     FEATURES.DYSLEXIA_ADAPTIVE_READING,
     FEATURES.ADHD_FOCUS,
-    FEATURES.ADHD_SOUNDS,
   ],
   dyscalculia: [
     "dyscalculia.number-sense",
@@ -284,9 +259,7 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.DEPRESSION_MVH,
     FEATURES.DEPRESSION_ANXIETY_DISSOLVER,
     FEATURES.DEPRESSION_SOCIAL,
-    FEATURES.DEPRESSION_PROOF,
     FEATURES.DEPRESSION_REALITY,
-    FEATURES.DEPRESSION_VOID,
   ],
 };
 

@@ -1,12 +1,13 @@
-import { Zap, Clock, Timer } from "lucide-react";
+import { Brain, CalendarClock, CheckSquare, Timer, UsersRound, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const tools = [
+export const ADHD_LANDING_TOOLS = [
   {
+    moduleId: "support.visual_timeline",
     to: "/adhd/timeline",
-    icon: Clock,
+    icon: CalendarClock,
     title: "Visual Timeline",
-    desc: "Organise your schedule visually to beat time blindness and plan your day with clarity.",
+    desc: "Organize tasks and routines with clear visual time blocks.",
     color: "from-green-500 to-emerald-500",
     bg: "bg-green-50",
     border: "border-green-100",
@@ -14,6 +15,19 @@ const tools = [
     hover: "hover:shadow-[0_10px_30px_rgba(34,197,94,0.2)]",
   },
   {
+    moduleId: "support.task_breakdown",
+    to: "/adhd/breakdown",
+    icon: CheckSquare,
+    title: "Task Breakdown",
+    desc: "Turn a large task into smaller, editable next steps.",
+    color: "from-lime-500 to-green-500",
+    bg: "bg-lime-50",
+    border: "border-lime-100",
+    text: "text-lime-700",
+    hover: "hover:shadow-[0_10px_30px_rgba(132,204,22,0.2)]",
+  },
+  {
+    moduleId: "support.focus_session",
     to: "/adhd/focus",
     icon: Timer,
     title: "Focus Sessions",
@@ -23,6 +37,30 @@ const tools = [
     border: "border-emerald-100",
     text: "text-emerald-600",
     hover: "hover:shadow-[0_10px_30px_rgba(16,185,129,0.2)]",
+  },
+  {
+    moduleId: "support.mood_checkin",
+    to: "/adhd/emotion-coach",
+    icon: Brain,
+    title: "Mood Check-in",
+    desc: "Name what is happening and choose a small regulation prompt.",
+    color: "from-teal-500 to-cyan-500",
+    bg: "bg-teal-50",
+    border: "border-teal-100",
+    text: "text-teal-700",
+    hover: "hover:shadow-[0_10px_30px_rgba(20,184,166,0.2)]",
+  },
+  {
+    moduleId: "support.accountability_session",
+    to: "/adhd/doubling",
+    icon: UsersRound,
+    title: "Accountability Session",
+    desc: "Set a commitment and use a guided timer to stay with the next task.",
+    color: "from-sky-500 to-blue-500",
+    bg: "bg-sky-50",
+    border: "border-sky-100",
+    text: "text-sky-700",
+    hover: "hover:shadow-[0_10px_30px_rgba(14,165,233,0.2)]",
   },
 ];
 
@@ -35,18 +73,18 @@ export default function ADHDPage() {
           <Zap className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-          ADHD Dashboard
+          Focus and Planning
         </h1>
         <p className="text-base text-slate-600 max-w-xl mx-auto">
-          Focus and time management tools to help you stay on track.
+          Choose one small support tool for attention, planning, time, or emotional regulation.
         </p>
       </div>
 
       {/* Feature cards */}
       <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {tools.map(({ to, icon: Icon, title, desc, bg, border, text, hover }) => (
+        {ADHD_LANDING_TOOLS.map(({ moduleId, to, icon: Icon, title, desc, bg, border, text, hover }) => (
           <Link
-            key={to}
+            key={moduleId}
             to={to}
             className={`group relative bg-white ${border} border rounded-2xl p-6 flex flex-col gap-3 shadow-sm ${hover} hover:-translate-y-1 transition-all duration-300 overflow-hidden`}
           >
@@ -66,7 +104,7 @@ export default function ADHDPage() {
       </div>
 
       <p className="text-center text-xs text-slate-400 mt-10">
-        More tools will be added to your dashboard as your profile develops.
+        Soundscapes is unavailable until audio assets and playback error handling are ready.
       </p>
     </div>
   );
