@@ -57,7 +57,7 @@ export function buildFocusSessionMemoryObservations(reflections) {
   const observations = [];
   reflections.forEach((reflection) => {
     const summary = reflection.outcomeSummary ?? {};
-    const ratio = summary.completionRate;
+    const ratio = insightValue(reflection, 'focus_session_completion');
     const duration = insightValue(reflection, 'focus_session_duration');
     const pauses = insightValue(reflection, 'focus_session_pause_pattern');
     const natural = insightValue(reflection, 'focus_session_natural_completion');
