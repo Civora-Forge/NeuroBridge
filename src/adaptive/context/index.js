@@ -68,6 +68,17 @@ export {
   detectMaterialChange,
 } from "./contextFusion.js";
 
+// Live Interaction Metrics
+export {
+  startInteractionTracking,
+  stopInteractionTracking,
+  recordNavigationSignal,
+  recordExplicitRequestInteraction,
+  getInteractionSnapshot,
+  getExplicitRequestSnapshot,
+  resetInteractionTracker,
+} from "./contextInteractionTracker.js";
+
 // Public ContextSnapshot API & Services
 export { handleGetContextSnapshot, getContextSnapshotAPI, handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
 

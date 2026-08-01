@@ -17,4 +17,6 @@ export const ContextEvents = {
   MOOD_UPDATED: "MoodUpdated",
   /** Emitted when conversation context updates */
   CONVERSATION_UPDATED: "ConversationUpdated",
+  /** Emitted when live interaction metrics change */
+  INTERACTION_UPDATED: "InteractionUpdated",
 };

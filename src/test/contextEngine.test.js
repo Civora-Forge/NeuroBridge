@@ -164,6 +164,10 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(snapshot).toHaveProperty("timestamp");
       expect(snapshot).toHaveProperty("metadata.snapshotVersion");
       expect(snapshot.userId).toBeNull();
+      expect(snapshot).toHaveProperty("behavior");
+      expect(snapshot).toHaveProperty("deviceInteraction");
+      expect(snapshot).toHaveProperty("explicitRequests");
+      expect(snapshot).toHaveProperty("biometrics");
       expect(snapshot).not.toHaveProperty("emotion");
       expect(snapshot).not.toHaveProperty("task");
       expect(snapshot).not.toHaveProperty("confidence.overall");
@@ -201,7 +205,7 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
     it("should expose explicitRequest under conversation for downstream modules", async () => {
       contextEngine.init();
 
-      const result = await contextEngine.processUserMessage("I need help focusing.", { useAI: false });
+      const result = await contextEngine.processUserMessage("I need help focusing.", { useAI: false, inputMode: "chat" });
 
       expect(result.context.conversation).toHaveProperty("explicitRequest");
       expect(result.context.conversation.explicitRequest).toMatchObject({
@@ -211,6 +215,22 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
         originalText: "I need help focusing.",
       });
       expect(result.context.conversation.explicitRequest.timestamp).toBeDefined();
+      expect(result.context.explicitRequests).toMatchObject({
+        requestType: "explicit_help_request",
+        inputMode: "chat",
+      });
+    });
+
+    it("should update live interaction metrics after navigation changes", () => {
+      contextEngine.init({ initialScreen: "reader" });
+      contextEngine.trackNavigation("reader", { path: "/reader" });
+      contextEngine.trackNavigation("reader", { path: "/reader" });
+
+      const snapshot = ContextSnapshotAdapter.toContextSnapshot(contextEngine.getLatestContext());
+
+      expect(snapshot.deviceInteraction.repeatedNavigation).toBeGreaterThanOrEqual(1);
+      expect(snapshot.behavior.taskSwitchFrequency).toBeGreaterThanOrEqual(0);
+      expect(snapshot.deviceInteraction.currentSessionDuration).toBeGreaterThanOrEqual(0);
     });
   });
 });
