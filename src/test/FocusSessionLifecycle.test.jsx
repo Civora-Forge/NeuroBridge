@@ -22,7 +22,7 @@ describe('FocusSessions lifecycle UI', () => {
   it('records milestone progress but not per-second persistence, and pauses/resumes', async () => {
     render(<FocusSessions />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /Start focus block/i })));
-    await act(async () => { vi.advanceTimersByTime(10_000); });
+    await act(async () => { vi.advanceTimersByTime(10000); });
     let history = getInterventionHistory(auth.user.id)[0];
     expect(history.lifecycleEvents.filter((event) => event.metadata?.progress).length).toBe(0);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Pause' })));
