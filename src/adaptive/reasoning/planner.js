@@ -17,12 +17,17 @@
 
 /**
  * Generate an action plan for a recommended intervention.
+ *
+ * TODO: This is a placeholder. The Planner will consume the ReasoningResult
+ * produced by the Cognitive Reasoning Core (reasonAboutUserState) and break
+ * its strategy into concrete, executable intervention steps.
+ *
  * @param {string} interventionType - The type of intervention
- * @param {import("./cognitiveReasoning.js").AdaptationPlan} plan - The parent plan
+ * @param {import("./cognitiveReasoning.js").ReasoningResult} reasoningResult - The parent reasoning result
  * @param {import("../state/userStateModel.js").UserState} userState
  * @returns {ActionPlan}
  */
-export function generatePlan(interventionType, plan, userState) {
+export function generatePlan(interventionType, reasoningResult, userState) {
   // TODO: Generate concrete action steps
   // - Map intervention type to specific UI components
   // - Determine data requirements
