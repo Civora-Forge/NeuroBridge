@@ -8,11 +8,11 @@ const supportedModuleIds = [
   "support.grounding",
   "support.social_connection",
   "support.cognitive_reframing",
+  "support.evidence_journal",
 ];
 
 export const DEFERRED_MODULE_IDS = new Set([
   "support.soundscape",
-  "support.evidence_journal",
 ]);
 
 async function startPlaceholderExecutor() {
