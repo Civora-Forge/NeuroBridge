@@ -11,6 +11,7 @@ import { contextStore } from "./contextStore.js";
 import { createContextSignal } from "./types/contextTypes.js";
 import { ContextEvents } from "./events/contextEvents.js";
 import { logFusion } from "./contextLogger.js";
+import { toContextSnapshot } from "./contextSnapshotAdapter.js";
 
 /**
  * Build conversation store payload from analysis result.
@@ -52,7 +53,7 @@ function buildMoodStoreData(result) {
  * @param {object} [options]
  * @param {boolean} [options.useAI] - Override AI usage (defaults to online-aware)
  * @param {string} [options.explicitMood] - Optional explicit mood check-in
- * @returns {Promise<{ analysis: object, mood: object, context: object }>}
+ * @returns {Promise<{ analysis: object, mood: object, context: import("./types/contextTypes.js").ContextSnapshot }>}
  */
 export async function processUserMessage(text, options = {}) {
   const env = contextStore.getContext().environment;
@@ -95,12 +96,14 @@ export async function processUserMessage(text, options = {}) {
     })
   );
 
+  const contextSnapshot = toContextSnapshot(fusedContext);
+
   logFusion(fusedContext);
 
   return {
     analysis,
     mood: moodResult,
-    context: fusedContext,
+    context: contextSnapshot,
   };
 }
 

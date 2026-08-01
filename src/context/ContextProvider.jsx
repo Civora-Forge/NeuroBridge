@@ -4,7 +4,7 @@ import {
   contextEngine,
   contextEventBus,
   ContextEvents,
-  getUnifiedContextAPI,
+  getContextSnapshotAPI,
 } from "@/adaptive/context";
 import { useAuth } from "@/context/AuthContext";
 
@@ -42,7 +42,7 @@ export function ContextProvider({ children }) {
 
   useEffect(() => {
     contextEngine.init({ initialScreen: resolveModuleFromPath(location.pathname) });
-    getUnifiedContextAPI().then(setContext);
+    getContextSnapshotAPI().then(setContext);
 
     return () => contextEngine.stop();
   }, []);
@@ -60,13 +60,14 @@ export function ContextProvider({ children }) {
   useEffect(() => {
     const moduleName = resolveModuleFromPath(location.pathname);
     contextEngine.trackNavigation(moduleName, { path: location.pathname });
-    getUnifiedContextAPI().then(setContext);
+    getContextSnapshotAPI().then(setContext);
   }, [location.pathname]);
 
   useEffect(() => {
     const unsub = contextEventBus.subscribe(ContextEvents.CONTEXT_UPDATED, (payload) => {
-      if (payload.context) {
-        setContext(payload.context);
+      const nextContext = payload.snapshot || payload.context;
+      if (nextContext) {
+        setContext(nextContext);
         setLastUpdated(payload.timestamp || new Date().toISOString());
       }
     });
@@ -81,7 +82,7 @@ export function ContextProvider({ children }) {
   }, []);
 
   const refreshContext = useCallback(async () => {
-    const snapshot = await getUnifiedContextAPI();
+    const snapshot = await getContextSnapshotAPI();
     setContext(snapshot);
     setLastUpdated(new Date().toISOString());
     return snapshot;
