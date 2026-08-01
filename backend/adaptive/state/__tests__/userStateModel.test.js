@@ -35,14 +35,18 @@ function expectValidMetadata(state) {
 
 // ─────────────────────────────────────────────────────────────────
 //  Test 1: Normal context — low load, normal attention, low urgency
+//
+//  NOTE: fixtures use the new public ContextSnapshot contract
+//  (mood / conversation / behavior / deviceInteraction / ...).
 // ─────────────────────────────────────────────────────────────────
 
 describe("UserStateModel — Normal context", () => {
   it("should produce a low-load state from calm, simple signals", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: 0.9 },
-      activity: { taskSwitching: "low", engagement: "normal", currentTask: "reading" },
-      task: { urgency: "low", complexity: "simple" },
+      mood: { primaryMood: "calm", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 0 },
+      conversation: { urgency: "low" },
+      activity: { activity: "reading" },
       environment: { timeOfDay: "morning" },
     };
 
@@ -64,9 +68,9 @@ describe("UserStateModel — Normal context", () => {
 
   it("should have high confidence when signals are strong", () => {
     const snapshot = {
-      emotion: { label: "content", confidence: 0.95 },
-      activity: { taskSwitching: "low", engagement: "high" },
-      task: { urgency: "low", complexity: "simple" },
+      mood: { primaryMood: "content", confidence: 0.95 },
+      behavior: { taskSwitchFrequency: 0 },
+      conversation: { urgency: "low" },
     };
 
     const state = buildUserState(snapshot);
@@ -82,9 +86,10 @@ describe("UserStateModel — Normal context", () => {
 describe("UserStateModel — Overwhelmed user", () => {
   it("should detect overwhelming cognitive load from overwhelmed emotion + high task switching", () => {
     const snapshot = {
-      emotion: { label: "overwhelmed", confidence: 0.86 },
-      activity: { taskSwitching: "high", engagement: "low" },
-      task: { urgency: "high", complexity: "complex" },
+      mood: { primaryMood: "overwhelmed", confidence: 0.86 },
+      behavior: { taskSwitchFrequency: 1.0 },
+      conversation: { urgency: "high" },
+      deviceInteraction: { currentSessionDuration: 7200 },
     };
 
     const state = buildUserState(snapshot);
@@ -95,12 +100,13 @@ describe("UserStateModel — Overwhelmed user", () => {
     expectValidDimension(state.urgency, "high");
     expectValidDimension(state.taskComplexity, "complex");
     expectValidDimension(state.attentionState, "fragmented");
-    expectValidDimension(state.engagementLevel, "low");
+    // Long session + heavy task switching derives disengagement.
+    expectValidDimension(state.engagementLevel, "disengaged");
   });
 
   it("should detect fragmented attention from high task switching", () => {
     const snapshot = {
-      activity: { taskSwitching: "high" },
+      behavior: { taskSwitchFrequency: 1.0 },
     };
 
     const state = buildUserState(snapshot);
@@ -110,7 +116,7 @@ describe("UserStateModel — Overwhelmed user", () => {
 
   it("should detect high stress from panicked emotion", () => {
     const snapshot = {
-      emotion: { label: "panicked", confidence: 0.92 },
+      mood: { primaryMood: "panicked", confidence: 0.92 },
     };
 
     const state = buildUserState(snapshot);
@@ -127,7 +133,7 @@ describe("UserStateModel — Overwhelmed user", () => {
 describe("UserStateModel — Missing data", () => {
   it("should return 'unknown' for all dimensions when no emotion signal is provided", () => {
     const snapshot = {
-      activity: { taskSwitching: "low" },
+      behavior: { taskSwitchFrequency: 0 },
     };
 
     const state = buildUserState(snapshot);
@@ -142,7 +148,7 @@ describe("UserStateModel — Missing data", () => {
 
   it("should return 'unknown' when activity signals are missing", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: 0.8 },
+      mood: { primaryMood: "calm", confidence: 0.8 },
     };
 
     const state = buildUserState(snapshot);
@@ -156,7 +162,7 @@ describe("UserStateModel — Missing data", () => {
 
   it("should return 'unknown' for urgency when no task or intent signals exist", () => {
     const snapshot = {
-      emotion: { label: "neutral", confidence: 0.5 },
+      mood: { primaryMood: "neutral", confidence: 0.5 },
     };
 
     const state = buildUserState(snapshot);
@@ -172,12 +178,12 @@ describe("UserStateModel — Missing data", () => {
 describe("UserStateModel — Low-confidence signals", () => {
   it("should propagate low confidence from emotion signal", () => {
     const highConf = {
-      emotion: { label: "anxious", confidence: 0.9 },
-      activity: { taskSwitching: "low" },
+      mood: { primaryMood: "anxious", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 0 },
     };
     const lowConf = {
-      emotion: { label: "anxious", confidence: 0.15 },
-      activity: { taskSwitching: "low" },
+      mood: { primaryMood: "anxious", confidence: 0.15 },
+      behavior: { taskSwitchFrequency: 0 },
     };
 
     const stateHigh = buildUserState(highConf);
@@ -195,7 +201,7 @@ describe("UserStateModel — Low-confidence signals", () => {
 
   it("should include low-confidence warning in reasons", () => {
     const snapshot = {
-      emotion: { label: "sad", confidence: 0.1 },
+      mood: { primaryMood: "sad", confidence: 0.1 },
     };
 
     const state = buildUserState(snapshot);
@@ -205,7 +211,7 @@ describe("UserStateModel — Low-confidence signals", () => {
 
   it("should still provide a value even with low confidence", () => {
     const snapshot = {
-      emotion: { label: "frustrated", confidence: 0.05 },
+      mood: { primaryMood: "frustrated", confidence: 0.05 },
     };
 
     const state = buildUserState(snapshot);
@@ -222,7 +228,8 @@ describe("UserStateModel — Low-confidence signals", () => {
 describe("UserStateModel — Conflicting signals", () => {
   it("should handle high urgency with low complexity (no conflict, different dimensions)", () => {
     const snapshot = {
-      task: { urgency: "high", complexity: "simple" },
+      conversation: { urgency: "high" },
+      behavior: { taskSwitchFrequency: 0 },
     };
 
     const state = buildUserState(snapshot);
@@ -232,8 +239,8 @@ describe("UserStateModel — Conflicting signals", () => {
 
   it("should handle calm emotion with high task switching", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: 0.9 },
-      activity: { taskSwitching: "high" },
+      mood: { primaryMood: "calm", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 1.0 },
     };
 
     const state = buildUserState(snapshot);
@@ -247,7 +254,7 @@ describe("UserStateModel — Conflicting signals", () => {
 
   it("should use confidence-weighted resolution when biometrics conflict with emotion", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: 0.9 },
+      mood: { primaryMood: "calm", confidence: 0.9 },
       biometrics: { heartRateVariabilityMs: 25, electrodermalActivityMuS: 7 },
     };
 
@@ -307,7 +314,7 @@ describe("UserStateModel — Empty ContextSnapshot", () => {
 describe("UserStateModel — Explainability", () => {
   it("should include reasons for emotionalState", () => {
     const snapshot = {
-      emotion: { label: "anxious", confidence: 0.85, source: "conversation" },
+      mood: { primaryMood: "anxious", confidence: 0.85 },
     };
 
     const state = buildUserState(snapshot);
@@ -316,14 +323,13 @@ describe("UserStateModel — Explainability", () => {
     expect(dim.reasons).toBeDefined();
     expect(dim.reasons.length).toBeGreaterThan(0);
     expect(dim.reasons[0]).toContain("anxious");
-    expect(dim.sources).toContain("emotion");
+    expect(dim.sources).toContain("mood.primaryMood");
   });
 
   it("should include reasons for cognitiveLoad when inferred from multiple signals", () => {
     const snapshot = {
-      emotion: { label: "neutral", confidence: 0.7 },
-      activity: { taskSwitching: "high" },
-      task: { complexity: "complex" },
+      mood: { primaryMood: "neutral", confidence: 0.7 },
+      behavior: { taskSwitchFrequency: 1.0 },
     };
 
     const state = buildUserState(snapshot);
@@ -331,8 +337,8 @@ describe("UserStateModel — Explainability", () => {
 
     expect(dim.reasons.length).toBeGreaterThan(0);
     expect(dim.sources.length).toBeGreaterThan(0);
-    expect(dim.sources).toContain("activity.taskSwitching");
-    expect(dim.sources).toContain("task.complexity");
+    expect(dim.sources).toContain("mood.primaryMood");
+    expect(dim.sources).toContain("behavior.taskSwitchFrequency");
   });
 
   it("should include reasons for stress level from biometrics", () => {
@@ -406,30 +412,35 @@ describe("UserStateModel — Biometrics", () => {
 
 // ─────────────────────────────────────────────────────────────────
 //  Test 9: Motivation inference
+//
+//  NOTE: task completion/abandonment counts no longer exist in the
+//  ContextSnapshot contract. Motivation now derives from engagement
+//  (idle time, focus interruptions, session length, reading activity).
 // ─────────────────────────────────────────────────────────────────
 
 describe("UserStateModel — Motivation", () => {
-  it("should infer high motivation from high completion rate", () => {
+  it("should infer high motivation from active reading (high derived engagement)", () => {
     const snapshot = {
-      activity: { taskCompletionCount: 8, taskAbandonCount: 1 },
+      behavior: { readingSpeed: 280 },
     };
 
     const state = buildUserState(snapshot);
     expectValidDimension(state.motivationLevel, "high");
   });
 
-  it("should infer low motivation from high abandonment rate", () => {
+  it("should infer low motivation from long idle time (disengaged)", () => {
     const snapshot = {
-      activity: { taskCompletionCount: 1, taskAbandonCount: 7 },
+      behavior: { idleDuration: 900 },
     };
 
     const state = buildUserState(snapshot);
     expectValidDimension(state.motivationLevel, "low");
   });
 
-  it("should infer moderate motivation from engagement when no task data", () => {
+  it("should infer moderate motivation from normal engagement when no task data", () => {
     const snapshot = {
-      activity: { engagement: "normal" },
+      behavior: { taskSwitchFrequency: 0 },
+      activity: { activity: "reading" },
     };
 
     const state = buildUserState(snapshot);
@@ -444,7 +455,7 @@ describe("UserStateModel — Motivation", () => {
 describe("UserStateModel — Backward compatibility", () => {
   it("should expose mood as alias for emotionalState", () => {
     const snapshot = {
-      emotion: { label: "anxious", confidence: 0.8 },
+      mood: { primaryMood: "anxious", confidence: 0.8 },
     };
 
     const state = buildUserState(snapshot);
@@ -454,7 +465,7 @@ describe("UserStateModel — Backward compatibility", () => {
 
   it("should expose attention as alias for attentionState", () => {
     const snapshot = {
-      activity: { taskSwitching: "high" },
+      behavior: { taskSwitchFrequency: 1.0 },
     };
 
     const state = buildUserState(snapshot);
@@ -464,7 +475,7 @@ describe("UserStateModel — Backward compatibility", () => {
 
   it("should expose energy as alias for energyLevel", () => {
     const snapshot = {
-      emotion: { label: "overwhelmed", confidence: 0.9 },
+      mood: { primaryMood: "overwhelmed", confidence: 0.9 },
     };
 
     const state = buildUserState(snapshot);
@@ -473,7 +484,7 @@ describe("UserStateModel — Backward compatibility", () => {
 
   it("should expose engagement as alias for engagementLevel", () => {
     const snapshot = {
-      activity: { engagement: "high" },
+      behavior: { readingSpeed: 280 },
     };
 
     const state = buildUserState(snapshot);
@@ -483,9 +494,9 @@ describe("UserStateModel — Backward compatibility", () => {
 
   it("should work with adaptationPolicy-style string comparisons", () => {
     const snapshot = {
-      emotion: { label: "panicked", confidence: 0.9 },
-      activity: { taskSwitching: "high" },
-      task: { urgency: "critical" },
+      mood: { primaryMood: "panicked", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 1.0 },
+      conversation: { urgency: "critical" },
     };
 
     const state = buildUserState(snapshot);
@@ -504,8 +515,8 @@ describe("UserStateModel — Backward compatibility", () => {
 describe("detectStateTransition", () => {
   it("should detect no transition for identical states", () => {
     const state = buildUserState({
-      emotion: { label: "calm", confidence: 0.8 },
-      activity: { taskSwitching: "low" },
+      mood: { primaryMood: "calm", confidence: 0.8 },
+      behavior: { taskSwitchFrequency: 0 },
     });
 
     const result = detectStateTransition(state, state);
@@ -515,13 +526,12 @@ describe("detectStateTransition", () => {
 
   it("should detect significant cognitive load transition", () => {
     const prev = buildUserState({
-      emotion: { label: "calm", confidence: 0.8 },
-      activity: { taskSwitching: "low" },
+      mood: { primaryMood: "calm", confidence: 0.8 },
+      behavior: { taskSwitchFrequency: 0 },
     });
     const curr = buildUserState({
-      emotion: { label: "overwhelmed", confidence: 0.9 },
-      activity: { taskSwitching: "high" },
-      task: { complexity: "complex" },
+      mood: { primaryMood: "overwhelmed", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 1.0 },
     });
 
     const result = detectStateTransition(prev, curr);
@@ -534,10 +544,10 @@ describe("detectStateTransition", () => {
 
   it("should detect emotion change as significant", () => {
     const prev = buildUserState({
-      emotion: { label: "calm", confidence: 0.8 },
+      mood: { primaryMood: "calm", confidence: 0.8 },
     });
     const curr = buildUserState({
-      emotion: { label: "panicked", confidence: 0.9 },
+      mood: { primaryMood: "panicked", confidence: 0.9 },
     });
 
     const result = detectStateTransition(prev, curr);
@@ -550,7 +560,7 @@ describe("detectStateTransition", () => {
   it("should treat unknown → known transitions as significant", () => {
     const prev = buildUserState({});
     const curr = buildUserState({
-      emotion: { label: "anxious", confidence: 0.7 },
+      mood: { primaryMood: "anxious", confidence: 0.7 },
     });
 
     const result = detectStateTransition(prev, curr);
@@ -563,19 +573,19 @@ describe("detectStateTransition", () => {
 // ─────────────────────────────────────────────────────────────────
 
 describe("UserStateModel — Edge cases", () => {
-  it("should handle emotion with unexpected label gracefully", () => {
+  it("should map an unexpected mood label to 'unknown' (controlled vocabulary)", () => {
     const snapshot = {
-      emotion: { label: "ecstatic_beyond_belief", confidence: 0.99 },
+      mood: { primaryMood: "ecstatic_beyond_belief", confidence: 0.99 },
     };
 
     const state = buildUserState(snapshot);
-    expect(state.emotionalState).toBe("ecstatic_beyond_belief");
-    expect(state._dimensions.emotionalState.confidence).toBe(0.99);
+    expect(state.emotionalState).toBe("unknown");
+    expect(state._dimensions.emotionalState.confidence).toBe(0);
   });
 
   it("should handle negative confidence values", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: -0.5 },
+      mood: { primaryMood: "calm", confidence: -0.5 },
     };
 
     const state = buildUserState(snapshot);
@@ -584,7 +594,7 @@ describe("UserStateModel — Edge cases", () => {
 
   it("should handle confidence > 1", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: 1.5 },
+      mood: { primaryMood: "calm", confidence: 1.5 },
     };
 
     const state = buildUserState(snapshot);
@@ -593,26 +603,26 @@ describe("UserStateModel — Edge cases", () => {
 
   it("should handle non-numeric confidence", () => {
     const snapshot = {
-      emotion: { label: "calm", confidence: "high" },
+      mood: { primaryMood: "calm", confidence: "high" },
     };
 
     const state = buildUserState(snapshot);
     expect(state._dimensions.emotionalState.confidence).toBe(0);
   });
 
-  it("should handle emotion as a non-object", () => {
+  it("should handle mood as a non-object", () => {
     const snapshot = {
-      emotion: "anxious",
+      mood: "anxious",
     };
 
     const state = buildUserState(snapshot);
-    // emotion is a string, not an object with .label — should be unknown
+    // mood is a string, not an object with .primaryMood — should be unknown
     expectValidDimension(state.emotionalState, "unknown");
   });
 
   it("should handle very long session durations", () => {
     const snapshot = {
-      activity: { sessionDurationMs: 7800000 }, // 130 minutes (> 2 hours)
+      deviceInteraction: { currentSessionDuration: 7800 }, // 130 minutes (> 2 hours)
     };
 
     const state = buildUserState(snapshot);
@@ -621,8 +631,8 @@ describe("UserStateModel — Edge cases", () => {
 
   it("should produce serializable output", () => {
     const snapshot = {
-      emotion: { label: "anxious", confidence: 0.8 },
-      activity: { taskSwitching: "high" },
+      mood: { primaryMood: "anxious", confidence: 0.8 },
+      behavior: { taskSwitchFrequency: 1.0 },
     };
 
     const state = buildUserState(snapshot);
@@ -641,9 +651,9 @@ describe("UserStateModel — Edge cases", () => {
 
   it("should collect unique sources across all dimensions", () => {
     const snapshot = {
-      emotion: { label: "anxious", confidence: 0.8 },
-      activity: { taskSwitching: "high", engagement: "low" },
-      task: { urgency: "high", complexity: "complex" },
+      mood: { primaryMood: "anxious", confidence: 0.8 },
+      behavior: { taskSwitchFrequency: 1.0 },
+      conversation: { urgency: "high" },
       biometrics: { heartRateVariabilityMs: 30 },
     };
 
