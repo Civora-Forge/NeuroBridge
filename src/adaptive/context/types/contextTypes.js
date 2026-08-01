@@ -61,6 +61,7 @@
  * @property {string|null} detectedIntent - Extracted intent
  * @property {string} urgency - "low" | "moderate" | "high" | "critical" | "unknown"
  * @property {string[]} keyTopics - Extracted topics
+ * @property {{ intent: string|null, requestType: string|null, priority: string|null, originalText: string|null, confidence: number|null, timestamp: string|null }|null} [explicitRequest] - First-class explicit user request context
  */
 
 /**
@@ -105,7 +106,7 @@
 /**
  * @typedef {object} ContextSnapshot
  * @property {string} snapshotId - Unique identifier for the public snapshot
- * @property {string|null} userId - Stable user identifier
+ * @property {string|null} userId - Stable user identifier; non-null for authenticated snapshots, null allowed for anonymous/pre-auth snapshots
  * @property {string} timestamp - ISO 8601 snapshot publication time
  * @property {ProfileContext} profile - Public profile context
  * @property {ActivityContext} activity - Public activity context
