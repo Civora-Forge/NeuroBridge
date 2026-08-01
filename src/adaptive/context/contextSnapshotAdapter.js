@@ -60,15 +60,62 @@ function buildEnvironment(environment = {}) {
 }
 
 function buildConversation(conversation = {}) {
+  const analysis = clone(conversation.analysis) ?? null;
+  const lastUserMessage = conversation.lastUserMessage ?? null;
+  const detectedIntent = conversation.detectedIntent ?? analysis?.intent ?? null;
+  const explicitRequest = lastUserMessage
+    ? {
+        intent: detectedIntent,
+        requestType: mapRequestType(detectedIntent),
+        priority: mapPriority(detectedIntent, conversation.urgency || analysis?.urgency),
+        originalText: lastUserMessage,
+        confidence: typeof analysis?.confidence === "number" ? analysis.confidence : null,
+        timestamp: conversation.lastUpdated || conversation.timestamp || conversation.analysis?.timestamp || null,
+      }
+    : null;
+
   return {
-    lastUserMessage: conversation.lastUserMessage ?? null,
+    lastUserMessage,
     sentimentScore: typeof conversation.sentimentScore === "number" ? conversation.sentimentScore : null,
-    detectedIntent: conversation.detectedIntent ?? null,
+    detectedIntent,
     urgency: conversation.urgency || "unknown",
     keyTopics: Array.isArray(conversation.keyTopics) ? [...conversation.keyTopics] : [],
     emotionalCues: Array.isArray(conversation.emotionalCues) ? [...conversation.emotionalCues] : [],
-    analysis: clone(conversation.analysis) ?? null,
+    analysis,
+    explicitRequest,
   };
+}
+
+function mapRequestType(intent) {
+  switch (intent) {
+    case "focus_support":
+    case "task_support":
+    case "planning_support":
+    case "sensory_support":
+      return "explicit_help_request";
+    case "emotional_checkin":
+      return "explicit_state_report";
+    default:
+      return intent ? "explicit_support_request" : null;
+  }
+}
+
+function mapPriority(intent, urgency) {
+  if (intent === "focus_support" || intent === "task_support" || intent === "planning_support" || intent === "sensory_support" || intent === "emotional_checkin") {
+    return "high";
+  }
+
+  switch (urgency) {
+    case "critical":
+    case "high":
+      return "high";
+    case "moderate":
+      return "moderate";
+    case "low":
+      return "low";
+    default:
+      return null;
+  }
 }
 
 function buildMood(mood = {}) {

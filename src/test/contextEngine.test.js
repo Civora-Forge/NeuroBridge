@@ -163,6 +163,7 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(snapshot).toHaveProperty("snapshotId");
       expect(snapshot).toHaveProperty("timestamp");
       expect(snapshot).toHaveProperty("metadata.snapshotVersion");
+      expect(snapshot.userId).toBeNull();
       expect(snapshot).not.toHaveProperty("emotion");
       expect(snapshot).not.toHaveProperty("task");
       expect(snapshot).not.toHaveProperty("confidence.overall");
@@ -195,6 +196,21 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(data).toHaveProperty("snapshotId");
       expect(data).toHaveProperty("profile");
       expect(data).toHaveProperty("metadata");
+    });
+
+    it("should expose explicitRequest under conversation for downstream modules", async () => {
+      contextEngine.init();
+
+      const result = await contextEngine.processUserMessage("I need help focusing.", { useAI: false });
+
+      expect(result.context.conversation).toHaveProperty("explicitRequest");
+      expect(result.context.conversation.explicitRequest).toMatchObject({
+        intent: "focus_support",
+        requestType: "explicit_help_request",
+        priority: "high",
+        originalText: "I need help focusing.",
+      });
+      expect(result.context.conversation.explicitRequest.timestamp).toBeDefined();
     });
   });
 });
