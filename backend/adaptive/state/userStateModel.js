@@ -7,7 +7,13 @@
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                     ARCHITECTURE POSITION                       │
  * │                                                                 │
- * │  ContextSnapshot (input)                                        │
+ * │  ContextSnapshot (from ContextSnapshotAdapter)                  │
+ * │        │                                                        │
+ * │        ▼                                                        │
+ * │  ┌──────────────────────────┐                                   │
+ * │  │   Snapshot Normalizer    │  → Normalized Signals            │
+ * │  │  (snapshotNormalizer.js) │                                   │
+ * │  └──────────────────────────┘                                   │
  * │        │                                                        │
  * │        ▼                                                        │
  * │  ┌──────────────────────┐                                       │
@@ -36,14 +42,20 @@
  *  5. Serializable — output is a plain object, safe for JSON transport
  *  6. Single responsibility — only transforms context to state
  *
+ * INPUT CONTRACT: This module consumes ONLY the public ContextSnapshot
+ * produced by Role 1 (via getContextSnapshotAPI / CONTEXT_UPDATED /
+ * ContextSnapshotAdapter) and the normalized signal object produced by
+ * snapshotNormalizer.js. It does NOT read raw Unified Context Object
+ * fields such as emotion.*, task.*, activity.*, or userInput.*.
+ *
  * Ownership: Adaptive Intelligence Engineer
  */
 
 import {
   normalizeConfidence,
   isNonNullObject,
-  safeGet,
-} from "../context/contextSnapshot.js";
+} from "@/adaptive/context/contextSnapshot.js";
+import { normalizeContextSnapshot } from "./snapshotNormalizer.js";
 
 // ─────────────────────────────────────────────────────────────────
 //  UserState schema
@@ -193,32 +205,62 @@ function unknown(reason = "No input signals available") {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Dimension inference functions
+//  Normalized signal accessors
 //
-//  Each function takes the relevant signals from a ContextSnapshot
-//  and returns a DimensionResult.
+//  `signals` is the object returned by normalizeContextSnapshot().
+//  Each signal is { value, confidence, source, contributors }.
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Infer emotional state from emotion signals.
+ * Read a categorical signal's value ("unknown" when unavailable).
+ * @param {object} signals - Normalized signals
+ * @param {string} key - Signal key
+ * @returns {string}
+ */
+function signalValue(signals, key) {
+  const signal = signals[key];
+  if (!signal || signal.value === "unknown" || signal.value === null) return "unknown";
+  return signal.value;
+}
+
+/**
+ * Whether a signal carries real data (source != "unavailable").
+ * @param {object} signals - Normalized signals
+ * @param {string} key - Signal key
+ * @returns {boolean}
+ */
+function signalAvailable(signals, key) {
+  return signals[key]?.source !== "unavailable";
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Dimension inference functions
+//
+//  Each function takes the normalized signal object and returns a
+//  DimensionResult. All ContextSnapshot interpretation happens in
+//  snapshotNormalizer.js — not here.
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Infer emotional state from the normalized emotion signal.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferEmotionalState(snapshot) {
-  const emotion = snapshot?.emotion;
+function inferEmotionalState(signals) {
+  const emotion = signals.emotion;
+  const label = signalValue(signals, "emotion");
 
-  if (!isNonNullObject(emotion) || !emotion.label) {
+  if (!signalAvailable(signals, "emotion") || label === "unknown") {
     return unknown("No emotion signal provided");
   }
 
-  const label = String(emotion.label).toLowerCase().trim();
   const confidence = normalizeConfidence(emotion.confidence);
 
   // If confidence is very low, we still report the label but reduce confidence
   // We do NOT discard the signal — the downstream layer decides what to do with it
   const reasons = [`Emotion "${label}" inferred from ${emotion.source || "context"}`];
-  const sources = ["emotion"];
+  const sources = [emotion.source];
 
   if (confidence < 0.3) {
     reasons.push("Low confidence in emotion detection — state may be inaccurate");
@@ -228,63 +270,62 @@ function inferEmotionalState(snapshot) {
 }
 
 /**
- * Infer cognitive load from task switching, task complexity, and emotion.
+ * Infer cognitive load from task switch rate, task complexity, and emotion.
  *
  * Rules (applied in order, first match wins for value):
  *   - overwhelming emotion → "overwhelming"
  *   - high task switching + high complexity → "high"
- *   - high task switching OR high complexity → "medium"
+ *   - high task switching OR high complexity → "high"
+ *   - medium task switching OR medium complexity → "medium"
  *   - low task switching + low complexity → "low"
  *   - else → "unknown"
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferCognitiveLoad(snapshot) {
-  const activity = snapshot?.activity || {};
-  const task = snapshot?.task || {};
-  const emotion = snapshot?.emotion || {};
-
+function inferCognitiveLoad(signals) {
   const reasons = [];
   const sources = [];
   let confidence = 0;
 
   // Signal: emotion
-  const emotionLabel = String(emotion.label || "").toLowerCase();
-  const emotionConfidence = normalizeConfidence(emotion.confidence);
-  if (emotionLabel) {
-    sources.push("emotion");
+  const emotionLabel = signalValue(signals, "emotion");
+  const emotionConfidence = signals.emotion.confidence;
+  if (emotionLabel !== "unknown") {
+    sources.push(signals.emotion.source);
     confidence = Math.max(confidence, emotionConfidence);
   }
 
-  // Signal: task switching
-  const taskSwitching = activity.taskSwitching;
-  if (taskSwitching) {
-    sources.push("activity.taskSwitching");
-    confidence = Math.max(confidence, 0.7);
+  // Signal: task switch rate (numeric, converted to levels)
+  const taskSwitchRate = signals.taskSwitchRate.value;
+  const hasRate = taskSwitchRate != null;
+  if (hasRate) {
+    sources.push(signals.taskSwitchRate.source);
+    confidence = Math.max(confidence, signals.taskSwitchRate.confidence);
   }
 
-  // Signal: task complexity
-  const complexity = task.complexity;
-  if (complexity) {
-    sources.push("task.complexity");
-    confidence = Math.max(confidence, 0.7);
+  // Signal: task complexity (derived)
+  const complexity = signalValue(signals, "complexity");
+  const hasComplexity = complexity !== "unknown";
+  if (hasComplexity) {
+    sources.push(signals.complexity.source);
+    confidence = Math.max(confidence, signals.complexity.confidence);
   }
 
   if (sources.length === 0) {
     return unknown("No signals available for cognitive load inference");
   }
 
-  // Inference rules
+  const highSwitching = hasRate && taskSwitchRate >= 0.6;
+  const mediumSwitching = hasRate && taskSwitchRate >= 0.2 && taskSwitchRate < 0.6;
+  const lowSwitching = hasRate && taskSwitchRate < 0.2;
+  const highComplexity = complexity === "complex";
+  const mediumComplexity = complexity === "moderate";
+
   if (emotionLabel === "overwhelmed" || emotionLabel === "panicked") {
     reasons.push(`Emotion is "${emotionLabel}" — indicates overwhelming cognitive load`);
     return dim("overwhelming", confidence * emotionConfidence, reasons, sources);
   }
-
-  const highSwitching = taskSwitching === "high";
-  const highComplexity = complexity === "complex";
-  const mediumSwitching = taskSwitching === "medium";
-  const mediumComplexity = complexity === "moderate";
 
   if (highSwitching && highComplexity) {
     reasons.push("High task switching combined with high task complexity");
@@ -306,7 +347,7 @@ function inferCognitiveLoad(snapshot) {
     return dim("medium", confidence * 0.7, reasons, sources);
   }
 
-  if (taskSwitching === "low" && (!complexity || complexity === "simple")) {
+  if (lowSwitching && (!hasComplexity || complexity === "simple")) {
     reasons.push("Low task switching and low/simple complexity");
     return dim("low", confidence * 0.6, reasons, sources);
   }
@@ -318,38 +359,34 @@ function inferCognitiveLoad(snapshot) {
 /**
  * Infer energy level from emotion, session duration, and time of day.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferEnergyLevel(snapshot) {
-  const emotion = snapshot?.emotion || {};
-  const activity = snapshot?.activity || {};
-  const environment = snapshot?.environment || {};
-
+function inferEnergyLevel(signals) {
   const reasons = [];
   const sources = [];
   let confidence = 0;
 
   // Signal: emotion
-  const emotionLabel = String(emotion.label || "").toLowerCase();
-  const emotionConfidence = normalizeConfidence(emotion.confidence);
-  if (emotionLabel) {
-    sources.push("emotion");
+  const emotionLabel = signalValue(signals, "emotion");
+  const emotionConfidence = signals.emotion.confidence;
+  if (emotionLabel !== "unknown") {
+    sources.push(signals.emotion.source);
     confidence = Math.max(confidence, emotionConfidence);
   }
 
-  // Signal: session duration
-  const sessionMs = activity.sessionDurationMs;
-  if (typeof sessionMs === "number" && sessionMs >= 0) {
-    sources.push("activity.sessionDurationMs");
-    confidence = Math.max(confidence, 0.6);
+  // Signal: session duration (seconds)
+  const sessionSeconds = signals.sessionDuration.value;
+  if (sessionSeconds != null) {
+    sources.push(signals.sessionDuration.source);
+    confidence = Math.max(confidence, signals.sessionDuration.confidence);
   }
 
   // Signal: time of day
-  const timeOfDay = environment.timeOfDay;
-  if (timeOfDay && timeOfDay !== "unknown") {
-    sources.push("environment.timeOfDay");
-    confidence = Math.max(confidence, 0.4);
+  const timeOfDay = signalValue(signals, "timeOfDay");
+  if (timeOfDay !== "unknown") {
+    sources.push(signals.timeOfDay.source);
+    confidence = Math.max(confidence, signals.timeOfDay.confidence);
   }
 
   if (sources.length === 0) {
@@ -373,8 +410,8 @@ function inferEnergyLevel(snapshot) {
   }
 
   // Long sessions drain energy
-  if (typeof sessionMs === "number") {
-    const sessionMinutes = sessionMs / 60000;
+  if (sessionSeconds != null) {
+    const sessionMinutes = sessionSeconds / 60;
     if (sessionMinutes > 120) {
       reasons.push(`Very long session (${Math.round(sessionMinutes)} minutes) suggests exhausted energy`);
       return dim("exhausted", confidence * 0.7, reasons, sources);
@@ -395,34 +432,34 @@ function inferEnergyLevel(snapshot) {
 }
 
 /**
- * Infer attention state from task switching and engagement.
+ * Infer attention state from task switch rate, derived engagement, and
+ * the presence of an active task.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferAttentionState(snapshot) {
-  const activity = snapshot?.activity || {};
-  const task = snapshot?.task || {};
-
+function inferAttentionState(signals) {
   const reasons = [];
   const sources = [];
   let confidence = 0;
 
-  const taskSwitching = activity.taskSwitching;
-  const engagement = activity.engagement;
-  const hasCurrentTask = Boolean(task.currentTask || (snapshot?.activity || {}).currentTask);
+  const taskSwitchRate = signals.taskSwitchRate.value;
+  const hasRate = taskSwitchRate != null;
+  if (hasRate) {
+    sources.push(signals.taskSwitchRate.source);
+    confidence = Math.max(confidence, signals.taskSwitchRate.confidence);
+  }
 
-  if (taskSwitching) {
-    sources.push("activity.taskSwitching");
-    confidence = Math.max(confidence, 0.7);
+  const engagement = signalValue(signals, "engagement");
+  if (signalAvailable(signals, "engagement")) {
+    sources.push(signals.engagement.source);
+    confidence = Math.max(confidence, signals.engagement.confidence);
   }
-  if (engagement) {
-    sources.push("activity.engagement");
-    confidence = Math.max(confidence, 0.6);
-  }
-  if (hasCurrentTask) {
-    sources.push("activity.currentTask");
-    confidence = Math.max(confidence, 0.5);
+
+  const hasActiveTask = signals.hasActiveTask.value === true;
+  if (hasActiveTask) {
+    sources.push(signals.hasActiveTask.source);
+    confidence = Math.max(confidence, signals.hasActiveTask.confidence);
   }
 
   if (sources.length === 0) {
@@ -430,7 +467,7 @@ function inferAttentionState(snapshot) {
   }
 
   // High task switching = fragmented attention
-  if (taskSwitching === "high") {
+  if (hasRate && taskSwitchRate >= 0.6) {
     reasons.push("High task switching indicates fragmented attention");
     return dim("fragmented", confidence, reasons, sources);
   }
@@ -442,25 +479,25 @@ function inferAttentionState(snapshot) {
   }
 
   // Low engagement + no current task = scattered
-  if (engagement === "low" && !hasCurrentTask) {
+  if (engagement === "low" && !hasActiveTask) {
     reasons.push("Low engagement with no active task indicates scattered attention");
     return dim("scattered", confidence * 0.7, reasons, sources);
   }
 
   // Medium task switching = scattered
-  if (taskSwitching === "medium") {
+  if (hasRate && taskSwitchRate >= 0.2 && taskSwitchRate < 0.6) {
     reasons.push("Medium task switching indicates scattered attention");
     return dim("scattered", confidence * 0.8, reasons, sources);
   }
 
   // Low task switching + has task + high/normal engagement = focused
-  if (taskSwitching === "low" && hasCurrentTask && engagement !== "low") {
+  if (hasRate && taskSwitchRate < 0.2 && hasActiveTask && engagement !== "low") {
     reasons.push("Low task switching with active task and adequate engagement");
     return dim("focused", confidence, reasons, sources);
   }
 
   // Low task switching without clear signals
-  if (taskSwitching === "low") {
+  if (hasRate && taskSwitchRate < 0.2) {
     reasons.push("Low task switching suggests focused or calm attention");
     return dim("focused", confidence * 0.6, reasons, sources);
   }
@@ -471,36 +508,33 @@ function inferAttentionState(snapshot) {
 /**
  * Infer stress level from emotion and biometrics.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferStressLevel(snapshot) {
-  const emotion = snapshot?.emotion || {};
-  const biometrics = snapshot?.biometrics || {};
-
+function inferStressLevel(signals) {
   const reasons = [];
   const sources = [];
   let confidence = 0;
 
   // Signal: emotion
-  const emotionLabel = String(emotion.label || "").toLowerCase();
-  const emotionConfidence = normalizeConfidence(emotion.confidence);
+  const emotionLabel = signalValue(signals, "emotion");
+  const emotionConfidence = signals.emotion.confidence;
   const stressFromEmotion = EMOTION_TO_STRESS[emotionLabel];
 
   if (stressFromEmotion) {
-    sources.push("emotion");
+    sources.push(signals.emotion.source);
     confidence = Math.max(confidence, emotionConfidence);
   }
 
-  // Signal: biometrics (HRV)
-  const hrv = biometrics.heartRateVariabilityMs;
+  // Signal: biometrics (HRV / EDA)
+  const biometrics = signals.biometrics.value;
+  const hrv = biometrics?.heartRateVariabilityMs;
+  const eda = biometrics?.electrodermalActivityMuS;
+
   if (typeof hrv === "number") {
     sources.push("biometrics.hrv");
     confidence = Math.max(confidence, 0.8);
   }
-
-  // Signal: biometrics (EDA)
-  const eda = biometrics.electrodermalActivityMuS;
   if (typeof eda === "number") {
     sources.push("biometrics.eda");
     confidence = Math.max(confidence, 0.8);
@@ -563,112 +597,82 @@ function inferStressLevel(snapshot) {
 }
 
 /**
- * Infer motivation level from task completion, abandonment, and engagement.
+ * Infer motivation level from the derived engagement signal.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * Note: the ContextSnapshot does not expose task completion/abandonment
+ * counts, so motivation now relies on engagement (derived from idle time,
+ * focus interruptions, session length, and reading activity). This is a
+ * documented contract gap — see MIGRATION_NOTES.md.
+ *
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferMotivationLevel(snapshot) {
-  const activity = snapshot?.activity || {};
-
+function inferMotivationLevel(signals) {
   const reasons = [];
   const sources = [];
   let confidence = 0;
 
-  const completed = activity.taskCompletionCount;
-  const abandoned = activity.taskAbandonCount;
-  const engagement = activity.engagement;
-
-  if (typeof completed === "number") {
-    sources.push("activity.taskCompletionCount");
-    confidence = Math.max(confidence, 0.7);
-  }
-  if (typeof abandoned === "number") {
-    sources.push("activity.taskAbandonCount");
-    confidence = Math.max(confidence, 0.7);
-  }
-  if (engagement) {
-    sources.push("activity.engagement");
-    confidence = Math.max(confidence, 0.5);
+  const engagement = signalValue(signals, "engagement");
+  if (signalAvailable(signals, "engagement")) {
+    sources.push(signals.engagement.source);
+    confidence = Math.max(confidence, signals.engagement.confidence);
   }
 
   if (sources.length === 0) {
     return unknown("No signals available for motivation level inference");
   }
 
-  // Completion vs abandonment ratio
-  if (typeof completed === "number" && typeof abandoned === "number") {
-    const total = completed + abandoned;
-    if (total > 0) {
-      const completionRate = completed / total;
-      if (completionRate >= 0.7) {
-        reasons.push(`High completion rate (${Math.round(completionRate * 100)}%) indicates strong motivation`);
-        return dim("high", confidence, reasons, sources);
-      }
-      if (completionRate >= 0.4) {
-        reasons.push(`Moderate completion rate (${Math.round(completionRate * 100)}%) indicates moderate motivation`);
-        return dim("moderate", confidence, reasons, sources);
-      }
-      reasons.push(`Low completion rate (${Math.round(completionRate * 100)}%) indicates low motivation`);
-      return dim("low", confidence * 0.8, reasons, sources);
-    }
-  }
-
-  // Fall back to engagement
   if (engagement === "high") {
     reasons.push("High engagement suggests high motivation");
-    return dim("high", confidence * 0.7, reasons, sources);
+    return dim("high", confidence, reasons, sources);
   }
   if (engagement === "normal") {
     reasons.push("Normal engagement suggests moderate motivation");
-    return dim("moderate", confidence * 0.6, reasons, sources);
+    return dim("moderate", confidence * 0.8, reasons, sources);
   }
   if (engagement === "low" || engagement === "disengaged") {
     reasons.push(`"${engagement}" engagement suggests low motivation`);
-    return dim("low", confidence * 0.6, reasons, sources);
+    return dim("low", confidence * 0.9, reasons, sources);
   }
 
   return dim("unknown", confidence * 0.3, ["Insufficient signals to determine motivation"], sources);
 }
 
 /**
- * Infer urgency from task signals and user input.
+ * Infer urgency from conversation urgency and explicit requests.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferUrgency(snapshot) {
-  const task = snapshot?.task || {};
-  const userInput = snapshot?.userInput || {};
-
+function inferUrgency(signals) {
   const reasons = [];
   const sources = [];
 
-  // Primary: task urgency
-  if (task.urgency) {
-    sources.push("task.urgency");
-    reasons.push(`Task urgency reported as "${task.urgency}"`);
-    const confidence = 0.8;
-    return dim(task.urgency, confidence, reasons, sources);
+  // Primary: conversation urgency
+  const urgency = signalValue(signals, "urgency");
+  if (signalAvailable(signals, "urgency") && urgency !== "unknown") {
+    sources.push(signals.urgency.source);
+    reasons.push(`Task urgency reported as "${urgency}"`);
+    return dim(urgency, signals.urgency.confidence, reasons, sources);
   }
 
-  // Secondary: user intent signals urgency
-  const intent = userInput.intent || task.intent;
-  if (intent) {
-    sources.push(userInput.intent ? "userInput.intent" : "task.intent");
-    // Certain intents imply higher urgency
-    const highUrgencyIntents = ["get_help", "emergency", "crisis"];
-    const moderateUrgencyIntents = ["complete_task", "need_support"];
+  // Secondary: explicit request type signals urgency
+  const explicitRequest = signals.explicitRequest.value;
+  if (explicitRequest?.requestType) {
+    sources.push(signals.explicitRequest.source);
+    const requestType = explicitRequest.requestType;
+    const highUrgencyRequests = ["explicit_help_request"];
+    const moderateUrgencyRequests = ["explicit_state_report"];
 
-    if (highUrgencyIntents.includes(intent)) {
-      reasons.push(`User intent "${intent}" implies high urgency`);
+    if (highUrgencyRequests.includes(requestType)) {
+      reasons.push(`Explicit request "${requestType}" implies high urgency`);
       return dim("high", 0.7, reasons, sources);
     }
-    if (moderateUrgencyIntents.includes(intent)) {
-      reasons.push(`User intent "${intent}" implies moderate urgency`);
+    if (moderateUrgencyRequests.includes(requestType)) {
+      reasons.push(`Explicit request "${requestType}" implies moderate urgency`);
       return dim("moderate", 0.6, reasons, sources);
     }
-    reasons.push(`User intent "${intent}" — urgency unclear, defaulting to low`);
+    reasons.push(`Explicit request "${requestType}" — urgency unclear, defaulting to low`);
     return dim("low", 0.4, reasons, sources);
   }
 
@@ -676,96 +680,45 @@ function inferUrgency(snapshot) {
 }
 
 /**
- * Infer task complexity from task signals.
+ * Infer task complexity from the derived complexity signal.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * Note: the ContextSnapshot exposes no first-class complexity field.
+ * Complexity is derived from the task-switch rate (source "derived:*").
+ * See MIGRATION_NOTES.md.
+ *
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferTaskComplexity(snapshot) {
-  const task = snapshot?.task || {};
+function inferTaskComplexity(signals) {
+  const complexity = signalValue(signals, "complexity");
 
-  if (task.complexity) {
-    return dim(
-      task.complexity,
-      0.8,
-      [`Task complexity reported as "${task.complexity}"`],
-      ["task.complexity"],
-    );
-  }
-
-  // Infer from activity signals
-  const activity = snapshot?.activity || {};
-  if (activity.taskSwitching === "high") {
-    return dim(
-      "complex",
-      0.5,
-      ["High task switching suggests complex task demands"],
-      ["activity.taskSwitching"],
-    );
+  if (signalAvailable(signals, "complexity") && complexity !== "unknown") {
+    const contributors = signals.complexity.contributors.join(", ");
+    return dim(complexity, signals.complexity.confidence, [
+      `Task complexity "${complexity}" derived from ${contributors}`,
+    ], [signals.complexity.source]);
   }
 
   return unknown("No task complexity signals available");
 }
 
 /**
- * Infer engagement level from activity signals.
+ * Infer engagement level from the derived engagement signal.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} snapshot
+ * @param {import("./snapshotNormalizer.js").NormalizedSignals} signals
  * @returns {DimensionResult}
  */
-function inferEngagementLevel(snapshot) {
-  const activity = snapshot?.activity || {};
+function inferEngagementLevel(signals) {
+  const engagement = signalValue(signals, "engagement");
 
-  if (activity.engagement) {
-    return dim(
-      activity.engagement,
-      0.7,
-      [`Engagement reported as "${activity.engagement}"`],
-      ["activity.engagement"],
-    );
+  if (signalAvailable(signals, "engagement") && engagement !== "unknown") {
+    const contributors = signals.engagement.contributors.join(", ");
+    return dim(engagement, signals.engagement.confidence, [
+      `Engagement "${engagement}" derived from ${contributors}`,
+    ], [signals.engagement.source]);
   }
 
-  // Infer from other activity signals
-  const reasons = [];
-  const sources = [];
-  let confidence = 0;
-
-  if (activity.taskSwitching) {
-    sources.push("activity.taskSwitching");
-    confidence = Math.max(confidence, 0.5);
-  }
-  if (typeof activity.sessionDurationMs === "number") {
-    sources.push("activity.sessionDurationMs");
-    confidence = Math.max(confidence, 0.4);
-  }
-  if (typeof activity.taskCompletionCount === "number") {
-    sources.push("activity.taskCompletionCount");
-    confidence = Math.max(confidence, 0.5);
-  }
-
-  if (sources.length === 0) {
-    return unknown("No signals available for engagement inference");
-  }
-
-  // Long session + task switching = potentially disengaged
-  if (activity.taskSwitching === "high" && typeof activity.sessionDurationMs === "number" && activity.sessionDurationMs > 3600000) {
-    reasons.push("High task switching in long session suggests disengagement");
-    return dim("disengaged", confidence * 0.7, reasons, sources);
-  }
-
-  // Task completions suggest engagement
-  if (typeof activity.taskCompletionCount === "number" && activity.taskCompletionCount > 0) {
-    reasons.push(`Task completions (${activity.taskCompletionCount}) suggest engagement`);
-    return dim("normal", confidence * 0.6, reasons, sources);
-  }
-
-  // Low task switching suggests focus
-  if (activity.taskSwitching === "low") {
-    reasons.push("Low task switching suggests focused engagement");
-    return dim("normal", confidence * 0.5, reasons, sources);
-  }
-
-  return dim("unknown", confidence * 0.3, ["Insufficient signals to determine engagement"], sources);
+  return unknown("No signals available for engagement inference");
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -776,19 +729,21 @@ function inferEngagementLevel(snapshot) {
  * Build a UserState from a ContextSnapshot.
  *
  * This is the primary API of the User State Model. It takes a
- * ContextSnapshot (produced by the Context Fusion layer) and
- * returns a structured UserState with inferred dimensions,
- * confidence scores, and explainability metadata.
+ * ContextSnapshot (produced by the Context Fusion layer and adapted into
+ * the public contract) and returns a structured UserState with inferred
+ * dimensions, confidence scores, and explainability metadata.
  *
- * @param {import("../context/contextSnapshot.js").ContextSnapshot} [snapshot] - The context snapshot
+ * All snapshot interpretation is delegated to snapshotNormalizer.js.
+ *
+ * @param {import("@/adaptive/context/contextSnapshot.js").ContextSnapshot} [snapshot] - The context snapshot
  * @returns {UserState}
  *
  * @example
  * // Full context
  * const state = buildUserState({
- *   emotion: { label: "overwhelmed", confidence: 0.86 },
- *   activity: { taskSwitching: "high" },
- *   task: { urgency: "high", complexity: "complex" },
+ *   mood: { primaryMood: "overwhelmed", confidence: 0.86 },
+ *   behavior: { taskSwitchFrequency: 1.0 },
+ *   conversation: { urgency: "high" },
  * });
  * // state.cognitiveLoad.value === "overwhelming"
  * // state.stressLevel.value === "high"
@@ -799,18 +754,19 @@ function inferEngagementLevel(snapshot) {
  * // state.overallConfidence === 0
  */
 export function buildUserState(snapshot = null) {
-  const safe = snapshot || {};
+  const safe = isNonNullObject(snapshot) ? snapshot : {};
+  const signals = normalizeContextSnapshot(safe);
 
   // Infer each dimension
-  const emotionalState = inferEmotionalState(safe);
-  const cognitiveLoad = inferCognitiveLoad(safe);
-  const energyLevel = inferEnergyLevel(safe);
-  const attentionState = inferAttentionState(safe);
-  const stressLevel = inferStressLevel(safe);
-  const motivationLevel = inferMotivationLevel(safe);
-  const urgency = inferUrgency(safe);
-  const taskComplexity = inferTaskComplexity(safe);
-  const engagementLevel = inferEngagementLevel(safe);
+  const emotionalState = inferEmotionalState(signals);
+  const cognitiveLoad = inferCognitiveLoad(signals);
+  const energyLevel = inferEnergyLevel(signals);
+  const attentionState = inferAttentionState(signals);
+  const stressLevel = inferStressLevel(signals);
+  const motivationLevel = inferMotivationLevel(signals);
+  const urgency = inferUrgency(signals);
+  const taskComplexity = inferTaskComplexity(signals);
+  const engagementLevel = inferEngagementLevel(signals);
 
   // Collect all dimensions for aggregate computation
   const dimensions = [

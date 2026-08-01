@@ -6,8 +6,8 @@ import {
   Check, LogOut, Save, Heart, Eye, CheckCircle2, Ear, LayoutGrid,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { SUPPORT_MODULE_REGISTRY } from "@/adaptive/reasoning/disorderFeatureRegistry";
-import { deriveDisordersFromModules } from "@/adaptive/reasoning/interventionRanking";
+import { SUPPORT_MODULE_REGISTRY } from "@backend/adaptive/reasoning/disorderFeatureRegistry";
+import { deriveDisordersFromModules } from "@backend/adaptive/reasoning/interventionRanking";
 
 // ─────────────────────────────────────────────
 //  Neuro-category options (mirrors Index.jsx)

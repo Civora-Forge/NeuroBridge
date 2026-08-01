@@ -42,7 +42,7 @@
  * Ownership: Adaptive Intelligence Engineer
  */
 
-import { normalizeConfidence, isNonNullObject } from "../context/contextSnapshot.js";
+import { normalizeConfidence, isNonNullObject } from "@/adaptive/context/contextSnapshot.js";
 
 // ─────────────────────────────────────────────────────────────────
 //  ReasoningResult schema
@@ -552,8 +552,7 @@ function buildSecondaryNeeds(primaryId, matched) {
  * @example
  * // Cognitive overload
  * const result = reasonAboutUserState(buildUserState({
- *   activity: { taskSwitching: "high" },
- *   task: { complexity: "complex" },
+ *   behavior: { taskSwitchFrequency: 1.0 },
  * }));
  * // result.situation === "cognitive_overload"
  * // result.primaryNeed === "task_simplification"
