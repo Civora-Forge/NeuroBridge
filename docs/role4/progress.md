@@ -25,7 +25,7 @@
 - [x] Phase 1: Finalize ADHD and depression module contracts
 - [x] Phase 2: Align feature, module, and support registries
 - [x] Phase 3: Add shared module execution and lifecycle integration boundary
-- [ ] Phase 4: Integrate ADHD Task Breakdown lifecycle and outcomes
+- [x] Phase 4: Complete reusable intervention lifecycle boundary and hook
 - [ ] Phase 5: Implement reflection for canonical intervention outcomes
 - [ ] Phase 6: Derive user-scoped memory from reflected outcomes
 - [ ] Phase 7: Add memory-informed personalization hints
@@ -54,3 +54,7 @@
 - Phase 3 limitations: the executor does not render UI, invoke Role 1 or Role 2, complete or abandon sessions, reflect, write memory, or launch deferred Soundscape/Evidence Journal modules.
 - Phase 3 tests: `src/test/supportExecution.test.js` covers validation, module IDs, availability, lifecycle start persistence, canonical module independence, and safety blocking. `npm.cmd test` passed: 8 files, 121 tests.
 - Phase 3 commit: `feat(role4): add shared intervention executor`.
+- Phase 4: Added public post-start lifecycle commands and `src/support/execution/useInterventionLifecycle.js`. Execution `running` maps to persisted `shown`/`started`/`in_progress`/`paused`; terminal execution states map to completed, partially completed, abandoned, cancelled, failed, or blocked behavior.
+- Phase 4: Commands validate ownership, module identity, transitions, ratings, and idempotency. Completion persists outcomes only; no reflection, memory, evidence aggregation, Role 1 context processing, or Role 2 ranking is performed.
+- Phase 4 tests: lifecycle command and hook coverage includes duplicate starts, progress, pause/resume, terminal states, ratings, wrong-user/module rejection, unmount behavior, and user switching. `npm.cmd test` passed: 10 files, 136 tests.
+- Phase 4 commit: `feat(role4): complete intervention lifecycle boundary`.

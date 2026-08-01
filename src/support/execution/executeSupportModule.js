@@ -1,6 +1,10 @@
 import { assessSupportSafety } from "@/support/framework/interventionSelection";
 import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
-import { deliverIntervention, transitionIntervention } from "@/support/lifecycle/interventionLifecycle";
+import {
+  deliverIntervention,
+  getInterventionHistory,
+  transitionIntervention,
+} from "@/support/lifecycle/interventionLifecycle";
 import { InterventionStatus } from "@/support/schemas/supportSchemas";
 import {
   ExecutionRequestSchema,
@@ -106,6 +110,23 @@ export async function executeSupportModule(request) {
     });
   }
 
+  const idempotencyKey = executionRequest.metadata.idempotencyKey;
+  if (typeof idempotencyKey === "string" && idempotencyKey.trim()) {
+    const existing = getInterventionHistory(executionRequest.userId).find(
+      (entry) =>
+        entry.intervention.moduleId === module.id &&
+        entry.intervention.parameters?.execution?.metadata?.idempotencyKey === idempotencyKey,
+    );
+    if (existing) {
+      return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.RUNNING, "duplicate_start"), {
+        ok: true,
+        status: ExecutionStatus.RUNNING,
+        interventionId: existing.intervention.id,
+        reasonCodes: ["duplicate_start"],
+      });
+    }
+  }
+
   const interventionId = makeInterventionId();
   lifecycle = appendState(lifecycle, ExecutionStatus.STARTING);
 
@@ -164,7 +185,7 @@ export async function executeSupportModule(request) {
     transitionIntervention({
       userId: executionRequest.userId,
       interventionId,
-      toStatus: InterventionStatus.ABANDONED,
+      toStatus: InterventionStatus.FAILED,
       reason: "executor_failed",
     });
     return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.FAILED, "executor_failed"), {

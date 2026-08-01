@@ -59,6 +59,46 @@ export const ExecutionResultSchema = z.object({
   reasonCodes: z.array(z.string()),
 });
 
+export const LifecycleAction = Object.freeze({
+  PROGRESS: "progress",
+  PAUSE: "pause",
+  RESUME: "resume",
+  COMPLETE: "complete",
+  ABANDON: "abandon",
+  CANCEL: "cancel",
+  FAIL: "fail",
+  RATE: "rate",
+});
+
+export const ProgressMetadataSchema = z.object({
+  progressType: z.string().trim().min(1).optional(),
+  completedUnits: z.number().nonnegative().optional(),
+  totalUnits: z.number().positive().optional(),
+  progressRatio: z.number().min(0).max(1).optional(),
+  elapsedMs: z.number().int().nonnegative().optional(),
+  details: z.record(z.unknown()).default({}),
+}).default({});
+
+export const CompletionOutcomeSchema = z.object({
+  completionStatus: z.enum(["completed", "partially_completed"]).default("completed"),
+  durationMs: z.number().int().nonnegative().optional(),
+  metrics: z.record(z.unknown()).default({}),
+  finalConfiguration: z.record(z.unknown()).default({}),
+  userRating: z.number().int().min(1).max(5).optional(),
+  userFeedback: z.string().trim().max(500).optional(),
+}).default({});
+
+export const LifecycleCommandRequestSchema = z.object({
+  userId: idSchema,
+  interventionId: idSchema,
+  moduleId: idSchema,
+  action: z.nativeEnum(LifecycleAction),
+  timestamp: z.string().datetime().optional(),
+  metadata: z.record(z.unknown()).default({}),
+  progress: ProgressMetadataSchema.optional(),
+  outcome: CompletionOutcomeSchema.optional(),
+});
+
 /**
  * @typedef {z.infer<typeof ExecutionRequestSchema>} ExecutionRequest
  * @typedef {z.infer<typeof ExecutionResultSchema>} ExecutionResult
