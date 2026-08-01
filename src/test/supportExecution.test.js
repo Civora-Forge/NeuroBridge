@@ -39,11 +39,8 @@ describe("shared support execution", () => {
   });
 
   it("blocks canonical modules deferred from availability", async () => {
-    const result = await executeSupportModule(validRequest({ moduleId: "support.soundscape" }));
-
-    expect(result.ok).toBe(false);
-    expect(result.status).toBe("blocked");
-    expect(result.reasonCodes).toContain("module_unavailable");
+    const results = await Promise.all(["support.visual_timeline", "support.mood_checkin", "support.accountability_session", "support.soundscape"].map((moduleId) => executeSupportModule(validRequest({ moduleId }))));
+    expect(results.every((result) => !result.ok && result.status === "blocked" && result.reasonCodes.includes("module_unavailable"))).toBe(true);
   });
 
   it("generates an intervention ID and records the start lifecycle", async () => {
@@ -71,13 +68,11 @@ describe("shared support execution", () => {
     const moduleIds = [
       "support.task_breakdown",
       "support.focus_session",
-      "support.visual_timeline",
-      "support.mood_checkin",
-      "support.accountability_session",
       "support.gentle_activity",
       "support.grounding",
       "support.social_connection",
       "support.cognitive_reframing",
+      "support.evidence_journal",
     ];
 
     const results = await Promise.all(moduleIds.map((moduleId) =>

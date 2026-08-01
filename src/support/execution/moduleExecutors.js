@@ -1,9 +1,6 @@
 const supportedModuleIds = [
   "support.task_breakdown",
   "support.focus_session",
-  "support.visual_timeline",
-  "support.mood_checkin",
-  "support.accountability_session",
   "support.gentle_activity",
   "support.grounding",
   "support.social_connection",
@@ -12,6 +9,9 @@ const supportedModuleIds = [
 ];
 
 export const DEFERRED_MODULE_IDS = new Set([
+  "support.visual_timeline",
+  "support.mood_checkin",
+  "support.accountability_session",
   "support.soundscape",
 ]);
 

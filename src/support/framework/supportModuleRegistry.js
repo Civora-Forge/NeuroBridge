@@ -309,6 +309,20 @@ const rawSupportModules = [
     outcomeFields: ["outreach_action", "rating"],
     legacyIds: [FEATURES.DEPRESSION_SOCIAL],
   },
+  {
+    id: "support.evidence_journal",
+    moduleId: "support.evidence_journal",
+    title: "Evidence Journal",
+    description: "Retain user-approved evidence entries in a private local journal.",
+    category: ModuleCategory.EMOTIONAL,
+    interventionTypes: ["evidence_journal", "structured_reflection"],
+    route: "/depression/evidence",
+    tags: ["reflection", "self_support"], disorders: [],
+    expectedOutcomeMetrics: ["entries_saved", "rating"], safetyLevel: SafetyLevel.CAUTION,
+    developmentDomain: "depression", supportedNeeds: ["cognitive_reframing", "low_mood_support"], potentiallyRelevantDomains: ["depression", "anxiety", "general"],
+    actions: ["save_entry", "complete", "abandon"], configurableParameters: { category: true }, launchPolicy: "confirmation_required",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned", "rated"], outcomeFields: ["entries_saved", "rating"], legacyIds: [],
+  },
 ];
 
 export const SUPPORT_MODULES = rawSupportModules.map((module) =>
