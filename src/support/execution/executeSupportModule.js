@@ -1,4 +1,4 @@
-import { assessSupportSafety } from "@/support/framework/interventionSelection";
+import { assessSupportInput } from "@/support/safety";
 import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
 import {
   deliverIntervention,
@@ -99,10 +99,7 @@ export async function executeSupportModule(request) {
     });
   }
 
-  const safety = assessSupportSafety({
-    explicitRequest: String(executionRequest.metadata.explicitRequest ?? ""),
-    context: executionRequest.metadata.safetyContext ?? {},
-  });
+  const safety = assessSupportInput({ userId: executionRequest.userId, moduleId: module.id, action: 'start', inputType: executionRequest.metadata.explicitRequest ? 'explicit_command' : 'structured_input', text: executionRequest.metadata.explicitRequest, metadata: executionRequest.metadata });
   if (!safety.allowed) {
     return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.BLOCKED, "safety_blocked"), {
       status: ExecutionStatus.BLOCKED,
