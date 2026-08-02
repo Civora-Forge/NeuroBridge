@@ -41,10 +41,10 @@ describe('Focus Session learning pipeline', () => {
     expect(deriveMemoryFromReflections(USER_ID, MODULE_ID).created).toEqual([]);
     await session(2);
     const two = deriveMemoryFromReflections(USER_ID, MODULE_ID);
-    expect(two.created.some((memory) => memory.key === 'naturally_completed_duration' && memory.confidence === 0.4)).toBe(true);
+    expect([...two.created, ...two.unchanged].some((memory) => memory.key === 'naturally_completed_duration' && memory.confidence === 0.4)).toBe(true);
     await session(3);
     const three = deriveMemoryFromReflections(USER_ID, MODULE_ID);
-    expect(three.updated.some((memory) => memory.key === 'naturally_completed_duration' && memory.confidence === 0.65)).toBe(true);
+    expect([...three.updated, ...three.unchanged].some((memory) => memory.key === 'naturally_completed_duration' && memory.confidence === 0.65)).toBe(true);
     const hints = getPersonalizationHints(USER_ID, MODULE_ID);
     expect(hints.hints).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'preferredDurationMinutes', value: 15 })]));
     expect(hints.hints.find((hint) => hint.key === 'preferredBreakMinutes')).toBeUndefined();
@@ -58,7 +58,7 @@ describe('Focus Session learning pipeline', () => {
     await session(5, { status: 'partially_completed', minutes: 15, ratio: 0.4, natural: false });
     const derived = deriveMemoryFromReflections(USER_ID, MODULE_ID);
     const partialMemory = listUserMemories(USER_ID, { moduleId: MODULE_ID }).find((memory) => memory.key === 'focus_completion_ratio_band');
-    expect(derived.created.some((memory) => memory.key === 'focus_completion_ratio_band')).toBe(true);
+    expect([...derived.created, ...derived.unchanged].some((memory) => memory.key === 'focus_completion_ratio_band')).toBe(true);
     expect(partialMemory).toMatchObject({ category: 'completion_pattern', value: { observedAssociation: 'partial' }, status: 'active' });
     expect(partialMemory.confidence).toBeGreaterThanOrEqual(0.4);
     const hints = getPersonalizationHints(USER_ID, MODULE_ID);

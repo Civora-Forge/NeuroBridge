@@ -10,6 +10,7 @@ import {
   LifecycleAction,
   LifecycleCommandRequestSchema,
 } from "./executionTypes";
+import { processInterventionOutcome } from "@/support/learning/processInterventionOutcome";
 
 const RATING_STATUSES = new Set([
   InterventionStatus.COMPLETED,
@@ -140,7 +141,7 @@ export async function completeSupportModule(request) {
     },
   });
 
-  return { ...transition, status: ExecutionStatus.COMPLETED, outcome: savedOutcome };
+  return { ...transition, status: ExecutionStatus.COMPLETED, outcome: savedOutcome, learning: processInterventionOutcome(transition.intervention) };
 }
 
 export async function abandonSupportModule(request) {
@@ -149,7 +150,7 @@ export async function abandonSupportModule(request) {
   const transition = runTransition(parsed.command, LifecycleAction.ABANDON, InterventionStatus.ABANDONED, "intervention_abandoned");
   if (!transition.ok || !parsed.command.outcome) return transition;
   const outcome = parsed.command.outcome;
-  return {
+  const result = {
     ...transition,
     outcome: recordInterventionOutcome({
       userId: parsed.command.userId,
@@ -160,6 +161,7 @@ export async function abandonSupportModule(request) {
       metrics: { ...outcome.metrics, finalConfiguration: outcome.finalConfiguration },
     }),
   };
+  return { ...result, learning: processInterventionOutcome(result.intervention) };
 }
 
 export async function cancelSupportModule(request) {
@@ -203,5 +205,6 @@ export async function rateSupportModule(request) {
     intervention: parsed.intervention,
     outcome: savedOutcome,
     reasonCodes: ["rating_recorded"],
+    learning: processInterventionOutcome(parsed.intervention),
   });
 }
