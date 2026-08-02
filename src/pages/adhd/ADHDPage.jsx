@@ -1,9 +1,12 @@
 import { Brain, CalendarClock, CheckSquare, Timer, UsersRound, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { FEATURES } from "@/lib/featureRegistry";
 
 export const ADHD_LANDING_TOOLS = [
   {
     moduleId: "support.visual_timeline",
+    feature: FEATURES.ADHD_TIMELINE,
     to: "/adhd/timeline",
     icon: CalendarClock,
     title: "Visual Timeline",
@@ -16,6 +19,7 @@ export const ADHD_LANDING_TOOLS = [
   },
   {
     moduleId: "support.task_breakdown",
+    feature: FEATURES.ADHD_BREAKDOWN,
     to: "/adhd/breakdown",
     icon: CheckSquare,
     title: "Task Breakdown",
@@ -28,6 +32,7 @@ export const ADHD_LANDING_TOOLS = [
   },
   {
     moduleId: "support.focus_session",
+    feature: FEATURES.ADHD_FOCUS,
     to: "/adhd/focus",
     icon: Timer,
     title: "Focus Sessions",
@@ -40,6 +45,7 @@ export const ADHD_LANDING_TOOLS = [
   },
   {
     moduleId: "support.mood_checkin",
+    feature: FEATURES.ADHD_EMOTION,
     to: "/adhd/emotion-coach",
     icon: Brain,
     title: "Mood Check-in",
@@ -52,6 +58,7 @@ export const ADHD_LANDING_TOOLS = [
   },
   {
     moduleId: "support.accountability_session",
+    feature: FEATURES.ADHD_DOUBLING,
     to: "/adhd/doubling",
     icon: UsersRound,
     title: "Accountability Session",
@@ -65,6 +72,9 @@ export const ADHD_LANDING_TOOLS = [
 ];
 
 export default function ADHDPage() {
+  const { hasFeature } = useAuth();
+  const availableTools = ADHD_LANDING_TOOLS.filter((tool) => hasFeature(tool.feature));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/40 to-emerald-50/40 p-8">
       {/* Header */}
@@ -82,7 +92,7 @@ export default function ADHDPage() {
 
       {/* Feature cards */}
       <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {ADHD_LANDING_TOOLS.map(({ moduleId, to, icon: Icon, title, desc, bg, border, text, hover }) => (
+        {availableTools.map(({ moduleId, to, icon: Icon, title, desc, bg, border, text, hover }) => (
           <Link
             key={moduleId}
             to={to}

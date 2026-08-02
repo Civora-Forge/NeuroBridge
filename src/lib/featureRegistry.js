@@ -261,6 +261,27 @@ export const FEATURE_REGISTRY = {
   },
 };
 
+// Onboarding stores support-module IDs, while the existing route guards use
+// feature IDs. Keep the legacy IDs valid while granting the matching route.
+const SUPPORT_MODULE_FEATURE_ALIASES = {
+  "support.task_breakdown": [FEATURES.ADHD, FEATURES.ADHD_BREAKDOWN],
+  "support.focus_session": [FEATURES.ADHD, FEATURES.ADHD_FOCUS],
+  "support.visual_timeline": [FEATURES.ADHD, FEATURES.ADHD_TIMELINE],
+  "support.mood_checkin": [FEATURES.ADHD, FEATURES.ADHD_EMOTION],
+  "support.accountability_session": [FEATURES.ADHD, FEATURES.ADHD_DOUBLING],
+};
+
+const LEGACY_FEATURE_SUPPORT_ALIASES = Object.fromEntries(
+  Object.entries(SUPPORT_MODULE_FEATURE_ALIASES).flatMap(([canonicalId, featureIds]) =>
+    featureIds.filter((featureId) => featureId !== FEATURES.ADHD).map((featureId) => [featureId, canonicalId]),
+  ),
+);
+
+/** Return the canonical support module ID for supported ADHD legacy IDs. */
+export function getCanonicalEnabledModuleId(moduleId) {
+  return LEGACY_FEATURE_SUPPORT_ALIASES[moduleId] ?? moduleId;
+}
+
 // ─────────────────────────────────────────────
 //  Core algorithm — O(F × D)
 //
@@ -285,6 +306,14 @@ export function resolveEnabledFeatures(input) {
   if (explicitModules.length > 0) {
     const enabled = new Set();
     for (const moduleId of explicitModules) {
+      if (moduleId === FEATURES.ADHD) {
+        Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
+          featureIds.forEach((featureId) => enabled.add(featureId));
+        });
+      }
+      for (const featureId of SUPPORT_MODULE_FEATURE_ALIASES[moduleId] || []) {
+        enabled.add(featureId);
+      }
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
       }

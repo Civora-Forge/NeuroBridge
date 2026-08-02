@@ -8,9 +8,9 @@ import { buildFocusSessionOutcome, completionRatio } from '@/support/modules/foc
 import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
 
 const PRESETS = [
-  { label: '15 min Sprint', minutes: 15, emoji: 'Ã¢Å¡Â¡' },
-  { label: '25 min Classic', minutes: 25, emoji: 'Ã°Å¸Ââ€¦' },
-  { label: '45 min Deep Dive', minutes: 45, emoji: 'Ã°Å¸Å’Å ' },
+  { label: '15 min Sprint', minutes: 15, emoji: 'Quick' },
+  { label: '25 min Classic', minutes: 25, emoji: 'Standard' },
+  { label: '45 min Deep Dive', minutes: 45, emoji: 'Extended' },
 ];
 
 const MODES = [
@@ -26,11 +26,11 @@ const DEFAULT_MODE_MINUTES = {
 };
 
 const BREAK_TIPS = [
-  'Stretch your arms & legs Ã°Å¸Â§Ëœ',
-  'Drink some water Ã°Å¸â€™Â§',
-  'Look at something 20ft away for 20s Ã°Å¸â€˜ÂÃ¯Â¸Â',
-  'Take 5 deep breaths Ã°Å¸Å’Â¬Ã¯Â¸Â',
-  'Walk around for a minute Ã°Å¸Å¡Â¶',
+  'Stretch your arms and legs.',
+  'Drink some water.',
+  'Look at something 20 feet away for 20 seconds.',
+  'Take five deep breaths.',
+  'Walk around for a minute.',
 ];
 
 // helpers
@@ -240,11 +240,11 @@ const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
       Today
     </p>
     <p className="text-sm text-slate-900">
-      {sessions} session{sessions === 1 ? '' : 's'} Ã‚Â· {totalMinutes} min
+      {sessions} session{sessions === 1 ? '' : 's'} | {totalMinutes} min
     </p>
     <p className="text-xs text-slate-600">
       Streak{' '}
-      <span className="font-semibold text-[hsl(142_72%_36%)]">{streak}</span> days Ã‚Â· Week{' '}
+      <span className="font-semibold text-[hsl(142_72%_36%)]">{streak}</span> days | Week{' '}
       <span className="font-semibold text-blue-500">{weeklyMinutes}</span> min
     </p>
   </div>
@@ -255,7 +255,7 @@ const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
     <p className="text-sm font-semibold text-slate-900">Block complete</p>
     <p className="text-xs text-slate-600">
       You protected {focusMinutes} minutes.
-      {intent ? ` Ã¢â‚¬Å“${intent}Ã¢â‚¬Â moved forward.` : ''}
+      {intent ? ` "${intent}" moved forward.` : ''}
     </p>
     <div className="flex flex-wrap gap-2">
       <button
@@ -485,7 +485,7 @@ const FocusSessions = () => {
       <div className="max-w-4xl mx-auto space-y-10">
         <header className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] shadow-xl mb-2">
-            <span className="text-2xl">Ã°Å¸Å’Â³</span>
+            <span className="text-2xl">Focus</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-blue-600 bg-clip-text text-transparent">
             Focus Sessions

@@ -25,7 +25,7 @@ const sampleBlocks = [
     label: 'Morning routine',
     start: '07:00',
     end: '08:00',
-    icon: 'ðŸŒ…',
+    icon: 'Morning',
     category: 'self-care',
     done: false,
   },
@@ -34,7 +34,7 @@ const sampleBlocks = [
     label: 'Deep work',
     start: '09:00',
     end: '11:00',
-    icon: 'ðŸ§ ',
+    icon: 'Study',
     category: 'study',
     done: false,
   },
@@ -43,7 +43,7 @@ const sampleBlocks = [
     label: 'Break',
     start: '11:00',
     end: '11:30',
-    icon: 'â˜•',
+    icon: 'Break',
     category: 'self-care',
     done: false,
   },
@@ -89,21 +89,21 @@ const VisualTimeline = () => {
           label: 'Stretch',
           start: '07:00',
           end: '07:10',
-          icon: 'ðŸ§˜',
+          icon: 'Stretch',
           category: 'self-care',
         },
         {
           label: 'Shower & dress',
           start: '07:10',
           end: '07:30',
-          icon: 'ðŸš¿',
+          icon: 'Ready',
           category: 'self-care',
         },
         {
           label: 'Breakfast',
           start: '07:30',
           end: '08:00',
-          icon: 'ðŸ¥£',
+          icon: 'Meal',
           category: 'self-care',
         },
       ],
@@ -112,21 +112,21 @@ const VisualTimeline = () => {
           label: 'Focus block',
           start: '09:00',
           end: '10:00',
-          icon: 'ðŸ§ ',
+          icon: 'Focus',
           category: 'study',
         },
         {
           label: 'Short break',
           start: '10:00',
           end: '10:10',
-          icon: 'â˜•',
+          icon: 'Break',
           category: 'self-care',
         },
         {
           label: 'Focus block',
           start: '10:10',
           end: '11:00',
-          icon: 'ðŸ§ ',
+          icon: 'Focus',
           category: 'study',
         },
       ],
@@ -262,7 +262,7 @@ const VisualTimeline = () => {
       <div className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-3 text-sm">
         <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-slate-50">
           <span className="text-lg" aria-hidden>
-            {block.icon || 'ðŸ”¹'}
+            {block.icon || 'Task'}
           </span>
         </div>
         <div className="flex-1 min-w-0 space-y-1">
@@ -279,13 +279,13 @@ const VisualTimeline = () => {
                 )}
               </div>
               <p className="font-mono text-[11px] text-slate-500">
-                {block.start} â€“ {block.end}
+                {block.start} - {block.end}
               </p>
             </div>
             <div className="flex flex-col items-end gap-1 text-[11px] text-slate-500">
               {isActive && (
                 <span className="text-emerald-600">
-                  Now Â· {minutesToCountdown(endM - nowMinutes)}
+                  Now | {minutesToCountdown(endM - nowMinutes)}
                 </span>
               )}
               {block.done && <span>Done</span>}
@@ -349,7 +349,7 @@ const VisualTimeline = () => {
     const [label, setLabel] = useState('');
     const [start, setStart] = useState('12:00');
     const [end, setEnd] = useState('12:30');
-    const [icon, setIcon] = useState('ðŸ”¹');
+    const [icon, setIcon] = useState('Task');
 
     const submit = (e) => {
       e.preventDefault();
@@ -375,7 +375,7 @@ const VisualTimeline = () => {
             value={start}
             onChange={(e) => setStart(e.target.value)}
           />
-          <span className="text-slate-400 text-xs">â†’</span>
+          <span className="text-slate-400 text-xs">to</span>
           <input
             className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-xs"
             value={end}
@@ -591,7 +591,7 @@ const VisualTimeline = () => {
                     <div className="text-[11px]">{d.label}</div>
                     <div className="mt-1 text-[10px] opacity-80">
                       {blocks.length === 0
-                        ? 'â€“'
+                        ? '-'
                         : `${blocks.length} block${blocks.length > 1 ? 's' : ''}`}
                     </div>
                   </button>
@@ -606,7 +606,7 @@ const VisualTimeline = () => {
         )}
 
         <footer className="mt-8 text-[11px] text-slate-500">
-          Hint: use concrete labels like â€œEmail prof 20mâ€ instead of â€œBe productiveâ€.
+          Hint: use concrete labels like "Email professor for 20 minutes" instead of "Be productive".
         </footer>
       </main>
     </div>
