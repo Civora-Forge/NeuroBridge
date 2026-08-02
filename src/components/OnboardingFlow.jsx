@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CHALLENGE_CATEGORIES, MODULES_REGISTRY } from "@/data/modulesRegistry";
+import { CHALLENGE_CATEGORIES, getSelectableModuleIds } from "@/data/modulesRegistry";
 import { getQuestionsForChallenges } from "@backend/adaptive/reasoning/questionEngine";
 import { selectModulesForUser } from "@backend/adaptive/reasoning/moduleSelector";
 import Questionnaire from "@/components/Questionnaire";
@@ -39,14 +39,13 @@ export default function OnboardingFlow({ onComplete }) {
     setIsProcessing(true);
     setStep(4);
     const allChallengeIds = CHALLENGE_CATEGORIES.map((c) => c.id);
-    const allModules = Object.values(MODULES_REGISTRY).filter(Boolean);
-    const allModuleIds = allModules.map((m) => m.id);
+    const allModuleIds = getSelectableModuleIds();
     await onComplete({
       selectedChallenges: allChallengeIds,
       answersByQuestionId: {},
       tagProfile: {},
       enabledModules: allModuleIds,
-      selectedModules: allModules,
+      selectedModules: allModuleIds,
     });
     setStep(5);
     setIsProcessing(false);

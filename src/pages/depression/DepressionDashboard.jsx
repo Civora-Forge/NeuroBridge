@@ -1,19 +1,23 @@
 'use client';
 
 import React from "react";
-import { Brain, Zap, Eye, Moon, ShieldCheck, Heart } from "lucide-react";
+import { Brain, Eye, MessageCircle, Sparkles, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { FEATURES } from "@/lib/featureRegistry";
 
-const tools = [
-  { to: "/depression/mvh", icon: <Zap className="w-12 h-12" />, title: "MVH Protocol", desc: "Minimum viable human recovery sequence" },
-  { to: "/depression/anxietydissolver", icon: <Eye className="w-12 h-12" />, title: "Anxiety Dissolver", desc: "Clear sensory overwhelm" },
-  { to: "/depression/social", icon: <Moon className="w-12 h-12" />, title: "Social Broadcaster", desc: "Share energy status guilt-free" },
-  { to: "/depression/proof", icon: <ShieldCheck className="w-12 h-12" />, title: "Evidence Folder", desc: "Proof your brain is wrong" },
-  { to: "/depression/reality", icon: <Brain className="w-12 h-12" />, title: "Reality Filter", desc: "Reframe cognitive distortions" },
-  { to: "/depression/void", icon: <Heart className="w-12 h-12" />, title: "Void Whisper", desc: "Release heavy thoughts safely" },
+export const DEPRESSION_LANDING_TOOLS = [
+  { moduleId: "support.gentle_activity", feature: FEATURES.DEPRESSION_MVH, to: "/depression/mvh", icon: Zap, title: "Gentle Activity", desc: "Try a short sequence of low-energy actions." },
+  { moduleId: "support.grounding", feature: FEATURES.DEPRESSION_ANXIETY_DISSOLVER, to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "Use a timed technique to steady your attention." },
+  { moduleId: "support.social_connection", feature: FEATURES.DEPRESSION_SOCIAL, to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Prepare a low-pressure message for someone you trust." },
+  { moduleId: "support.cognitive_reframing", feature: FEATURES.DEPRESSION_REALITY, to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Use structured questions to review a difficult thought." },
+  { moduleId: "support.evidence_journal", feature: FEATURES.DEPRESSION, to: "/depression/evidence", icon: Sparkles, title: "Evidence Journal", desc: "Keep a private record of moments and support that matter to you." },
 ];
 
 export default function DepressionDashboard() {
+  const { hasFeature } = useAuth();
+  const availableTools = DEPRESSION_LANDING_TOOLS.filter((tool) => hasFeature(tool.feature));
+
   return (
     <div className="min-h-screen p-8 bg-gradient-to-br from-green-50 via-white to-teal-50">
       <div className="text-center mb-16 max-w-2xl mx-auto">
@@ -21,34 +25,37 @@ export default function DepressionDashboard() {
           <Brain className="w-12 h-12 text-white drop-shadow-lg"/>
         </div>
         <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-[hsl(142_72%_32%)] bg-clip-text text-transparent mb-4 leading-tight">
-          MoodFlow
+          Daily Momentum
         </h1>
         <p className="text-xl text-gray-600 font-medium tracking-wide">
-          Depression Support ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Low-Energy Operating Mode
+          Low-energy support tools for small, manageable next steps.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        {tools.map((t) => (
+        {availableTools.map(({ moduleId, to, icon: Icon, title, desc }) => (
           <Link
-            key={t.to}
-            to={t.to}
+            key={moduleId}
+            to={to}
             className="group relative card bg-white/80 backdrop-blur-sm p-8 rounded-3xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 border border-white/50 hover:border-[hsl(142_72%_36%)]/20 hover:bg-white/100 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[hsl(142_72%_36%)]/5 to-[hsl(142_60%_45%)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative mb-6 p-4 bg-gradient-to-r from-[hsl(142_72%_36%)]/10 to-[hsl(142_60%_45%)]/10 rounded-2xl group-hover:scale-110 transition-transform duration-300">
-              {t.icon}
+              <Icon className="w-12 h-12" />
             </div>
             <h3 className="relative font-black text-xl text-gray-900 mb-3 group-hover:text-[hsl(142_72%_36%)] transition-colors duration-300">
-              {t.title}
+              {title}
             </h3>
             <p className="relative text-sm text-gray-600 leading-relaxed tracking-wide">
-              {t.desc}
+              {desc}
             </p>
             <div className="absolute -bottom-4 right-6 w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)]/20 to-[hsl(142_60%_45%)]/20 rounded-full blur-xl -z-10 group-hover:scale-110 transition-transform duration-500"></div>
           </Link>
         ))}
       </div>
+      <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-gray-500">
+        Private journaling and free-text release tools are unavailable until their privacy and safety protections are complete.
+      </p>
     </div>
   );
 }

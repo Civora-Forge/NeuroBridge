@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import ModuleCard from "@/components/ModuleCard";
-import { MODULES_REGISTRY } from "@/data/modulesRegistry";
+import { composeHomeModules } from "@/data/modulesRegistry";
 
 export default function Home() {
   const { user, enabledModules } = useAuth();
 
   const modules = useMemo(
-    () => (enabledModules || []).map((moduleId) => MODULES_REGISTRY[moduleId]).filter(Boolean),
+    () => composeHomeModules(enabledModules || []),
     [enabledModules],
   );
 

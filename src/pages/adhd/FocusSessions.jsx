@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Sun, Moon, Coffee, Crosshair, Tag } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildFocusSessionOutcome, completionRatio } from '@/support/modules/focusSession/focusSessionService';
+import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
 
 const PRESETS = [
-  { label: '15 min Sprint', minutes: 15, emoji: 'Ã¢Å¡Â¡' },
-  { label: '25 min Classic', minutes: 25, emoji: 'Ã°Å¸Ââ€¦' },
-  { label: '45 min Deep Dive', minutes: 45, emoji: 'Ã°Å¸Å’Å ' },
+  { label: '15 min Sprint', minutes: 15, emoji: 'Quick' },
+  { label: '25 min Classic', minutes: 25, emoji: 'Standard' },
+  { label: '45 min Deep Dive', minutes: 45, emoji: 'Extended' },
 ];
 
 const MODES = [
@@ -22,11 +28,11 @@ const DEFAULT_MODE_MINUTES = {
 };
 
 const BREAK_TIPS = [
-  'Stretch your arms & legs Ã°Å¸Â§Ëœ',
-  'Drink some water Ã°Å¸â€™Â§',
-  'Look at something 20ft away for 20s Ã°Å¸â€˜ÂÃ¯Â¸Â',
-  'Take 5 deep breaths Ã°Å¸Å’Â¬Ã¯Â¸Â',
-  'Walk around for a minute Ã°Å¸Å¡Â¶',
+  'Stretch your arms and legs.',
+  'Drink some water.',
+  'Look at something 20 feet away for 20 seconds.',
+  'Take five deep breaths.',
+  'Walk around for a minute.',
 ];
 
 // helpers
@@ -236,11 +242,11 @@ const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
       Today
     </p>
     <p className="text-sm text-slate-900">
-      {sessions} session{sessions === 1 ? '' : 's'} Ã‚Â· {totalMinutes} min
+      {sessions} session{sessions === 1 ? '' : 's'} | {totalMinutes} min
     </p>
     <p className="text-xs text-slate-600">
       Streak{' '}
-      <span className="font-semibold text-[hsl(142_72%_36%)]">{streak}</span> days Ã‚Â· Week{' '}
+      <span className="font-semibold text-[hsl(142_72%_36%)]">{streak}</span> days | Week{' '}
       <span className="font-semibold text-blue-500">{weeklyMinutes}</span> min
     </p>
   </div>
@@ -251,7 +257,7 @@ const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
     <p className="text-sm font-semibold text-slate-900">Block complete</p>
     <p className="text-xs text-slate-600">
       You protected {focusMinutes} minutes.
-      {intent ? ` Ã¢â‚¬Å“${intent}Ã¢â‚¬Â moved forward.` : ''}
+      {intent ? ` "${intent}" moved forward.` : ''}
     </p>
     <div className="flex flex-wrap gap-2">
       <button
@@ -296,6 +302,7 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
 };
 
 const FocusSessions = () => {
+  const { user } = useAuth();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
   const [focusMinutes, setFocusMinutes] = useState(25);
@@ -316,6 +323,20 @@ const FocusSessions = () => {
     weeklyMinutes: 0,
     lastDay: null,
   });
+  const pauseCountRef = useRef(0);
+  const resumeCountRef = useRef(0);
+  const milestonesRef = useRef(new Set());
+  const completedRef = useRef(false);
+  const startedAtRef = useRef(null);
+  const lifecycle = useInterventionLifecycle({
+    userId: user?.id ?? null,
+    moduleId: FOCUS_SESSION_MODULE_ID,
+    planId: null,
+    contextSnapshotId: null,
+    triggerSource: 'manual',
+    selectionMode: 'explicit_request',
+    configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false },
+  });
 
   const { streak, weeklyMinutes } = streakState;
 
@@ -332,6 +353,10 @@ const FocusSessions = () => {
         if (prev <= 1) {
           clearInterval(interval);
           setPhase('celebration');
+          if (!completedRef.current && user?.id) {
+            completedRef.current = true;
+            lifecycle.complete(buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: 0, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current, completedNaturally: true }));
+          }
           setCompletedCount((c) => c + 1);
           if (mode === 'focus') {
             setTotalFocusedMinutes((t) => t + focusMinutes);
@@ -365,7 +390,7 @@ const FocusSessions = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [phase, focusMinutes, mode]);
+  }, [phase, focusMinutes, mode, lifecycle, user?.id]);
 
   // break timer
   useEffect(() => {
@@ -388,24 +413,45 @@ const FocusSessions = () => {
     setSecondsLeft(m * 60);
   }, []);
 
-  const startSession = () => {
+  const startSession = async () => {
     setSecondsLeft(focusMinutes * 60);
     setMicroGoals([
       { label: 'Open the thing', done: false },
       { label: 'One small chunk', done: false },
       { label: 'Note where you stop', done: false },
     ]);
+    pauseCountRef.current = 0;
+    resumeCountRef.current = 0;
+    milestonesRef.current = new Set();
+    completedRef.current = false;
+    startedAtRef.current = Date.now();
+    if (user?.id) {
+      const started = await lifecycle.start();
+      if (!started.ok) return;
+    }
     setPhase('running');
   };
 
-  const togglePause = () => {
-    setPhase((p) => (p === 'running' ? 'paused' : 'running'));
+  const togglePause = async () => {
+    if (phase === 'running') {
+      pauseCountRef.current += 1;
+      if (user?.id) await lifecycle.pause({ pauseCount: pauseCountRef.current });
+      setPhase('paused');
+    } else {
+      resumeCountRef.current += 1;
+      if (user?.id) await lifecycle.resume({ resumeCount: resumeCountRef.current });
+      setPhase('running');
+    }
   };
 
-  const resetToSetup = () => {
+  const resetToSetup = async () => {
+    if (user?.id && (phase === 'running' || phase === 'paused') && !lifecycle.isTerminal && !completedRef.current) {
+      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) }, buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: secondsLeft, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current }));
+    }
     setPhase('setup');
     setSecondsLeft(focusMinutes * 60);
     setBreakSecondsLeft(5 * 60);
+    lifecycle.reset();
   };
 
   const startBreak = () => {
@@ -421,6 +467,15 @@ const FocusSessions = () => {
   const totalSeconds = focusMinutes * 60;
   const elapsed = totalSeconds - secondsLeft;
   const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
+  useEffect(() => {
+    if (phase !== 'running' || !user?.id || !lifecycle.hasStarted) return;
+    const ratio = completionRatio(totalSeconds, secondsLeft);
+    const milestone = [0.25, 0.5, 0.75].find((point) => ratio >= point && !milestonesRef.current.has(point));
+    if (milestone) {
+      milestonesRef.current.add(milestone);
+      lifecycle.progress({ progressType: 'focus_milestone', progressRatio: milestone, completedUnits: Math.round(milestone * 4), totalUnits: 4, elapsedMs: Math.max(0, Date.now() - (startedAtRef.current ?? Date.now())) });
+    }
+  }, [phase, secondsLeft, totalSeconds, user?.id, lifecycle]);
   const minutes = Math.floor(secondsLeft / 60)
     .toString()
     .padStart(2, '0');
@@ -428,14 +483,15 @@ const FocusSessions = () => {
   const isActive = phase === 'running' || phase === 'paused';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[hsl(142_72%_36%)]/5 to-blue-50 p-6 md:p-10">
+    <SupportToolThemeProvider theme="adhd_focus">
+    <SupportToolLayout>
       <div className="max-w-4xl mx-auto space-y-10">
         <header className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] shadow-xl mb-2">
-            <span className="text-2xl">Ã°Å¸Å’Â³</span>
+            <span className="text-2xl">Focus</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-blue-600 bg-clip-text text-transparent">
-            Focus Sessions
+            Focus Session
           </h1>
           <p className="text-sm md:text-base text-gray-600 max-w-xl mx-auto">
             One calm block at a time, in the same light, minimal style as your Neurobridge hub.
@@ -526,6 +582,9 @@ const FocusSessions = () => {
                   focusMinutes={focusMinutes}
                 />
               )}
+              {!user?.id && (
+                <p role="alert" className="text-xs text-amber-700">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>
+              )}
 
               {phase === 'break' && (
                 <BreakMode
@@ -549,7 +608,8 @@ const FocusSessions = () => {
           </section>
         </main>
       </div>
-    </div>
+    </SupportToolLayout>
+    </SupportToolThemeProvider>
   );
 };
 

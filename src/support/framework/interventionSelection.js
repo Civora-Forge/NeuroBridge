@@ -1,4 +1,4 @@
-import { getSupportModules } from "@/support/framework/supportModuleRegistry";
+import { getCanonicalSupportModuleId, getSupportModules } from "@/support/framework/supportModuleRegistry";
 import { listInterventions, listInterventionOutcomes, listUserMemories } from "@/support/persistence/role4Store";
 import {
   InterventionStatus,
@@ -152,7 +152,9 @@ export function checkModuleEligibility(module, options = {}) {
 
   const enabled = new Set(userProfile.enabledModules || userProfile.enabledFeatures || []);
   const disorders = new Set(userProfile.disorders || []);
-  const hasExplicitAccess = enabled.size === 0 || enabled.has(module.id);
+  const hasExplicitAccess = enabled.size === 0 || [...enabled].some(
+    (enabledId) => getCanonicalSupportModuleId(enabledId) === module.id,
+  );
   const hasDisorderAccess =
     disorders.size === 0 || module.disorders.length === 0 || module.disorders.some((disorder) => disorders.has(disorder));
   const hasRoleAccess = module.supportedRoles.includes(userProfile.role || "user");

@@ -2,19 +2,34 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
+import { useInterventionLifecycle } from '@/support/execution';
+import { buildGroundingOutcome } from '@/support/modules/grounding/groundingService';
+import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 export default function AnxietyDissolver() {
+  const { user } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [timer, setTimer] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [durationReached, setDurationReached] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [reachedCount, setReachedCount] = useState(0);
+  const [earlyCount, setEarlyCount] = useState(0);
   const intervalRef = useRef(null);
+  const startedAtRef = useRef(null);
+  const configuration = { exerciseType: 'timed_grounding', pacing: 'timed', totalSteps: 4, techniqueOrder: ['4-7-8', '5-4-3-2-1', 'muscle_relaxation', 'box_breathing'], suggestedDurations: [4, 2, 3, 5] };
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GROUNDING_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration });
 
   const techniques = [
     {
       title: "4-7-8 Breathing",
       duration: 4,
-      icon: "ðŸ’¨",
+      icon: "Breathe",
       steps: [
         "Inhale quietly through nose for 4 seconds",
         "Hold breath for 7 seconds", 
@@ -26,7 +41,7 @@ export default function AnxietyDissolver() {
     {
       title: "5-4-3-2-1 Grounding",
       duration: 2,
-      icon: "ðŸŒ",
+      icon: "Notice",
       steps: [
         "Name 5 things you see",
         "Name 4 things you can touch", 
@@ -39,7 +54,7 @@ export default function AnxietyDissolver() {
     {
       title: "Progressive Muscle Relaxation",
       duration: 3,
-      icon: "ðŸ’ª",
+      icon: "Relax",
       steps: [
         "Tense shoulders for 5 seconds",
         "Release slowly for 10 seconds",
@@ -51,7 +66,7 @@ export default function AnxietyDissolver() {
     {
       title: "Box Breathing",
       duration: 5,
-      icon: "ðŸ“¦",
+      icon: "Pause",
       steps: [
         "Inhale 4 seconds (visualize up)",
         "Hold 4 seconds (visualize across)", 
@@ -63,26 +78,43 @@ export default function AnxietyDissolver() {
     }
   ];
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
+    if (durationReached) { setTimer(0); setDurationReached(false); }
     setIsRunning(true);
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev >= techniques[activeStep].duration * 60) {
           clearInterval(intervalRef.current);
           setIsRunning(false);
-          setActiveStep((prev) => (prev + 1) % techniques.length);
-          setTimer(0);
+          setDurationReached(true); setIsRunning(false);
           return 0;
         }
         return prev + 1;
       });
     }, 1000);
-  }, [activeStep, techniques]);
+  }, [activeStep, techniques, lifecycle, user?.id, durationReached]);
 
   const stopTimer = () => {
     setIsRunning(false);
     clearInterval(intervalRef.current);
   };
+
+  const nextTechnique = async () => {
+    if (!lifecycle.hasStarted || completed) return;
+    const completedSteps = completedCount + 1;
+    const reached = reachedCount + (durationReached ? 1 : 0);
+    const early = earlyCount + (durationReached ? 0 : 1);
+    if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'grounding_technique', completedUnits: completedSteps, totalUnits: techniques.length, progressRatio: completedSteps / techniques.length, suggestedDurationReached: durationReached, completedBeforeSuggestedDuration: !durationReached });
+    setCompletedCount(completedSteps); setReachedCount(reached); setEarlyCount(early);
+    if (completedSteps === techniques.length) {
+      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current }));
+      stopTimer(); setCompleted(true); return;
+    }
+    stopTimer(); setActiveStep((prev) => prev + 1); setTimer(0); setDurationReached(false);
+  };
+  const restart = async () => { stopTimer(); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_restart', {}, buildGroundingOutcome({ configuration, completedSteps: completedCount, suggestedDurationsReached: reachedCount, techniquesCompletedEarly: earlyCount, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current })); lifecycle.reset(); setActiveStep(0); setTimer(0); setCompleted(false); setCompletedCount(0); setReachedCount(0); setEarlyCount(0); setDurationReached(false); };
 
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
@@ -95,7 +127,8 @@ export default function AnxietyDissolver() {
   };
 
   return (
-    <div className="relative card min-h-[650px] p-8 bg-gradient-to-br from-slate-50/70 via-white/50 to-[hsl(142_72%_36%)]/5 rounded-3xl shadow-2xl border border-white/60 backdrop-blur-xl overflow-hidden max-w-md mx-auto">
+    <SupportToolThemeProvider theme="depression_gentle">
+    <SupportToolLayout>
       
       {/* Animated background */}
       <div className="absolute inset-0">
@@ -115,7 +148,7 @@ export default function AnxietyDissolver() {
           {techniques[activeStep].title}
         </div>
         <h1 className="text-3xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-          Anxiety Dissolver
+           Grounding
         </h1>
       </motion.div>
 
@@ -197,31 +230,34 @@ export default function AnxietyDissolver() {
         >
           {isRunning ? (
             <>
-              â¸ï¸ Pause
+               Pause
             </>
           ) : (
             <>
-              â–¶ï¸ Start {techniques[activeStep].duration}min
+               Start {techniques[activeStep].duration} min
             </>
           )}
         </motion.button>
 
         <motion.button
-          onClick={() => setActiveStep((prev) => (prev + 1) % techniques.length)}
+          onClick={nextTechnique}
           className="px-6 py-4 bg-white/90 hover:bg-white text-gray-800 backdrop-blur-sm rounded-2xl font-bold shadow-xl border border-gray-200 hover:border-[hsl(142_72%_36%)]/30 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 active:scale-[0.98]"
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
-          â†» Next Technique
+           Next technique
         </motion.button>
+        <button onClick={restart} className="px-4 py-2 text-sm text-gray-600">Restart</button>
       </div>
+      {durationReached && !completed && <p className="text-center text-sm text-gray-600">Suggested duration reached. Confirm with Next Technique when ready.</p>}
+      {completed && <p className="text-center font-semibold text-[hsl(142_72%_36%)]">Grounding session complete. Restart when you are ready for another session.</p>}
 
       {/* Progress indicator - FIXED VISIBILITY */}
       <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-2xl border-2 border-[hsl(142_72%_36%)]/30 mx-4 mb-8 pt-6"> {/* Increased padding, better contrast, more spacing */}
         <div className="flex items-center justify-center gap-3 text-sm font-semibold text-gray-800">
           <div className="w-3 h-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_60%_45%)] rounded-full shadow-lg animate-pulse" />
           <span className="tracking-wide">
-            Progress: <span className="text-[hsl(142_72%_36%)] font-black text-lg">{activeStep + 1}</span> / {techniques.length} techniques mastered
+             Progress: <span className="text-[hsl(142_72%_36%)] font-black text-lg">{activeStep + 1}</span> / {techniques.length} techniques completed
           </span>
           <div className="w-3 h-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_60%_45%)] rounded-full shadow-lg animate-pulse ml-auto" />
         </div>
@@ -235,6 +271,7 @@ export default function AnxietyDissolver() {
           />
         </div>
       </div>
-    </div>
+    </SupportToolLayout>
+    </SupportToolThemeProvider>
   );
 }

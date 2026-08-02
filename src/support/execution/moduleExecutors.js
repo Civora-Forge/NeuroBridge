@@ -1,0 +1,28 @@
+const supportedModuleIds = [
+  "support.task_breakdown",
+  "support.focus_session",
+  "support.gentle_activity",
+  "support.grounding",
+  "support.social_connection",
+  "support.cognitive_reframing",
+  "support.evidence_journal",
+];
+
+export const DEFERRED_MODULE_IDS = new Set([
+  "support.visual_timeline",
+  "support.mood_checkin",
+  "support.accountability_session",
+  "support.soundscape",
+]);
+
+async function startPlaceholderExecutor() {
+  return { ok: true, status: "started" };
+}
+
+export const MODULE_EXECUTORS = Object.freeze(
+  Object.fromEntries(supportedModuleIds.map((moduleId) => [moduleId, startPlaceholderExecutor])),
+);
+
+export function getModuleExecutor(moduleId) {
+  return MODULE_EXECUTORS[moduleId] ?? null;
+}

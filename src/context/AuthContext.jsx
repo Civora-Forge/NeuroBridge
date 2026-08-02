@@ -511,7 +511,14 @@ export function AuthProvider({ children }) {
       if (!prev) return prev;
       const updated = { ...prev, ...patch };
       localStorage.setItem("nb_auth", JSON.stringify(updated));
-      localStorage.setItem(`nb_prefs_${prev.id}`, JSON.stringify(patch));
+      const existingPreferences = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(`nb_prefs_${prev.id}`) || "{}");
+        } catch {
+          return {};
+        }
+      })();
+      localStorage.setItem(`nb_prefs_${prev.id}`, JSON.stringify({ ...existingPreferences, ...patch }));
       syncWardSettingsFromUser(updated, patch);
       return updated;
     });
@@ -526,7 +533,14 @@ export function AuthProvider({ children }) {
         }
         const updated = { ...prev, disorders: newDisorders };
         localStorage.setItem("nb_auth", JSON.stringify(updated));
-        localStorage.setItem(`nb_prefs_${prev.id}`, JSON.stringify({ disorders: newDisorders }));
+        const existingPreferences = (() => {
+          try {
+            return JSON.parse(localStorage.getItem(`nb_prefs_${prev.id}`) || "{}");
+          } catch {
+            return {};
+          }
+        })();
+        localStorage.setItem(`nb_prefs_${prev.id}`, JSON.stringify({ ...existingPreferences, disorders: newDisorders }));
         syncWardSettingsFromUser(updated, { disorders: newDisorders });
         resolve(updated);
         return updated;

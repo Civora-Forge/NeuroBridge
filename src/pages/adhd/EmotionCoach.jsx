@@ -21,6 +21,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 const moods = [
   {
@@ -188,16 +190,16 @@ const EmotionCoach = () => {
   const latestPattern = patterns[0];
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-8">
+    <SupportToolThemeProvider theme="adhd_focus">
+    <SupportToolLayout>
       {/* Header Section */}
       <div className="space-y-2 text-center md:text-left">
         <h2 className="text-3xl font-extrabold tracking-tight flex items-center justify-center md:justify-start gap-3 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent">
           <Compass className="text-teal-500 h-8 w-8" />
-          Emotion Navigator
+           Mood Check-in
         </h2>
         <p className="text-muted-foreground text-sm max-w-xl mx-auto md:mx-0">
-          Spot "emotional drift" before it becomes a crash. Get ADHD-specific intervention
-          strategies tailored to your current state.
+           Notice your current state and choose a small support prompt.
         </p>
       </div>
 
@@ -248,7 +250,7 @@ const EmotionCoach = () => {
             <div className="flex items-center gap-2 px-1">
               <Sparkles className="h-4 w-4 text-teal-500" />
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                Tactical Interventions
+                 Support Prompts
               </h3>
             </div>
 
@@ -279,7 +281,7 @@ const EmotionCoach = () => {
             animate={{ opacity: 1 }}
             className="h-32 flex items-center justify-center border-2 border-dashed border-teal-400/30 rounded-3xl text-muted-foreground/60 text-sm font-medium italic bg-teal-50/30"
           >
-            Select your current state to generate interventions
+            Select your current state to see support prompts.
           </motion.div>
         )}
       </AnimatePresence>
@@ -290,13 +292,13 @@ const EmotionCoach = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
               <History className="h-4 w-4" />
-              Pattern Spotter
+               Pattern Notes
             </h3>
             <Badge
               variant="outline"
               className="text-[10px] font-bold opacity-80 border-teal-400/40 text-teal-700 bg-teal-50/60"
             >
-              30s Ritual
+               Quick check-in
             </Badge>
           </div>
 
@@ -310,7 +312,7 @@ const EmotionCoach = () => {
             <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 px-1">
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                <span>Write 1–2 lines about what might be shaping today.</span>
+                <span>Write one or two lines about what might be shaping today.</span>
               </div>
             </div>
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
@@ -374,7 +376,7 @@ const EmotionCoach = () => {
                     <span>{p.moodLabel}</span>
                     {p.tags[0] && (
                       <>
-                        <span className="text-slate-400">•</span>
+                        <span className="text-slate-400">|</span>
                         <span className="truncate">{p.tags[0]}</span>
                       </>
                     )}
@@ -408,10 +410,10 @@ const EmotionCoach = () => {
 
       {/* Footer */}
       <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed max-w-lg mx-auto">
-        Standard ADHD apps wait for you to fail. Emotion Navigator uses "Proactive Interception"
-        to help you adjust your strategy to match your biological state in real-time.
+         Use these prompts to pause, notice what is happening, and choose a next step.
       </p>
-    </div>
+    </SupportToolLayout>
+    </SupportToolThemeProvider>
   );
 };
 

@@ -1,0 +1,93 @@
+.support-tool-theme {
+  color: var(--tool-text, inherit);
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page {
+  background: var(--tool-background) !important;
+  color: var(--tool-text);
+}
+
+/* Opt-in shell for support tools. It intentionally does not affect the app layout. */
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-layout {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 40px);
+  display: grid;
+  gap: 20px;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-layout-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--tool-text-muted);
+  font-size: 0.8125rem;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-card,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-completion {
+  background: var(--tool-surface);
+  border: 1px solid var(--tool-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgb(32 44 54 / 0.08);
+  padding: clamp(16px, 3vw, 24px);
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-notice {
+  margin: 0;
+  border-left: 3px solid var(--tool-accent);
+  background: var(--tool-surface-strong);
+  padding: 10px 12px;
+  color: var(--tool-text-muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  [data-support-theme]:not([data-support-theme="neutral"]) .support-tool-layout { padding: 16px; gap: 16px; }
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page input:not([type="checkbox"]):not([type="radio"]),
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page textarea,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page select {
+  background: var(--tool-surface) !important;
+  border-color: var(--tool-border) !important;
+  color: var(--tool-text) !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page input:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page textarea:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page select:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page button:focus-visible,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page a:focus-visible {
+  outline: 3px solid var(--tool-focus-ring) !important;
+  outline-offset: 3px;
+}
+
+[data-support-theme="adhd_focus"] .support-tool-page .support-tool-primary,
+[data-support-theme="depression_gentle"] .support-tool-page .support-tool-primary,
+[data-support-theme="depression_reflection"] .support-tool-page .support-tool-primary {
+  background: var(--tool-primary) !important;
+  color: #FFFFFF !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page .primaryButton,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page button[class*="bg-gradient"]:not([class*="red-"]) {
+  background: var(--tool-primary) !important;
+  color: #FFFFFF !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page .support-tool-muted {
+  color: var(--tool-text-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-support-theme] .support-tool-page *,
+  [data-support-theme] .support-tool-page *::before,
+  [data-support-theme] .support-tool-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

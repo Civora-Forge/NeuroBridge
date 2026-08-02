@@ -1,12 +1,11 @@
-import { Wind, BookOpen, Activity, Brain, Leaf } from "lucide-react";
+import { Wind, BookOpen, Activity, Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const tools = [
   { to: "/anxiety",           icon: Wind,     title: "Breathing Guide",    desc: "Guided breathwork to calm your nervous system quickly." },
   { to: "/ocd/logic-journal", icon: BookOpen, title: "Thought Journal",    desc: "Capture worry loops and reframe with grounding facts." },
-  { to: "/adhd/emotion-coach",icon: Brain,    title: "Emotion Coach",      desc: "Regulate emotional spikes with guided prompts." },
+  { to: "/adhd/emotion-coach",icon: Brain,    title: "Mood Check-in",      desc: "Use guided prompts to notice and regulate emotions." },
   { to: "/depression",        icon: Activity, title: "Mood Check-in",      desc: "Track mood shifts and identify patterns." },
-  { to: "/adhd/sounds",       icon: Leaf,     title: "Soundscapes",        desc: "Use ambient audio to reduce stress and improve sleep." },
 ];
 
 export default function AnxietyPage() {
