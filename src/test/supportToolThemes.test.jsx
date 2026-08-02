@@ -19,6 +19,7 @@ import groundingSource from "../pages/depression/AnxietyDissolver.jsx?raw";
 import connectionSource from "../pages/depression/SocialBroadcaster.jsx?raw";
 import reframingSource from "../pages/depression/CognitiveReframer.jsx?raw";
 import journalSource from "../pages/depression/EvidenceFolder.jsx?raw";
+import layoutSource from "../components/support/SupportToolLayout.jsx?raw";
 
 function StatefulChild() {
   const [count, setCount] = React.useState(0);
@@ -51,6 +52,16 @@ describe("scoped support tool themes", () => {
     [reframingSource, journalSource].forEach((source) => {
       expect(source).toContain('theme="depression_reflection"');
     });
+  });
+
+  it("uses the shared support tool layout for every targeted page", () => {
+    [taskSource, focusSource, timelineSource, moodSource, accountabilitySource, activitySource, groundingSource, connectionSource, reframingSource, journalSource].forEach((source) => {
+      expect(source).toContain('SupportToolLayout');
+      expect(source).not.toMatch(/support-tool-page[^"']*(min-h-screen|max-w-(md|xl|2xl|3xl|4xl))/);
+    });
+    expect(layoutSource).toContain('support-tool-page support-tool-layout');
+    expect(layoutSource).toContain('support-tool-completion');
+    expect(layoutSource).toContain('support-tool-notice');
   });
 
   it("scopes tokens to the provider and safely falls back for invalid overrides", () => {

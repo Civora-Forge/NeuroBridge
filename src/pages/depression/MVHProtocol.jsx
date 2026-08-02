@@ -7,6 +7,7 @@ import { useInterventionLifecycle } from '@/support/execution';
 import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gentleActivityService';
 import { GENTLE_ACTIVITY_MODULE_ID } from '@/support/modules/gentleActivity/gentleActivityTypes';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 const steps = [
   {
@@ -70,7 +71,7 @@ export default function MVHProtocol() {
 
   return (
     <SupportToolThemeProvider theme="depression_gentle">
-    <div className="support-tool-page max-w-md mx-auto p-6 md:p-8 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm space-y-6 text-center">
+    <SupportToolLayout>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -178,7 +179,7 @@ export default function MVHProtocol() {
       <p className="text-[11px] text-gray-500 text-left">
          If you only complete one step today, that is still progress.
       </p>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 }

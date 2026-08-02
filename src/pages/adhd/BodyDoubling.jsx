@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 const BodyDoubling = () => {
   const [isLive, setIsLive] = useState(false);
@@ -64,7 +65,7 @@ const BodyDoubling = () => {
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-    <div className="support-tool-page max-w-2xl mx-auto p-4 space-y-6">
+    <SupportToolLayout>
       {/* Header with Live Status */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -261,7 +262,7 @@ const BodyDoubling = () => {
       <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed">
          Use this manual timer and commitment prompt as a personal accountability aid.
       </p>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 };

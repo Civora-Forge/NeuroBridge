@@ -10,6 +10,7 @@ import { clearEvidenceJournalEntries, deleteEvidenceJournalEntry, listEvidenceJo
 import { buildEvidenceJournalOutcome, canSaveEvidenceEntry, normalizeEvidenceCategory } from '@/support/modules/evidenceJournal/evidenceJournalService';
 import { EVIDENCE_JOURNAL_MODULE_ID } from '@/support/modules/evidenceJournal/evidenceJournalTypes';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 const evidenceCategories = {
   survival: { icon: <Shield className="w-4 h-4" />, label: "Survival", hint: "I got through something hard" },
@@ -86,7 +87,7 @@ export default function EvidenceFolder() {
 
   return (
     <SupportToolThemeProvider theme="depression_reflection">
-    <div className="support-tool-page space-y-8 max-w-4xl mx-auto p-6 md:p-8">
+    <SupportToolLayout>
       {/* Header */}
       <motion.div
         className="text-center space-y-4"
@@ -310,7 +311,7 @@ export default function EvidenceFolder() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 }

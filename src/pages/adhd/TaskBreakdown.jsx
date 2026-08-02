@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 import { useInterventionLifecycle } from "@/support/execution";
 import {
   buildTaskBreakdownOutcome,
@@ -221,7 +222,7 @@ const TaskBreakdown = ({
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-    <div className="support-tool-page min-h-screen bg-slate-50">
+    <SupportToolLayout>
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -482,7 +483,7 @@ const TaskBreakdown = ({
           </section>
         )}
       </div>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 };

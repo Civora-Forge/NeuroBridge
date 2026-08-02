@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 // ------- time helpers -------
 const timeToMinutes = (t) => {
@@ -471,7 +472,7 @@ const VisualTimeline = () => {
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-    <div className="support-tool-page min-h-screen bg-slate-50">
+    <SupportToolLayout>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
         {banner && (
           <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -611,7 +612,7 @@ const VisualTimeline = () => {
           Hint: use concrete labels like "Email professor for 20 minutes" instead of "Be productive".
         </footer>
       </main>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 };

@@ -7,6 +7,7 @@ import { useInterventionLifecycle } from '@/support/execution';
 import { buildGroundingOutcome } from '@/support/modules/grounding/groundingService';
 import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 export default function AnxietyDissolver() {
   const { user } = useAuth();
@@ -127,7 +128,7 @@ export default function AnxietyDissolver() {
 
   return (
     <SupportToolThemeProvider theme="depression_gentle">
-    <div className="support-tool-page relative card min-h-[650px] p-8 bg-gradient-to-br from-slate-50/70 via-white/50 to-[hsl(142_72%_36%)]/5 rounded-3xl shadow-2xl border border-white/60 backdrop-blur-xl overflow-hidden max-w-md mx-auto">
+    <SupportToolLayout>
       
       {/* Animated background */}
       <div className="absolute inset-0">
@@ -270,7 +271,7 @@ export default function AnxietyDissolver() {
           />
         </div>
       </div>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 }

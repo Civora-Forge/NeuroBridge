@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
 
 const moods = [
   {
@@ -190,7 +191,7 @@ const EmotionCoach = () => {
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-    <div className="support-tool-page max-w-3xl mx-auto p-4 space-y-8">
+    <SupportToolLayout>
       {/* Header Section */}
       <div className="space-y-2 text-center md:text-left">
         <h2 className="text-3xl font-extrabold tracking-tight flex items-center justify-center md:justify-start gap-3 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent">
@@ -411,7 +412,7 @@ const EmotionCoach = () => {
       <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed max-w-lg mx-auto">
          Use these prompts to pause, notice what is happening, and choose a next step.
       </p>
-    </div>
+    </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 };
