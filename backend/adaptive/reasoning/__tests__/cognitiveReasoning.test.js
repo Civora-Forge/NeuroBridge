@@ -56,8 +56,7 @@ function expectWellFormedResult(result) {
 describe("Cognitive Reasoning Core — cognitive overload", () => {
   it("should detect cognitive_overload from high load + fragmented attention", () => {
     const userState = buildUserState({
-      activity: { taskSwitching: "high" },
-      task: { complexity: "complex" },
+      behavior: { taskSwitchFrequency: 1.0 },
     });
 
     const result = reasonAboutUserState(userState);
@@ -85,7 +84,7 @@ describe("Cognitive Reasoning Core — cognitive overload", () => {
 describe("Cognitive Reasoning Core — emotional distress", () => {
   it("should detect emotional_distress from high stress + overwhelmed emotion", () => {
     const userState = buildUserState({
-      emotion: { label: "overwhelmed", confidence: 0.9 },
+      mood: { primaryMood: "overwhelmed", confidence: 0.9 },
       biometrics: { heartRateVariabilityMs: 25 },
     });
 
@@ -116,8 +115,9 @@ describe("Cognitive Reasoning Core — emotional distress", () => {
 describe("Cognitive Reasoning Core — low energy", () => {
   it("should detect low_energy from tired energy + low motivation", () => {
     const userState = buildUserState({
-      emotion: { label: "sad", confidence: 0.8 },
-      activity: { taskCompletionCount: 1, taskAbandonCount: 7 },
+      mood: { primaryMood: "sad", confidence: 0.8 },
+      deviceInteraction: { focusSessionInterruptions: 6 },
+      activity: { activity: "reading" },
     });
 
     const result = reasonAboutUserState(userState);
@@ -156,8 +156,8 @@ describe("Cognitive Reasoning Core — low energy", () => {
 describe("Cognitive Reasoning Core — urgent overload", () => {
   it("should detect urgent_overload from high urgency + high cognitive load", () => {
     const userState = buildUserState({
-      task: { urgency: "high", complexity: "complex" },
-      activity: { taskSwitching: "high" },
+      conversation: { urgency: "high" },
+      behavior: { taskSwitchFrequency: 1.0 },
     });
 
     const result = reasonAboutUserState(userState);
@@ -195,7 +195,7 @@ describe("Cognitive Reasoning Core — urgent overload", () => {
 
 describe("Cognitive Reasoning Core — attention fragmentation", () => {
   it("should detect attention_fragmentation from scattered attention", () => {
-    const userState = buildUserState({ activity: { taskSwitching: "medium" } });
+    const userState = buildUserState({ behavior: { taskSwitchFrequency: 0.4 } });
 
     const result = reasonAboutUserState(userState);
     expectWellFormedResult(result);
@@ -206,7 +206,7 @@ describe("Cognitive Reasoning Core — attention fragmentation", () => {
   });
 
   it("should detect attention_fragmentation from absent attention", () => {
-    const userState = buildUserState({ activity: { engagement: "disengaged" } });
+    const userState = buildUserState({ behavior: { idleDuration: 600 } });
 
     const result = reasonAboutUserState(userState);
     expect(result.situation).toBe("attention_fragmentation");
@@ -229,13 +229,10 @@ describe("Cognitive Reasoning Core — attention fragmentation", () => {
 describe("Cognitive Reasoning Core — stable state", () => {
   it("should detect a stable state when no difficulty is present", () => {
     const userState = buildUserState({
-      emotion: { label: "calm", confidence: 0.9 },
-      activity: {
-        taskSwitching: "low",
-        engagement: "normal",
-        currentTask: "reading a report",
-      },
-      task: { urgency: "low", complexity: "simple" },
+      mood: { primaryMood: "calm", confidence: 0.9 },
+      conversation: { urgency: "low" },
+      behavior: { taskSwitchFrequency: 0 },
+      activity: { activity: "reading" },
       environment: { timeOfDay: "morning" },
     });
 
@@ -278,13 +275,10 @@ describe("Cognitive Reasoning Core — stable state", () => {
 describe("Cognitive Reasoning Core — multiple simultaneous difficulties", () => {
   it("should resolve to urgent_overload with correct secondary needs", () => {
     const userState = buildUserState({
-      emotion: { label: "overwhelmed", confidence: 0.9 },
-      activity: {
-        taskSwitching: "high",
-        taskCompletionCount: 1,
-        taskAbandonCount: 7,
-      },
-      task: { urgency: "high", complexity: "complex" },
+      mood: { primaryMood: "overwhelmed", confidence: 0.9 },
+      behavior: { taskSwitchFrequency: 1.0, idleDuration: 900 },
+      conversation: { urgency: "high" },
+      deviceInteraction: { currentSessionDuration: 7200 },
     });
 
     const result = reasonAboutUserState(userState);
@@ -498,8 +492,8 @@ describe("Cognitive Reasoning Core — explainability", () => {
   it("should produce a serializable result", () => {
     const result = reasonAboutUserState(
       buildUserState({
-        activity: { taskSwitching: "high" },
-        task: { urgency: "high" },
+        behavior: { taskSwitchFrequency: 1.0 },
+        conversation: { urgency: "high" },
       }),
     );
 

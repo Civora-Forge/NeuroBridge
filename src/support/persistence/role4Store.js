@@ -1,4 +1,5 @@
 import {
+  AdaptationDecisionRecordSchema,
   InterventionSchema,
   InterventionLifecycleEventSchema,
   InterventionOutcomeSchema,
@@ -15,6 +16,7 @@ const COLLECTION_SCHEMAS = {
   [ROLE4_COLLECTIONS.REFLECTIONS]: ReflectionSchema,
   [ROLE4_COLLECTIONS.MEMORIES]: UserMemorySchema,
   [ROLE4_COLLECTIONS.PERSONALIZATION_PROFILES]: PersonalizationProfileSchema,
+  [ROLE4_COLLECTIONS.ADAPTATION_DECISIONS]: AdaptationDecisionRecordSchema,
 };
 
 function getStorage() {
@@ -153,3 +155,12 @@ export const savePersonalizationProfile = (userId, record) =>
 
 export const listPersonalizationProfiles = (userId) =>
   listRole4Records(userId, ROLE4_COLLECTIONS.PERSONALIZATION_PROFILES);
+
+export const saveAdaptationDecision = (userId, record) =>
+  saveRole4Record(userId, ROLE4_COLLECTIONS.ADAPTATION_DECISIONS, {
+    ...record,
+    id: record.id ?? record.decisionId,
+  });
+
+export const listAdaptationDecisions = (userId) =>
+  listRole4Records(userId, ROLE4_COLLECTIONS.ADAPTATION_DECISIONS);

@@ -24,11 +24,11 @@
  * └─────────────────────────────────────────────────────────────────┘
  *
  * DESIGN PRINCIPLES:
- *  1. Simple — flat, predictable structure with no nesting beyond one level
+ *  1. Simple — predictable structure with no hidden implementation details
  *  2. Well documented — every field has a clear purpose
  *  3. Extensible — new signal types can be added without breaking existing code
  *  4. Provider-independent — no coupling to any specific AI/LLM/agent framework
- *  5. Optional — all fields are nullable; missing data is explicitly represented
+ *  5. Optional — fields are nullable when data is unavailable
  *
  * Ownership: Adaptive Intelligence Engineer
  * Contract owner: User State Model team
@@ -116,6 +116,9 @@
  * @typedef {object} UserInputSignal
  * @property {string} [intent] - Explicitly stated user intent
  * @property {string} [requestType] - Type of request (e.g., "task", "emotional_support", "information")
+ * @property {string} [inputMode] - How the request was entered ("voice" | "chat" | "manual")
+ * @property {string} [timestamp] - ISO timestamp of the explicit request
+ * @property {number} [confidence] - Confidence in the explicit request interpretation
  */
 
 /**
@@ -126,21 +129,67 @@
  */
 
 /**
+ * @typedef {object} BehaviorSignal
+ * @property {number|null} [typingSpeed] - Observed typing speed (chars/min)
+ * @property {number|null} [typingPauseDuration] - Average pause duration between typing bursts (ms)
+ * @property {number|null} [correctionRate] - Corrections divided by typed characters
+ * @property {number|null} [taskSwitchFrequency] - Task switches per minute
+ * @property {number|null} [idleDuration] - Time since last interaction (seconds)
+ * @property {{ direction?: string, totalDistancePx?: number, averageSpeedPxPerSec?: number, readingSpeed?: number|null, lastScrollAt?: string }|null} [scrollBehavior] - Scroll activity summary
+ * @property {number|null} [readingSpeed] - Estimated reading speed when applicable
+ * @property {number|null} [interactionLatency] - Time from navigation to first interaction (seconds)
+ * @property {string} [timestamp] - ISO timestamp of the latest update
+ * @property {number} [confidence] - Confidence in the observed interaction metrics
+ * @property {string} [source] - Source of the metrics
+ */
+
+/**
+ * @typedef {object} DeviceInteractionSignal
+ * @property {number|null} [focusSessionInterruptions] - Count of focus interruptions observed during the session
+ * @property {number|null} [repeatedNavigation] - Count of repeated navigations within a short window
+ * @property {number|null} [timeSinceLastInteraction] - Time since the last interaction (seconds)
+ * @property {number|null} [currentSessionDuration] - Total current session duration (seconds)
+ * @property {string} [timestamp] - ISO timestamp of the latest update
+ * @property {number} [confidence] - Confidence in the observed device interaction metrics
+ * @property {string} [source] - Source of the metrics
+ */
+
+/**
+ * @typedef {object} ExplicitRequestsSignal
+ * @property {string|null} [requestType] - Type of explicit request observed
+ * @property {"voice"|"chat"|"manual"|null} [inputMode] - Input mode used to express the request
+ * @property {string|null} [timestamp] - ISO timestamp of the explicit request
+ * @property {number|null} [confidence] - Confidence in the explicit request interpretation
+ * @property {string} [source] - Source of the explicit request
+ */
+
+/**
  * @typedef {object} ContextSnapshot
  *
  * @description
  * A unified representation of the user's current context, produced by the
- * Context Fusion layer. All fields are optional — the User State Model
- * handles missing data gracefully by producing "unknown" states.
+ * Context Fusion layer and adapted into the stable public contract.
+ * All fields are optional — downstream modules handle missing data gracefully.
  *
- * @property {EmotionSignal} [emotion] - Inferred emotional state
+ * @property {string} [snapshotId] - Unique snapshot identifier
+ * @property {string|null} [userId] - Authenticated user identifier, or null for anonymous/pre-auth snapshots
+ * @property {string} [timestamp] - ISO timestamp of when the snapshot was created
+ * @property {ProfileContext} [profile] - Stable user profile context
  * @property {ActivitySignal} [activity] - User activity and engagement signals
  * @property {EnvironmentSignal} [environment] - Environmental context
- * @property {TaskSignal} [task] - Task-related signals
- * @property {UserInputSignal} [userInput] - Explicit user input signals
+ * @property {ConversationContext} [conversation] - Structured conversation context, including explicit request data
+ * @property {MoodContext} [mood] - Coarse emotional context
+ * @property {SessionContext} [session] - Session lifecycle context
+ * @property {BehaviorSignal} [behavior] - Observable behavior metrics derived from live user interactions
+ * @property {DeviceInteractionSignal} [deviceInteraction] - Observable device and session interaction metrics
+ * @property {ExplicitRequestsSignal} [explicitRequests] - Latest explicit request summary
  * @property {BiometricSignal} [biometrics] - Optional physiological signals
  * @property {number} [overallConfidence] - Overall confidence in the snapshot (0-1)
- * @property {string} [timestamp] - ISO timestamp of when the snapshot was created
+ *
+ * Legacy aliases retained for backward compatibility:
+ * @property {EmotionSignal} [emotion] - Deprecated legacy alias for mood-derived state
+ * @property {TaskSignal} [task] - Deprecated legacy alias for task-related data
+ * @property {UserInputSignal} [userInput] - Deprecated legacy alias for explicit user input signals
  */
 
 // ─────────────────────────────────────────────────────────────────

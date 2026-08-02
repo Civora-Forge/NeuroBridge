@@ -222,6 +222,8 @@ export function analyzeConversation(text, options = {}) {
 
     const conversationData = {
       lastUserMessage: text,
+      timestamp: now,
+      lastUpdated: now,
       sentimentScore: validated.sentiment === "positive" ? 0.8 : validated.sentiment === "negative" ? -0.8 : 0.0,
       detectedIntent: validated.intent,
       urgency: validated.urgency,

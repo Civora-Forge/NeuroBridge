@@ -13,7 +13,8 @@ import {
   computeFreshnessIndex,
   detectMaterialChange,
   handleGetUnifiedContext,
-  getUnifiedContextAPI,
+  getContextSnapshotAPI,
+  ContextSnapshotAdapter,
   trackActivity,
   resetActivityTracker,
   collectEnvironmentContext,
@@ -155,6 +156,23 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
   });
 
   describe("3. Unified Context API & Interface", () => {
+    it("should adapt UnifiedContext into a public ContextSnapshot without internal-only fields", () => {
+      const unified = fuseContext({});
+      const snapshot = ContextSnapshotAdapter.toContextSnapshot(unified);
+
+      expect(snapshot).toHaveProperty("snapshotId");
+      expect(snapshot).toHaveProperty("timestamp");
+      expect(snapshot).toHaveProperty("metadata.snapshotVersion");
+      expect(snapshot.userId).toBeNull();
+      expect(snapshot).toHaveProperty("behavior");
+      expect(snapshot).toHaveProperty("deviceInteraction");
+      expect(snapshot).toHaveProperty("explicitRequests");
+      expect(snapshot).toHaveProperty("biometrics");
+      expect(snapshot).not.toHaveProperty("emotion");
+      expect(snapshot).not.toHaveProperty("task");
+      expect(snapshot).not.toHaveProperty("confidence.overall");
+    });
+
     it("should handle GET /api/context/current endpoint request correctly", () => {
       contextEngine.init({ initialScreen: "reader" });
 
@@ -163,6 +181,8 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(res.status).toBe("success");
       expect(res.statusCode).toBe(200);
       expect(res.timestamp).toBeDefined();
+      expect(res.data).toHaveProperty("snapshotId");
+      expect(res.data).toHaveProperty("userId");
       expect(res.data).toHaveProperty("profile");
       expect(res.data).toHaveProperty("activity");
       expect(res.data).toHaveProperty("environment");
@@ -172,13 +192,45 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(res.data).toHaveProperty("metadata");
     });
 
-    it("should allow client helper getUnifiedContextAPI to retrieve snapshot", async () => {
+    it("should allow client helper getContextSnapshotAPI to retrieve snapshot", async () => {
       contextEngine.init();
 
-      const data = await getUnifiedContextAPI();
+      const data = await getContextSnapshotAPI();
 
+      expect(data).toHaveProperty("snapshotId");
       expect(data).toHaveProperty("profile");
       expect(data).toHaveProperty("metadata");
+    });
+
+    it("should expose explicitRequest under conversation for downstream modules", async () => {
+      contextEngine.init();
+
+      const result = await contextEngine.processUserMessage("I need help focusing.", { useAI: false, inputMode: "chat" });
+
+      expect(result.context.conversation).toHaveProperty("explicitRequest");
+      expect(result.context.conversation.explicitRequest).toMatchObject({
+        intent: "focus_support",
+        requestType: "explicit_help_request",
+        priority: "high",
+        originalText: "I need help focusing.",
+      });
+      expect(result.context.conversation.explicitRequest.timestamp).toBeDefined();
+      expect(result.context.explicitRequests).toMatchObject({
+        requestType: "explicit_help_request",
+        inputMode: "chat",
+      });
+    });
+
+    it("should update live interaction metrics after navigation changes", () => {
+      contextEngine.init({ initialScreen: "reader" });
+      contextEngine.trackNavigation("reader", { path: "/reader" });
+      contextEngine.trackNavigation("reader", { path: "/reader" });
+
+      const snapshot = ContextSnapshotAdapter.toContextSnapshot(contextEngine.getLatestContext());
+
+      expect(snapshot.deviceInteraction.repeatedNavigation).toBeGreaterThanOrEqual(1);
+      expect(snapshot.behavior.taskSwitchFrequency).toBeGreaterThanOrEqual(0);
+      expect(snapshot.deviceInteraction.currentSessionDuration).toBeGreaterThanOrEqual(0);
     });
   });
 });

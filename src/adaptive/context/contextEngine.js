@@ -21,9 +21,11 @@ import { startSession, updateSessionNavigation } from "./sessionTracker.js";
 import { createContextSignal } from "./types/contextTypes.js";
 import { validateContextSignal } from "./validation/signalValidator.js";
 import { fuseContext, detectMaterialChange } from "./contextFusion.js";
-import { handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+import { handleGetContextSnapshot } from "./api/contextApi.js";
 import { initContextLogger } from "./contextLogger.js";
 import { processUserMessage as runPipelineMessage, syncProfileContext } from "./contextPipeline.js";
+import { toContextSnapshot } from "./contextSnapshotAdapter.js";
+import { recordNavigationSignal } from "./contextInteractionTracker.js";
 
 class ContextEngine {
   constructor() {
@@ -63,11 +65,12 @@ class ContextEngine {
     this.isInitialized = true;
 
     // Emit initial ContextUpdated event
-    const currentContext = this.getLatestContext();
+    const currentContext = this.getLatestContextSnapshot();
     contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
       category: "all",
       updatedData: currentContext,
       context: currentContext,
+      snapshot: currentContext,
       timestamp: new Date().toISOString(),
       source: "contextEngine.init",
       isMaterialChange: true,
@@ -161,10 +164,13 @@ class ContextEngine {
 
     // Emit ContextUpdated event if a material change occurred or forced
     if (changeCheck.isMaterialChange || options.force === true) {
+      const snapshot = toContextSnapshot(fusedContext);
+
       contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
         category: targetCategory || "all",
-        updatedData: targetCategory ? fusedContext[targetCategory] : fusedContext,
-        context: fusedContext,
+        updatedData: targetCategory ? snapshot[targetCategory] : snapshot,
+        context: snapshot,
+        snapshot,
         timestamp: new Date().toISOString(),
         source,
         isMaterialChange: true,
@@ -181,6 +187,14 @@ class ContextEngine {
    */
   getLatestContext() {
     return fuseContext({}, { conflicts: this.activeConflicts });
+  }
+
+  /**
+   * Expose the public ContextSnapshot for downstream modules.
+   * @returns {import("./types/contextTypes.js").ContextSnapshot}
+   */
+  getLatestContextSnapshot() {
+    return toContextSnapshot(this.getLatestContext());
   }
 
   /**
@@ -210,6 +224,7 @@ class ContextEngine {
    */
   trackNavigation(moduleName, data = {}) {
     const previousContext = contextStore.getContext();
+    recordNavigationSignal(data.path || moduleName);
     updateSessionNavigation(moduleName);
     trackActivity(moduleName, { module: moduleName, ...data });
 
@@ -217,10 +232,13 @@ class ContextEngine {
     const changeCheck = detectMaterialChange(previousContext, fusedContext);
 
     if (changeCheck.isMaterialChange) {
+      const snapshot = toContextSnapshot(fusedContext);
+
       contextEventBus.emit(ContextEvents.CONTEXT_UPDATED, {
         category: "activity",
-        updatedData: fusedContext.activity,
-        context: fusedContext,
+        updatedData: snapshot.activity,
+        context: snapshot,
+        snapshot,
         timestamp: new Date().toISOString(),
         source: "activityTracker",
         isMaterialChange: true,
@@ -253,7 +271,7 @@ class ContextEngine {
    * REST API Endpoint Handler for GET /api/context/current
    */
   handleApiGetContext(req) {
-    return handleGetUnifiedContext(req);
+    return handleGetContextSnapshot(req);
   }
 }
 

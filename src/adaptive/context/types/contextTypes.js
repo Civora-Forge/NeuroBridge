@@ -61,6 +61,7 @@
  * @property {string|null} detectedIntent - Extracted intent
  * @property {string} urgency - "low" | "moderate" | "high" | "critical" | "unknown"
  * @property {string[]} keyTopics - Extracted topics
+ * @property {{ intent: string|null, requestType: string|null, priority: string|null, originalText: string|null, confidence: number|null, timestamp: string|null }|null} [explicitRequest] - First-class explicit user request context
  */
 
 /**
@@ -82,6 +83,44 @@
  * @property {MoodContext} mood
  * @property {SessionContext} session
  * @property {{ lastUpdated: string, sourceMap: Record<string, string>, dimensionalConfidence: Record<string, number>, stalenessFlags: Record<string, boolean> }} metadata
+ */
+
+/**
+ * @typedef {UnifiedContextObject} UnifiedContext
+ * Internal representation owned by the Context & Perception layer.
+ */
+
+/**
+ * @typedef {object} ContextSnapshotMetadata
+ * @property {string} snapshotVersion - Version of the public snapshot schema
+ * @property {string} lastUpdated - ISO 8601 snapshot publication time
+ * @property {{ earliest: string, latest: string }} observedAt - Observation window used during fusion
+ * @property {number} overallConfidence - Aggregated snapshot confidence (0.0 to 1.0)
+ * @property {Record<string, number>} dimensionalConfidence - Confidence per top-level domain
+ * @property {number} freshnessIndex - Aggregate freshness score (0.0 to 1.0)
+ * @property {Record<string, boolean>} stalenessFlags - Per-domain stale-state flags
+ * @property {Record<string, string>} sourceMap - Provenance map for each top-level domain
+ * @property {Array<object>} [conflicts] - Active validation conflicts, if any
+ */
+
+/**
+ * @typedef {object} ContextSnapshot
+ * @property {string} snapshotId - Unique identifier for the public snapshot
+ * @property {string|null} userId - Stable user identifier; non-null for authenticated snapshots, null allowed for anonymous/pre-auth snapshots
+ * @property {string} timestamp - ISO 8601 snapshot publication time
+ * @property {ProfileContext} profile - Public profile context
+ * @property {ActivityContext} activity - Public activity context
+ * @property {EnvironmentContext} environment - Public environment context
+ * @property {ConversationContext} conversation - Public conversation context
+ * @property {MoodContext} mood - Public mood context
+ * @property {SessionContext} session - Public session context
+ * @property {ContextSnapshotMetadata} metadata - Snapshot freshness, provenance, and confidence metadata
+ */
+
+/**
+ * @typedef {object} ContextSnapshotOptions
+ * @property {string} [snapshotVersion] - Override the default snapshot version
+ * @property {string} [snapshotId] - Override the generated snapshot identifier
  */
 
 /**

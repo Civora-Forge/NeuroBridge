@@ -277,7 +277,8 @@ Responsibilities include:
 * Tracking user activity
 * Processing environmental context
 * Combining multiple signals
-* Producing a structured `ContextSnapshot`
+* Producing an internal `UnifiedContext`
+* Publishing a structured `ContextSnapshot` for downstream modules
 
 ---
 
@@ -454,6 +455,21 @@ npm run preview
 The project is gradually being organized around the adaptive architecture.
 
 ```text
+backend/
+│   └── adaptive/
+│       ├── state/   (Role 2 · User State Model)
+│       │   ├── userStateModel.js
+│       │   └── snapshotNormalizer.js
+│       │
+│       └── reasoning/   (Role 2 · Cognitive Reasoning Core)
+│           ├── cognitiveReasoning.js
+│           ├── planner.js
+│           ├── interventionRanking.js
+│           ├── adaptationPolicy.js
+│           ├── disorderFeatureRegistry.js
+│           ├── moduleSelector.js
+│           └── questionEngine.js
+│
 src/
 │
 ├── adaptive/
@@ -465,19 +481,6 @@ src/
 │   │   ├── activityTracker.js
 │   │   ├── contextFusion.js
 │   │   └── jitaiService.js
-│   │
-│   ├── state/
-│   │   ├── userStateModel.js
-│   │   └── useAdaptiveBehavioralEngine.js
-│   │
-│   ├── reasoning/
-│   │   ├── cognitiveReasoning.js
-│   │   ├── planner.js
-│   │   ├── interventionRanking.js
-│   │   ├── adaptationPolicy.js
-│   │   ├── disorderFeatureRegistry.js
-│   │   ├── moduleSelector.js
-│   │   └── questionEngine.js
 │   │
 │   ├── ui/
 │   │   └── uiAdapter.js
@@ -583,6 +586,8 @@ The exact directory structure may evolve as the adaptive architecture is impleme
 
 The Context Engine is responsible for collecting signals that describe the user's current situation.
 
+Internally, Role 1 maintains a `UnifiedContext` for fusion and validation. Downstream modules consume the public `ContextSnapshot`, not the internal fused object.
+
 ### Context Sources
 
 ```text
@@ -608,7 +613,7 @@ The system may derive signals such as:
 
 The Context Engine produces structured context rather than directly deciding what intervention to provide.
 
-Example:
+Internal example (pre-adapter UnifiedContext):
 
 ```json
 {
@@ -657,6 +662,8 @@ The fusion layer is responsible for:
 * Estimating confidence
 * Avoiding over-reliance on a single signal
 * Preparing input for the User State Model
+
+The fusion engine works on the internal `UnifiedContext`. Before anything leaves Role 1, the `ContextSnapshotAdapter` converts that internal representation into the public `ContextSnapshot` contract.
 
 ---
 

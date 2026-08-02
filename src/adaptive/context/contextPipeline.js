@@ -11,6 +11,8 @@ import { contextStore } from "./contextStore.js";
 import { createContextSignal } from "./types/contextTypes.js";
 import { ContextEvents } from "./events/contextEvents.js";
 import { logFusion } from "./contextLogger.js";
+import { toContextSnapshot } from "./contextSnapshotAdapter.js";
+import { recordExplicitRequestInteraction } from "./contextInteractionTracker.js";
 
 /**
  * Build conversation store payload from analysis result.
@@ -18,14 +20,19 @@ import { logFusion } from "./contextLogger.js";
  * @param {object} validated
  */
 function buildConversationData(text, validated) {
+  const now = new Date().toISOString();
   return {
     lastUserMessage: text,
+    timestamp: now,
+    lastUpdated: now,
+    inputMode: null,
     sentimentScore: validated.sentiment === "positive" ? 0.8 : validated.sentiment === "negative" ? -0.8 : 0.0,
     detectedIntent: validated.intent,
     urgency: validated.urgency,
     keyTopics: validated.challenges,
     emotionalCues: validated.emotionalCues,
     analysis: validated,
+    explicitRequest: null,
   };
 }
 
@@ -45,6 +52,17 @@ function buildMoodStoreData(result) {
   };
 }
 
+function deriveExplicitRequestPriority(intent, urgency) {
+  if (["focus_support", "task_support", "planning_support", "sensory_support", "emotional_checkin"].includes(intent)) {
+    return "high";
+  }
+
+  if (urgency === "critical" || urgency === "high") return "high";
+  if (urgency === "moderate") return "moderate";
+  if (urgency === "low") return "low";
+  return null;
+}
+
 /**
  * Process user text through the full perception pipeline.
  *
@@ -52,17 +70,34 @@ function buildMoodStoreData(result) {
  * @param {object} [options]
  * @param {boolean} [options.useAI] - Override AI usage (defaults to online-aware)
  * @param {string} [options.explicitMood] - Optional explicit mood check-in
- * @returns {Promise<{ analysis: object, mood: object, context: object }>}
+ * @returns {Promise<{ analysis: object, mood: object, context: import("./types/contextTypes.js").ContextSnapshot }>}
  */
 export async function processUserMessage(text, options = {}) {
   const env = contextStore.getContext().environment;
   const useAI = options.useAI !== undefined ? options.useAI : env?.isOnline !== false;
+  const inputMode = options.inputMode || null;
 
   const analysis = await Promise.resolve(
     analyzeConversation(text, { ...options, useAI, persist: false })
   );
 
   const conversationData = buildConversationData(text, analysis);
+  conversationData.inputMode = inputMode;
+  conversationData.explicitRequest = {
+    intent: analysis.intent,
+    requestType: analysis.intent === "emotional_checkin" ? "explicit_state_report" : "explicit_help_request",
+    priority: deriveExplicitRequestPriority(analysis.intent, analysis.urgency),
+    originalText: text,
+    confidence: analysis.confidence,
+    timestamp: conversationData.timestamp,
+  };
+
+  recordExplicitRequestInteraction({
+    requestType: conversationData.explicitRequest.requestType,
+    inputMode,
+    confidence: analysis.confidence,
+    timestamp: conversationData.timestamp,
+  });
 
   contextEngine.ingestSignal(
     createContextSignal({
@@ -95,12 +130,14 @@ export async function processUserMessage(text, options = {}) {
     })
   );
 
+  const contextSnapshot = toContextSnapshot(fusedContext);
+
   logFusion(fusedContext);
 
   return {
     analysis,
     mood: moodResult,
-    context: fusedContext,
+    context: contextSnapshot,
   };
 }
 
