@@ -67,6 +67,7 @@ import MVHProtocol from "./pages/depression/MVHProtocol";
 import AnxietyDissolver from "./pages/depression/AnxietyDissolver";
 import SocialBroadcaster from "./pages/depression/SocialBroadcaster";
 import CognitiveReframer from "./pages/depression/CognitiveReframer";
+import EvidenceFolder from "./pages/depression/EvidenceFolder";
 
 const queryClient = new QueryClient();
 
@@ -412,6 +413,14 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.DEPRESSION_REALITY}>
               <CognitiveReframer />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/depression/evidence"
+          element={
+            <ProtectedRoute feature={FEATURES.DEPRESSION}>
+              <EvidenceFolder />
             </ProtectedRoute>
           }
         />

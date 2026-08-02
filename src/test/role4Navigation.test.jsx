@@ -7,6 +7,7 @@ import DepressionDashboard, { DEPRESSION_LANDING_TOOLS } from "@/pages/depressio
 import { FEATURES, resolveEnabledFeatures } from "@/lib/featureRegistry";
 import { MODULES_REGISTRY } from "@/data/modulesRegistry";
 import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
+import appSource from "../App.jsx?raw";
 
 vi.mock("@/context/AuthContext", () => ({
   AuthProvider: ({ children }) => children,
@@ -75,18 +76,28 @@ describe("Role 4 ADHD and depression navigation", () => {
     expect(screen.getByRole("heading", { name: "Daily Momentum" })).toBeInTheDocument();
   });
 
-  it("renders DepressionDashboard as one canonical landing page without deferred free-text tools", () => {
+  it("registers the Evidence Journal route without falling through to the 404 page", () => {
+    window.history.pushState({}, "", "/depression/evidence");
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Review the evidence" })).toBeInTheDocument();
+    expect((appSource.match(/path="\/depression\/evidence"/g) || [])).toHaveLength(1);
+  });
+
+  it("renders DepressionDashboard with the active Evidence Journal route", () => {
     renderLandingPage(DepressionDashboard);
 
     expect(screen.getByRole("heading", { name: "Daily Momentum" })).toBeInTheDocument();
-    expect(screen.queryByText("Evidence Folder")).not.toBeInTheDocument();
+    expect(screen.getByText("Evidence Journal")).toBeInTheDocument();
     expect(screen.queryByText("Void Whisper")).not.toBeInTheDocument();
     expect(DEPRESSION_LANDING_TOOLS.map((tool) => tool.moduleId)).toEqual([
       "support.gentle_activity",
       "support.grounding",
       "support.social_connection",
       "support.cognitive_reframing",
+      "support.evidence_journal",
     ]);
+    expect(DEPRESSION_LANDING_TOOLS.find((tool) => tool.moduleId === "support.evidence_journal")?.to).toBe("/depression/evidence");
   });
 
   it("maps every visible landing card to one active Role 4 module route", () => {

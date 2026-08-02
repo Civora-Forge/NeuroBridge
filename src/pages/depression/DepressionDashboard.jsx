@@ -11,6 +11,7 @@ export const DEPRESSION_LANDING_TOOLS = [
   { moduleId: "support.grounding", feature: FEATURES.DEPRESSION_ANXIETY_DISSOLVER, to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "Use a timed technique to steady your attention." },
   { moduleId: "support.social_connection", feature: FEATURES.DEPRESSION_SOCIAL, to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Prepare a low-pressure message for someone you trust." },
   { moduleId: "support.cognitive_reframing", feature: FEATURES.DEPRESSION_REALITY, to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Use structured questions to review a difficult thought." },
+  { moduleId: "support.evidence_journal", feature: FEATURES.DEPRESSION, to: "/depression/evidence", icon: Sparkles, title: "Evidence Journal", desc: "Keep a private record of moments and support that matter to you." },
 ];
 
 export default function DepressionDashboard() {
