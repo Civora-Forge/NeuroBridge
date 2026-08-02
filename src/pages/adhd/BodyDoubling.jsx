@@ -24,9 +24,9 @@ const BodyDoubling = () => {
   const [showCommitmentToast, setShowCommitmentToast] = useState(false);
 
   const [recentActions] = useState([
-    'Sarah just crushed a 25m session!',
-    'Alex is focusing on "Design Specs"',
-    '4 people just joined the flow state',
+    'Choose one task before starting.',
+    'Keep your next step visible.',
+    'Pause or end the session when needed.',
   ]);
 
   useEffect(() => {
@@ -68,10 +68,10 @@ const BodyDoubling = () => {
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight flex items-center gap-3 bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">
             <Users className="text-teal-500 h-8 w-8" />
-            Body Doubling
+             Accountability Session
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Flow better together. Join {activePeers} others in the zone.
+             Set one commitment and use a guided timer to stay with it.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-teal-500/5 px-4 py-2 rounded-full border border-teal-500/30 shadow-sm">
@@ -80,7 +80,7 @@ const BodyDoubling = () => {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </span>
           <span className="text-xs font-bold uppercase tracking-wider">
-            {activePeers} Active Now
+             Guided session
           </span>
         </div>
       </div>
@@ -94,7 +94,7 @@ const BodyDoubling = () => {
           {/* Timer Visual */}
           <div className="flex flex-col items-center justify-center space-y-2">
             <div className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">
-              Current Sprint
+               Current session
             </div>
             <div
               className={`text-7xl md:text-8xl font-black tabular-nums transition-colors duration-500 ${
@@ -112,7 +112,7 @@ const BodyDoubling = () => {
                 className="flex items-center gap-2 text-teal-600 font-medium text-sm"
               >
                 <Activity className="h-4 w-4 animate-pulse" />
-                In the flow state
+                 Session in progress
               </motion.div>
             )}
           </div>
@@ -128,7 +128,7 @@ const BodyDoubling = () => {
                 variant="outline"
                 className="bg-teal-500/5 border-teal-500/30 text-teal-600 px-2 py-0"
               >
-                ADHD-Friendly Ritual
+                 Guided commitment
               </Badge>
             </div>
 
@@ -138,7 +138,7 @@ const BodyDoubling = () => {
                 onChange={(e) => setCommitment(e.target.value)}
                 disabled={isLive}
                 className="min-h-[100px] rounded-2xl border-2 border-border bg-white/70 focus:border-teal-500/70 focus:ring-2 focus:ring-teal-500/20 transition-all resize-none p-4 text-base shadow-inner"
-                placeholder="What is your one focus? Example: “Finish the OS assignment draft, phone in the other room.”"
+                placeholder="What is your one focus? Example: Finish the assignment draft."
               />
               {!isLive && (
                 <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground font-medium italic">
@@ -155,7 +155,7 @@ const BodyDoubling = () => {
                   exit={{ opacity: 0, height: 0 }}
                   className="text-red-500 text-xs font-bold text-center"
                 >
-                  ⚠ Please set a commitment before starting!
+                  Please set a commitment before starting.
                 </motion.p>
               )}
             </AnimatePresence>
@@ -170,7 +170,7 @@ const BodyDoubling = () => {
                 className="h-14 rounded-2xl text-lg font-bold shadow-lg shadow-teal-500/30 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 hover:brightness-105 hover:shadow-2xl transition-all"
               >
                 <Flame className="mr-2 h-5 w-5" />
-                Enter Focus Room
+                 Start session
               </Button>
             ) : (
               <Button
@@ -189,7 +189,7 @@ const BodyDoubling = () => {
               className="h-14 rounded-2xl text-lg font-bold bg-white/70 hover:bg-white border border-teal-500/20 shadow-sm flex items-center justify-center"
             >
               <Users className="mr-2 h-5 w-5 text-teal-500" />
-              Invite Doubler
+               Review commitment
             </Button>
           </div>
         </div>
@@ -200,7 +200,7 @@ const BodyDoubling = () => {
         <Card className="p-4 bg-teal-500/5 border border-teal-100 shadow-sm space-y-3 rounded-2xl">
           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-teal-600">
             <Zap className="h-3 w-3 text-teal-500" />
-            Live Pulse
+             Session notes
           </h3>
           <div className="space-y-2 overflow-hidden h-24 relative">
             <AnimatePresence mode="popLayout">
@@ -224,17 +224,17 @@ const BodyDoubling = () => {
         <Card className="p-4 bg-cyan-500/5 border border-cyan-100 shadow-sm space-y-3 rounded-2xl">
           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-cyan-700">
             <Trophy className="h-3 w-3 text-cyan-600" />
-            Community Milestones
+             Session reminders
           </h3>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-              1.2k Focus Hours Today
+               Keep the next step small
             </Badge>
             <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-              89% Goal Success Rate
+               Pause when you need to
             </Badge>
             <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-              New: "Night Owl" Badge
+               Return when you are ready
             </Badge>
           </div>
           <div className="flex items-center gap-1 mt-2">
@@ -249,7 +249,7 @@ const BodyDoubling = () => {
               ))}
             </div>
             <span className="text-[10px] text-muted-foreground ml-2 font-medium">
-              Joined by 840+ doublers this week
+               This tool does not connect you to other people.
             </span>
           </div>
         </Card>
@@ -257,9 +257,7 @@ const BodyDoubling = () => {
 
       {/* Footer Meta */}
       <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed">
-        Body doubling is an ADHD coping mechanism where a person works more effectively while
-        another person is present. FocusForge mimics this ambient social presence to trigger your
-        brain&apos;s &quot;get to work&quot; response.
+         Use this manual timer and commitment prompt as a personal accountability aid.
       </p>
     </div>
   );

@@ -21,25 +21,25 @@ export default function SocialBroadcaster() {
 
   const codes = {
     Red: {
-      label: "Red â€¢ No social energy",
+      label: "Red: No social energy",
       message:
-        "Status: RED\n\nIâ€™m in low-power mode and donâ€™t have energy to talk or respond right now. Itâ€™s not about you. Iâ€™ll reply when Iâ€™m able.",
-      explain: "Severe low energy. Youâ€™re allowed to fully power down without explanations.",
+        "Status: RED\n\nI am low on energy and may not be able to talk or respond right now. It is not about you. I will reply when I can.",
+      explain: "You may need to rest without giving a detailed explanation.",
       suggestion: "Set an auto-response, silence notifications, choose one person you might update later."
     },
     Yellow: {
-      label: "Yellow â€¢ Limited energy",
+      label: "Yellow: Limited energy",
       message:
-        "Status: YELLOW\n\nMy replies might be slow and short today. I still care, my brain is just buffering. No need to worry or fix anything.",
-      explain: "Medium energy. You can talk a little, but need people to lower expectations.",
+        "Status: YELLOW\n\nMy replies may be slow and short today. I still care. There is no need to fix anything.",
+      explain: "You may be able to talk a little while keeping expectations low.",
       suggestion: "Reply with short check-ins, avoid big emotional conversations, schedule longer chats for another day."
     },
     Green: {
-      label: "Green â€¢ Available",
+      label: "Green: Available",
       message:
-        "Status: GREEN\n\nIâ€™m okay to chat and respond today. Feel free to message or call. If I get tired, Iâ€™ll let you know.",
+        "Status: GREEN\n\nI can chat and respond today. Feel free to message or call. If I get tired, I will let you know.",
       explain: "Relatively steady energy. You can engage more, with permission to still set limits.",
-      suggestion: "Use this time for light connection, planning, or asking for support youâ€™ve been postponing."
+      suggestion: "Use this time for light connection, planning, or asking for support you have been postponing."
     }
   };
 
@@ -75,7 +75,7 @@ export default function SocialBroadcaster() {
 
   const shortBubble = {
     Red: "Low power: resting. Responses may be very slow.",
-    Yellow: "Slow replies, brain buffering. Please donâ€™t take it personally.",
+    Yellow: "Slow replies today. Please do not take it personally.",
     Green: "Available to chat, with breaks if I get tired."
   };
 
@@ -88,13 +88,13 @@ export default function SocialBroadcaster() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-4 py-2 rounded-2xl text-xs font-semibold shadow-lg">
-          Social Broadcaster
+           Social Connection
         </div>
         <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
           Share your energy status
         </h1>
         <p className="text-xs md:text-sm text-gray-600 max-w-md mx-auto">
-          Pick a mode and copy a guiltâ€‘free message you can paste to friends, family, or work chats.
+           Choose a status and copy a short message for friends, family, or work chats.
         </p>
       </motion.div>
 
@@ -110,7 +110,6 @@ export default function SocialBroadcaster() {
             }`}
             onClick={async () => { if (!await start()) return; setStatus(m); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }}
           >
-            <span>{m === "Red" ? "ðŸ”´" : m === "Yellow" ? "ðŸŸ¡" : "ðŸŸ¢"}</span>
             <span>{m}</span>
           </button>
         ))}
@@ -126,7 +125,6 @@ export default function SocialBroadcaster() {
           className="logCard rounded-3xl bg-white/95 border border-[hsl(142_72%_36%)]/10 shadow-xl p-5 space-y-3"
         >
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <span>{status === "Red" ? "ðŸ”´" : status === "Yellow" ? "ðŸŸ¡" : "ðŸŸ¢"}</span>
             <span>{codes[status].label}</span>
           </div>
 
@@ -166,7 +164,7 @@ export default function SocialBroadcaster() {
       {!user?.id && <p className="text-[11px] text-gray-500 text-center">You can prepare this locally. Sign in to save structured progress.</p>}
 
       <p className="text-[11px] text-gray-500 text-center">
-        You are allowed to send these without overâ€‘explaining or apologizing.
+         You can use these messages without adding a detailed explanation.
       </p>
     </div>
   );

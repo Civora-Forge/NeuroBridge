@@ -3,15 +3,20 @@
 import React from "react";
 import { Brain, Eye, MessageCircle, Sparkles, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { FEATURES } from "@/lib/featureRegistry";
 
 export const DEPRESSION_LANDING_TOOLS = [
-  { moduleId: "support.gentle_activity", to: "/depression/mvh", icon: Zap, title: "Gentle Activity", desc: "Try a short sequence of low-energy actions." },
-  { moduleId: "support.grounding", to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "Use a timed technique to reduce anxious intensity." },
-  { moduleId: "support.social_connection", to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Choose a low-pressure message for someone you trust." },
-  { moduleId: "support.cognitive_reframing", to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Use structured questions to explore a difficult thought." },
+  { moduleId: "support.gentle_activity", feature: FEATURES.DEPRESSION_MVH, to: "/depression/mvh", icon: Zap, title: "Gentle Activity", desc: "Try a short sequence of low-energy actions." },
+  { moduleId: "support.grounding", feature: FEATURES.DEPRESSION_ANXIETY_DISSOLVER, to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "Use a timed technique to steady your attention." },
+  { moduleId: "support.social_connection", feature: FEATURES.DEPRESSION_SOCIAL, to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Prepare a low-pressure message for someone you trust." },
+  { moduleId: "support.cognitive_reframing", feature: FEATURES.DEPRESSION_REALITY, to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Use structured questions to review a difficult thought." },
 ];
 
 export default function DepressionDashboard() {
+  const { hasFeature } = useAuth();
+  const availableTools = DEPRESSION_LANDING_TOOLS.filter((tool) => hasFeature(tool.feature));
+
   return (
     <div className="min-h-screen p-8 bg-gradient-to-br from-green-50 via-white to-teal-50">
       <div className="text-center mb-16 max-w-2xl mx-auto">
@@ -27,7 +32,7 @@ export default function DepressionDashboard() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        {DEPRESSION_LANDING_TOOLS.map(({ moduleId, to, icon: Icon, title, desc }) => (
+        {availableTools.map(({ moduleId, to, icon: Icon, title, desc }) => (
           <Link
             key={moduleId}
             to={to}

@@ -23,13 +23,13 @@ describe('Gentle Activity lifecycle UI', () => {
   it('abandons explicit active reset but keeps unauthenticated use local', async () => {
     render(<MVHProtocol />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /I did this/i })));
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Reset protocol' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Reset activity' })));
     expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe('abandoned');
     const persistedCount = getInterventionHistory(auth.user.id).length;
     cleanup(); auth.user = null;
     render(<MVHProtocol />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /I did this/i })));
-    expect(screen.getByRole('alert')).toHaveTextContent('Sign in to save protocol');
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign in to save activity');
     expect(getInterventionHistory('gentle-ui-user')).toHaveLength(persistedCount);
   });
 });

@@ -16,6 +16,7 @@ export const ADHD_LANDING_TOOLS = [
     border: "border-green-100",
     text: "text-green-600",
     hover: "hover:shadow-[0_10px_30px_rgba(34,197,94,0.2)]",
+    manualOnly: true,
   },
   {
     moduleId: "support.task_breakdown",
@@ -35,7 +36,7 @@ export const ADHD_LANDING_TOOLS = [
     feature: FEATURES.ADHD_FOCUS,
     to: "/adhd/focus",
     icon: Timer,
-    title: "Focus Sessions",
+    title: "Focus Session",
     desc: "Use timed focus blocks with Pomodoro-style cues and built-in reset prompts.",
     color: "from-emerald-500 to-teal-500",
     bg: "bg-emerald-50",
@@ -55,6 +56,7 @@ export const ADHD_LANDING_TOOLS = [
     border: "border-teal-100",
     text: "text-teal-700",
     hover: "hover:shadow-[0_10px_30px_rgba(20,184,166,0.2)]",
+    manualOnly: true,
   },
   {
     moduleId: "support.accountability_session",
@@ -68,6 +70,7 @@ export const ADHD_LANDING_TOOLS = [
     border: "border-sky-100",
     text: "text-sky-700",
     hover: "hover:shadow-[0_10px_30px_rgba(14,165,233,0.2)]",
+    manualOnly: true,
   },
 ];
 
@@ -92,7 +95,7 @@ export default function ADHDPage() {
 
       {/* Feature cards */}
       <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {availableTools.map(({ moduleId, to, icon: Icon, title, desc, bg, border, text, hover }) => (
+        {availableTools.map(({ moduleId, to, icon: Icon, title, desc, bg, border, text, hover, manualOnly }) => (
           <Link
             key={moduleId}
             to={to}
@@ -103,11 +106,12 @@ export default function ADHDPage() {
               <Icon className="w-5 h-5" />
             </div>
             <div>
-              <h3 className={`font-bold text-slate-900 group-hover:${text} transition-colors`}>{title}</h3>
-              <p className="text-sm text-slate-500 mt-1 leading-relaxed">{desc}</p>
+               <h3 className={`font-bold text-slate-900 group-hover:${text} transition-colors`}>{title}</h3>
+               <p className="text-sm text-slate-500 mt-1 leading-relaxed">{desc}</p>
+               {manualOnly && <p className="mt-2 text-xs text-slate-400">Manual tool</p>}
             </div>
             <span className={`mt-auto inline-flex items-center gap-1 text-xs font-semibold ${text}`}>
-              Open Tool →
+               Open tool
             </span>
           </Link>
         ))}

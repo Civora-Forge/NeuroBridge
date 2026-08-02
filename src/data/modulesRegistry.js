@@ -1,4 +1,5 @@
 import { FEATURES } from "@/lib/featureRegistry";
+import { getCanonicalSupportModuleId } from "@/support/framework/supportModuleRegistry";
 
 export const CHALLENGE_CATEGORIES = [
   { id: "ocd",          label: "Repetitive Thoughts",    emoji: "🔄" },
@@ -15,10 +16,11 @@ export const MODULES_REGISTRY = {
   [FEATURES.ADHD]: {
     id: FEATURES.ADHD,
     title: "ADHD Dashboard",
-    description: "Focus and time management tools: Visual Timeline and Focus Sessions.",
+    description: "Focus and planning tools, including Visual Timeline and Focus Session.",
     icon: "Zap",
     launchRoute: "/adhd",
     tags: ["focus", "time_blindness", "planning"],
+    isNavigationOnly: true,
   },
   [FEATURES.ADHD_TIMELINE]: {
     id: FEATURES.ADHD_TIMELINE,
@@ -38,7 +40,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.ADHD_FOCUS]: {
     id: FEATURES.ADHD_FOCUS,
-    title: "Focus Sessions",
+    title: "Focus Session",
     description: "Use timed focus blocks with reset cues.",
     icon: "Timer",
     launchRoute: "/adhd/focus",
@@ -46,7 +48,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.ADHD_EMOTION]: {
     id: FEATURES.ADHD_EMOTION,
-    title: "Emotion Coach",
+    title: "Mood Check-in",
     description: "Regulate emotional spikes with quick prompts.",
     icon: "Brain",
     launchRoute: "/adhd/emotion-coach",
@@ -54,7 +56,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.ADHD_DOUBLING]: {
     id: FEATURES.ADHD_DOUBLING,
-    title: "Body Doubling",
+    title: "Accountability Session",
     description: "Stay on task with guided accountability sessions.",
     icon: "Activity",
     launchRoute: "/adhd/doubling",
@@ -70,7 +72,7 @@ export const MODULES_REGISTRY = {
   },
   "support.focus_session": {
     id: "support.focus_session",
-    title: "Focus Sessions",
+    title: "Focus Session",
     description: "Use timed focus blocks with reset cues.",
     icon: "Timer",
     launchRoute: "/adhd/focus",
@@ -99,6 +101,38 @@ export const MODULES_REGISTRY = {
     icon: "Activity",
     launchRoute: "/adhd/doubling",
     tags: ["task_start", "focus", "planning"],
+  },
+  "support.gentle_activity": {
+    id: "support.gentle_activity",
+    title: "Gentle Activity",
+    description: "Try a short sequence of low-energy actions.",
+    icon: "Activity",
+    launchRoute: "/depression/mvh",
+    tags: ["low_mood", "low_energy", "stability"],
+  },
+  "support.grounding": {
+    id: "support.grounding",
+    title: "Grounding",
+    description: "Use a timed technique to steady your attention.",
+    icon: "Leaf",
+    launchRoute: "/depression/anxietydissolver",
+    tags: ["panic", "stress", "anxiety", "emotion_regulation"],
+  },
+  "support.social_connection": {
+    id: "support.social_connection",
+    title: "Social Connection",
+    description: "Prepare a low-pressure message for someone you trust.",
+    icon: "Clock",
+    launchRoute: "/depression/social",
+    tags: ["social_stress", "low_mood", "connection"],
+  },
+  "support.cognitive_reframing": {
+    id: "support.cognitive_reframing",
+    title: "Cognitive Reframing",
+    description: "Use structured questions to review a difficult thought.",
+    icon: "Timer",
+    launchRoute: "/depression/reality",
+    tags: ["intrusive_thoughts", "rumination", "low_mood"],
   },
   [FEATURES.OCD_HIERARCHY]: {
     id: FEATURES.OCD_HIERARCHY,
@@ -231,7 +265,7 @@ export const MODULES_REGISTRY = {
 
   [FEATURES.DEPRESSION_MVH]: {
     id: FEATURES.DEPRESSION_MVH,
-    title: "MVH Protocol",
+    title: "Gentle Activity",
     description: "Use structured regulation and activation guidance.",
     icon: "Activity",
     launchRoute: "/depression/mvh",
@@ -239,7 +273,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.DEPRESSION_ANXIETY_DISSOLVER]: {
     id: FEATURES.DEPRESSION_ANXIETY_DISSOLVER,
-    title: "Anxiety Dissolver",
+    title: "Grounding",
     description: "Lower anxiety intensity with guided techniques.",
     icon: "Leaf",
     launchRoute: "/depression/anxietydissolver",
@@ -247,7 +281,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.DEPRESSION_SOCIAL]: {
     id: FEATURES.DEPRESSION_SOCIAL,
-    title: "Social Broadcaster",
+    title: "Social Connection",
     description: "Rebuild social momentum with guided outreach tasks.",
     icon: "Clock",
     launchRoute: "/depression/social",
@@ -255,7 +289,7 @@ export const MODULES_REGISTRY = {
   },
   [FEATURES.DEPRESSION_REALITY]: {
     id: FEATURES.DEPRESSION_REALITY,
-    title: "Cognitive Reframer",
+    title: "Cognitive Reframing",
     description: "Reframe difficult thoughts using structured prompts.",
     icon: "Timer",
     launchRoute: "/depression/reality",
@@ -300,12 +334,12 @@ export const CHALLENGE_MODULE_MAP = {
     "support.mood_checkin",
     "support.accountability_session",
   ],
-  anxiety: [FEATURES.ADHD_EMOTION],
+  anxiety: ["support.mood_checkin"],
   depression: [
-    FEATURES.DEPRESSION_MVH,
-    FEATURES.DEPRESSION_ANXIETY_DISSOLVER,
-    FEATURES.DEPRESSION_SOCIAL,
-    FEATURES.DEPRESSION_REALITY,
+    "support.gentle_activity",
+    "support.grounding",
+    "support.social_connection",
+    "support.cognitive_reframing",
   ],
 };
 
@@ -322,4 +356,27 @@ export function getModulesForChallenges(challengeIds = []) {
   }
 
   return [...moduleIds].map((moduleId) => MODULES_REGISTRY[moduleId]).filter(Boolean);
+}
+
+/** Build the one deterministic home-card list from raw profile and legacy IDs. */
+export function composeHomeModules(candidateModuleIds = []) {
+  const seen = new Set();
+  const modules = [];
+
+  for (const candidateId of candidateModuleIds) {
+    const canonicalId = getCanonicalSupportModuleId(candidateId) ?? candidateId;
+    if (seen.has(canonicalId)) continue;
+
+    const module = MODULES_REGISTRY[canonicalId] ?? MODULES_REGISTRY[candidateId];
+    if (!module || module.isNavigationOnly || module.isHidden || module.isUnavailable) continue;
+
+    seen.add(canonicalId);
+    modules.push({ ...module, id: canonicalId });
+  }
+
+  return modules;
+}
+
+export function getSelectableModuleIds() {
+  return composeHomeModules(Object.keys(MODULES_REGISTRY)).map((module) => module.id);
 }

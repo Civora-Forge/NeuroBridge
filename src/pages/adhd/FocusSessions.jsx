@@ -488,7 +488,7 @@ const FocusSessions = () => {
             <span className="text-2xl">Focus</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-blue-600 bg-clip-text text-transparent">
-            Focus Sessions
+            Focus Session
           </h1>
           <p className="text-sm md:text-base text-gray-600 max-w-xl mx-auto">
             One calm block at a time, in the same light, minimal style as your Neurobridge hub.

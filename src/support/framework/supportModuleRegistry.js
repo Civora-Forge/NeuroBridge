@@ -32,7 +32,7 @@ const rawSupportModules = [
   {
     id: "support.focus_session",
     moduleId: "support.focus_session",
-    title: "Focus Sessions",
+    title: "Focus Session",
     description: "Use timed focus blocks with reset cues.",
     category: ModuleCategory.EXECUTIVE,
     interventionTypes: ["focus_session", "attention_support"],
@@ -53,7 +53,7 @@ const rawSupportModules = [
   {
     id: "support.mood_checkin",
     moduleId: "support.mood_checkin",
-    title: "Emotion Coach",
+    title: "Mood Check-in",
     description: "Use structured prompts for emotional regulation.",
     category: ModuleCategory.EMOTIONAL,
     interventionTypes: ["grounding", "emotion_regulation", "calming"],
@@ -97,7 +97,7 @@ const rawSupportModules = [
   {
     id: "support.accountability_session",
     moduleId: "support.accountability_session",
-    title: "Body Doubling",
+    title: "Accountability Session",
     description: "Use a guided accountability session to begin or continue a task.",
     category: ModuleCategory.EXECUTIVE,
     interventionTypes: ["accountability_session", "task_initiation"],
@@ -224,7 +224,7 @@ const rawSupportModules = [
   {
     id: "support.cognitive_reframing",
     moduleId: "support.cognitive_reframing",
-    title: "Cognitive Reframer",
+    title: "Cognitive Reframing",
     description: "Use structured prompts to examine difficult thoughts.",
     category: ModuleCategory.EMOTIONAL,
     interventionTypes: ["cognitive_reframe", "thought_support"],
@@ -246,7 +246,7 @@ const rawSupportModules = [
   {
     id: "support.gentle_activity",
     moduleId: "support.gentle_activity",
-    title: "MVH Protocol",
+    title: "Gentle Activity",
     description: "Use structured regulation and activation guidance.",
     category: ModuleCategory.EMOTIONAL,
     interventionTypes: ["behavioral_activation", "daily_momentum"],
@@ -268,7 +268,7 @@ const rawSupportModules = [
   {
     id: "support.grounding",
     moduleId: "support.grounding",
-    title: "Anxiety Dissolver",
+    title: "Grounding",
     description: "Use timed grounding techniques to lower anxiety intensity.",
     category: ModuleCategory.EMOTIONAL,
     interventionTypes: ["grounding", "anxiety_reduction"],
@@ -290,7 +290,7 @@ const rawSupportModules = [
   {
     id: "support.social_connection",
     moduleId: "support.social_connection",
-    title: "Social Broadcaster",
+    title: "Social Connection",
     description: "Use guided outreach prompts to reconnect with others.",
     category: ModuleCategory.EMOTIONAL,
     interventionTypes: ["social_connection", "outreach_support"],

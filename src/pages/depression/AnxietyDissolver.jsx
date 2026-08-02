@@ -27,7 +27,7 @@ export default function AnxietyDissolver() {
     {
       title: "4-7-8 Breathing",
       duration: 4,
-      icon: "ðŸ’¨",
+      icon: "Breathe",
       steps: [
         "Inhale quietly through nose for 4 seconds",
         "Hold breath for 7 seconds", 
@@ -39,7 +39,7 @@ export default function AnxietyDissolver() {
     {
       title: "5-4-3-2-1 Grounding",
       duration: 2,
-      icon: "ðŸŒ",
+      icon: "Notice",
       steps: [
         "Name 5 things you see",
         "Name 4 things you can touch", 
@@ -52,7 +52,7 @@ export default function AnxietyDissolver() {
     {
       title: "Progressive Muscle Relaxation",
       duration: 3,
-      icon: "ðŸ’ª",
+      icon: "Relax",
       steps: [
         "Tense shoulders for 5 seconds",
         "Release slowly for 10 seconds",
@@ -64,7 +64,7 @@ export default function AnxietyDissolver() {
     {
       title: "Box Breathing",
       duration: 5,
-      icon: "ðŸ“¦",
+      icon: "Pause",
       steps: [
         "Inhale 4 seconds (visualize up)",
         "Hold 4 seconds (visualize across)", 
@@ -145,7 +145,7 @@ export default function AnxietyDissolver() {
           {techniques[activeStep].title}
         </div>
         <h1 className="text-3xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-          Anxiety Dissolver
+           Grounding
         </h1>
       </motion.div>
 
@@ -227,11 +227,11 @@ export default function AnxietyDissolver() {
         >
           {isRunning ? (
             <>
-              â¸ï¸ Pause
+               Pause
             </>
           ) : (
             <>
-              â–¶ï¸ Start {techniques[activeStep].duration}min
+               Start {techniques[activeStep].duration} min
             </>
           )}
         </motion.button>
@@ -242,7 +242,7 @@ export default function AnxietyDissolver() {
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
-          â†» Next Technique
+           Next technique
         </motion.button>
         <button onClick={restart} className="px-4 py-2 text-sm text-gray-600">Restart</button>
       </div>
@@ -254,7 +254,7 @@ export default function AnxietyDissolver() {
         <div className="flex items-center justify-center gap-3 text-sm font-semibold text-gray-800">
           <div className="w-3 h-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_60%_45%)] rounded-full shadow-lg animate-pulse" />
           <span className="tracking-wide">
-            Progress: <span className="text-[hsl(142_72%_36%)] font-black text-lg">{activeStep + 1}</span> / {techniques.length} techniques mastered
+             Progress: <span className="text-[hsl(142_72%_36%)] font-black text-lg">{activeStep + 1}</span> / {techniques.length} techniques completed
           </span>
           <div className="w-3 h-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_60%_45%)] rounded-full shadow-lg animate-pulse ml-auto" />
         </div>

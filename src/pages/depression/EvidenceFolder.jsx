@@ -93,13 +93,13 @@ export default function EvidenceFolder() {
       >
         <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-7 py-3 rounded-3xl font-bold shadow-2xl">
           <Brain className="w-5 h-5" />
-          Evidence Folder
+           Evidence Journal
         </div>
         <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-          Proof your brain is lying
+           Review the evidence
         </h1>
         <p className="text-gray-600 max-w-xl mx-auto text-sm md:text-base">
-          When depression says â€œyou never do enoughâ€, open this folder and show it hundreds of receipts.
+           Keep a private record of moments, effort, and support that matter to you.
         </p>
       </motion.div>
 
@@ -120,7 +120,7 @@ export default function EvidenceFolder() {
           </div>
         </div>
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/60">
-          <div className="text-xs font-semibold text-gray-500 mb-1">Starred â€œgoâ€‘toâ€ proofs</div>
+           <div className="text-xs font-semibold text-gray-500 mb-1">Starred entries</div>
           <div className="text-3xl font-black text-yellow-500">
             {items.filter(i => i.starred).length}
           </div>
@@ -144,7 +144,7 @@ export default function EvidenceFolder() {
           rows={3}
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="I still showed up to class even though I felt awfulâ€¦"
+           placeholder="I attended class even though it felt difficult."
         />
 
         <div className="grid md:grid-cols-[2fr,1fr] gap-3 items-center">
@@ -179,7 +179,7 @@ export default function EvidenceFolder() {
         </div>
 
         <p className="text-[11px] text-gray-500">
-          Tip: Aim for 1â€“3 logs per day, no matter how small. Futureâ€‘you will thank you.
+           Tip: Add an entry whenever it feels useful. Small details count.
         </p>
         {!user?.id && <p className="text-[11px] text-gray-500">Entries are local and temporary. Sign in to retain them in this browser under your account.</p>}
         <div className="flex gap-3"><button type="button" onClick={completeSession} disabled={!savedCount || sessionComplete} className="secondaryButton px-4 py-2 text-xs disabled:opacity-50">Complete journal session</button><button type="button" onClick={discardSession} className="text-xs text-gray-500">Discard session</button>{items.length > 0 && <button type="button" onClick={clearAll} className="text-xs text-red-500">Clear all saved entries</button>}</div>
@@ -222,7 +222,7 @@ export default function EvidenceFolder() {
 
         <input
           className="fieldInput w-full md:w-64 bg-white/90 border-2 border-gray-200 rounded-2xl px-3 py-2 text-xs md:text-sm focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20"
-          placeholder="Search your receiptsâ€¦"
+           placeholder="Search entries"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -241,7 +241,7 @@ export default function EvidenceFolder() {
               <Shield className="w-10 h-10 text-[hsl(142_72%_36%)]" />
             </div>
             <p className="text-sm text-gray-600 max-w-md mx-auto">
-              This folder will become your case against depression. Start by logging one tiny proof right now.
+               Add an entry when you want to remember something meaningful or helpful.
             </p>
           </motion.div>
         ) : (
@@ -273,7 +273,7 @@ export default function EvidenceFolder() {
                           {cfg?.label}
                         </span>
                         <span className="text-[10px] text-gray-400">
-                          {new Date(i.createdAt).toLocaleDateString()} â€¢{" "}
+                           {new Date(i.createdAt).toLocaleDateString()} |{" "}
                           {new Date(i.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>

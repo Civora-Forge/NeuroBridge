@@ -122,15 +122,15 @@ export const FEATURE_REGISTRY = {
 
   // ── Depression sub-features ───────────────
   [FEATURES.DEPRESSION_MVH]: {
-    label: "MVH Protocol",
+    label: "Gentle Activity",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_ANXIETY_DISSOLVER]: {
-    label: "Anxiety Dissolver",
+    label: "Grounding",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_SOCIAL]: {
-    label: "Social Broadcaster",
+    label: "Social Connection",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_PROOF]: {
@@ -138,7 +138,7 @@ export const FEATURE_REGISTRY = {
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_REALITY]: {
-    label: "Cognitive Reframer",
+    label: "Cognitive Reframing",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_VOID]: {
@@ -170,11 +170,11 @@ export const FEATURE_REGISTRY = {
 
   // ── ADHD sub-features ───────────────────────
   [FEATURES.ADHD_FOCUS]: {
-    label: "Focus Sessions",
+    label: "Focus Session",
     disorders: [DISORDERS.ADHD],
   },
   [FEATURES.ADHD_EMOTION]: {
-    label: "Emotion Coach",
+    label: "Mood Check-in",
     disorders: [DISORDERS.ADHD],
     modeConfig: {
       [DISORDERS.ADHD]: { showImpulsivityTips: true },
@@ -194,7 +194,7 @@ export const FEATURE_REGISTRY = {
     disorders: [DISORDERS.ADHD],
   },
   [FEATURES.ADHD_DOUBLING]: {
-    label: "Body Doubling",
+    label: "Accountability Session",
     disorders: [DISORDERS.ADHD],
   },
 
@@ -269,6 +269,10 @@ const SUPPORT_MODULE_FEATURE_ALIASES = {
   "support.visual_timeline": [FEATURES.ADHD, FEATURES.ADHD_TIMELINE],
   "support.mood_checkin": [FEATURES.ADHD, FEATURES.ADHD_EMOTION],
   "support.accountability_session": [FEATURES.ADHD, FEATURES.ADHD_DOUBLING],
+  "support.gentle_activity": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_MVH],
+  "support.grounding": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_ANXIETY_DISSOLVER],
+  "support.social_connection": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_SOCIAL],
+  "support.cognitive_reframing": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_REALITY],
 };
 
 const LEGACY_FEATURE_SUPPORT_ALIASES = Object.fromEntries(
@@ -306,9 +310,9 @@ export function resolveEnabledFeatures(input) {
   if (explicitModules.length > 0) {
     const enabled = new Set();
     for (const moduleId of explicitModules) {
-      if (moduleId === FEATURES.ADHD) {
+      if (moduleId === FEATURES.ADHD || moduleId === FEATURES.DEPRESSION) {
         Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
-          featureIds.forEach((featureId) => enabled.add(featureId));
+          if (featureIds.includes(moduleId)) featureIds.forEach((featureId) => enabled.add(featureId));
         });
       }
       for (const featureId of SUPPORT_MODULE_FEATURE_ALIASES[moduleId] || []) {

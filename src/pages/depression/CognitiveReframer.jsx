@@ -175,10 +175,10 @@ export default function CognitiveReframer() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-8 py-4 rounded-3xl font-bold text-xl shadow-2xl mb-6">
-          ðŸ§  Reality Filter
+          Cognitive Reframing
         </div>
         <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent tracking-tight">
-          Cognitive Distortion Detector
+          Review a Thought
         </h1>
         <p className="text-lg text-gray-600 mt-2 font-medium max-w-md mx-auto">
            Use structured questions to consider a more balanced perspective. This tool does not diagnose thoughts.
@@ -205,7 +205,7 @@ export default function CognitiveReframer() {
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
-          ðŸ” Analyze Thought
+           Review thought
         </motion.button>
       </motion.div>
 
@@ -228,7 +228,7 @@ export default function CognitiveReframer() {
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl flex items-center justify-center shadow-xl">
-                  <span className="text-2xl">âš ï¸</span>
+                  <span className="text-2xl">Review</span>
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-gray-900">{analysis.original}</h3>
@@ -247,7 +247,7 @@ export default function CognitiveReframer() {
             >
               <h4 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                 <span className="w-10 h-10 bg-[hsl(142_72%_36%)] text-white rounded-xl flex items-center justify-center font-bold shadow-lg">?</span>
-                Challenge with evidence:
+                 Review the evidence
               </h4>
               <div className="space-y-4">
                 {analysis.questions.map((question, idx) => (
@@ -271,9 +271,9 @@ export default function CognitiveReframer() {
               className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-8 backdrop-blur-sm shadow-2xl text-center"
             >
               <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
-                <span className="text-3xl">âœ…</span>
+                 <span className="text-3xl">Done</span>
               </div>
-              <h3 className="text-2xl font-black text-emerald-800 mb-4">Healthy Reframe</h3>
+               <h3 className="text-2xl font-black text-emerald-800 mb-4">Balanced Perspective</h3>
               <blockquote className="text-xl font-semibold text-gray-800 italic bg-white/60 px-6 py-4 rounded-2xl shadow-inner">
                 "{analysis.reframe}"
               </blockquote>
@@ -287,7 +287,7 @@ export default function CognitiveReframer() {
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
               >
-                âœï¸ New Thought
+                 New thought
               </motion.button>
               <motion.button onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 px-8 rounded-2xl font-bold">Confirm exercise complete</motion.button>
               <motion.button
@@ -300,7 +300,7 @@ export default function CognitiveReframer() {
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
               >
-                ðŸ“‹ Copy Reframe
+                 Copy perspective
               </motion.button>
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={includeOriginalThought} onChange={(event) => setIncludeOriginalThought(event.target.checked)} /> Include original thought</label>
@@ -315,7 +315,7 @@ export default function CognitiveReframer() {
           className="text-center py-12 text-gray-500"
         >
           <div className="w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)]/10 to-[hsl(142_66%_42%)]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-            <span className="text-3xl">ðŸ”</span>
+             <span className="text-3xl">Review</span>
           </div>
           <p className="text-lg font-medium">Write a thought above to explore structured reflection prompts.</p>
         </motion.div>
