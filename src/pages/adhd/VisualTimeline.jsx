@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 
 // ------- time helpers -------
 const timeToMinutes = (t) => {
@@ -469,7 +470,8 @@ const VisualTimeline = () => {
   }, [nowMinutes]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <SupportToolThemeProvider theme="adhd_focus">
+    <div className="support-tool-page min-h-screen bg-slate-50">
       <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
         {banner && (
           <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -610,6 +612,7 @@ const VisualTimeline = () => {
         </footer>
       </main>
     </div>
+    </SupportToolThemeProvider>
   );
 };
 

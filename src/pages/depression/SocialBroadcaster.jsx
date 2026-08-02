@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildSocialConnectionOutcome } from '@/support/modules/socialConnection/socialConnectionService';
 import { SOCIAL_CONNECTION_MODULE_ID } from '@/support/modules/socialConnection/socialConnectionTypes';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 
 export default function SocialBroadcaster() {
   const { user } = useAuth();
@@ -80,7 +81,8 @@ export default function SocialBroadcaster() {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 md:p-8 space-y-6 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm">
+    <SupportToolThemeProvider theme="depression_gentle">
+    <div className="support-tool-page max-w-xl mx-auto p-6 md:p-8 space-y-6 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm">
       {/* Header */}
       <motion.div
         className="space-y-2 text-center"
@@ -167,5 +169,6 @@ export default function SocialBroadcaster() {
          You can use these messages without adding a detailed explanation.
       </p>
     </div>
+    </SupportToolThemeProvider>
   );
 }

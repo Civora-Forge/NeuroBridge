@@ -9,6 +9,7 @@ import { assessSupportInput } from '@/support/safety';
 import { clearEvidenceJournalEntries, deleteEvidenceJournalEntry, listEvidenceJournalEntries, saveEvidenceJournalEntry } from '@/support/persistence/evidenceJournalStore';
 import { buildEvidenceJournalOutcome, canSaveEvidenceEntry, normalizeEvidenceCategory } from '@/support/modules/evidenceJournal/evidenceJournalService';
 import { EVIDENCE_JOURNAL_MODULE_ID } from '@/support/modules/evidenceJournal/evidenceJournalTypes';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 
 const evidenceCategories = {
   survival: { icon: <Shield className="w-4 h-4" />, label: "Survival", hint: "I got through something hard" },
@@ -84,7 +85,8 @@ export default function EvidenceFolder() {
   const mostUsedCat = Object.entries(perCat).sort((a, b) => b[1] - a[1])[0]?.[0];
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto p-6 md:p-8">
+    <SupportToolThemeProvider theme="depression_reflection">
+    <div className="support-tool-page space-y-8 max-w-4xl mx-auto p-6 md:p-8">
       {/* Header */}
       <motion.div
         className="text-center space-y-4"
@@ -309,5 +311,6 @@ export default function EvidenceFolder() {
         )}
       </AnimatePresence>
     </div>
+    </SupportToolThemeProvider>
   );
 }

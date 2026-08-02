@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Sun, Moon, Coffee, Crosshair, Tag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildFocusSessionOutcome, completionRatio } from '@/support/modules/focusSession/focusSessionService';
 import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
@@ -481,7 +482,8 @@ const FocusSessions = () => {
   const isActive = phase === 'running' || phase === 'paused';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[hsl(142_72%_36%)]/5 to-blue-50 p-6 md:p-10">
+    <SupportToolThemeProvider theme="adhd_focus">
+    <div className="support-tool-page min-h-screen bg-gradient-to-br from-slate-50 via-[hsl(142_72%_36%)]/5 to-blue-50 p-6 md:p-10">
       <div className="max-w-4xl mx-auto space-y-10">
         <header className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] shadow-xl mb-2">
@@ -606,6 +608,7 @@ const FocusSessions = () => {
         </main>
       </div>
     </div>
+    </SupportToolThemeProvider>
   );
 };
 

@@ -1,0 +1,53 @@
+.support-tool-theme {
+  color: var(--tool-text, inherit);
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page {
+  background: var(--tool-background) !important;
+  color: var(--tool-text);
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page input:not([type="checkbox"]):not([type="radio"]),
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page textarea,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page select {
+  background: var(--tool-surface) !important;
+  border-color: var(--tool-border) !important;
+  color: var(--tool-text) !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page input:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page textarea:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page select:focus,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page button:focus-visible,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page a:focus-visible {
+  outline: 3px solid var(--tool-focus-ring) !important;
+  outline-offset: 3px;
+}
+
+[data-support-theme="adhd_focus"] .support-tool-page .support-tool-primary,
+[data-support-theme="depression_gentle"] .support-tool-page .support-tool-primary,
+[data-support-theme="depression_reflection"] .support-tool-page .support-tool-primary {
+  background: var(--tool-primary) !important;
+  color: #FFFFFF !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page .primaryButton,
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page button[class*="bg-gradient"]:not([class*="red-"]) {
+  background: var(--tool-primary) !important;
+  color: #FFFFFF !important;
+}
+
+[data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page .support-tool-muted {
+  color: var(--tool-text-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-support-theme] .support-tool-page *,
+  [data-support-theme] .support-tool-page *::before,
+  [data-support-theme] .support-tool-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

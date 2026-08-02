@@ -7,6 +7,7 @@ import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
 import { COGNITIVE_REFRAMING_CONFIGURATION, COGNITIVE_REFRAMING_MODULE_ID } from '@/support/modules/cognitiveReframing/cognitiveReframingTypes';
 import { buildCognitiveReframingOutcome, buildReframingClipboardPayload, canProcessReframingInput } from '@/support/modules/cognitiveReframing/cognitiveReframingService';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 
 const cognitiveDistortions = {
   "all or nothing": {
@@ -166,7 +167,8 @@ export default function CognitiveReframer() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto p-6 md:p-8">
+    <SupportToolThemeProvider theme="depression_reflection">
+    <div className="support-tool-page space-y-6 max-w-2xl mx-auto p-6 md:p-8">
       
       {/* Header */}
       <motion.div 
@@ -321,5 +323,6 @@ export default function CognitiveReframer() {
         </motion.div>
       )}
     </div>
+    </SupportToolThemeProvider>
   );
 }

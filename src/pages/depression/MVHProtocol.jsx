@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gentleActivityService';
 import { GENTLE_ACTIVITY_MODULE_ID } from '@/support/modules/gentleActivity/gentleActivityTypes';
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 
 const steps = [
   {
@@ -68,7 +69,8 @@ export default function MVHProtocol() {
   const reset = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_reset', {}, buildGentleActivityOutcome({ configuration: { pacing: 'gentle', totalSteps: steps.length }, completedSteps: step, energyBefore, energyAfter, startedAt: startedAtRef.current })); setStep(0); lifecycle.reset(); };
 
   return (
-    <div className="max-w-md mx-auto p-6 md:p-8 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm space-y-6 text-center">
+    <SupportToolThemeProvider theme="depression_gentle">
+    <div className="support-tool-page max-w-md mx-auto p-6 md:p-8 bg-white/80 rounded-3xl shadow-2xl border border-[hsl(142_72%_36%)]/15 backdrop-blur-sm space-y-6 text-center">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -177,5 +179,6 @@ export default function MVHProtocol() {
          If you only complete one step today, that is still progress.
       </p>
     </div>
+    </SupportToolThemeProvider>
   );
 }
