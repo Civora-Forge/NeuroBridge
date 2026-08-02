@@ -1,29 +1,37 @@
 /**
- * adaptationPolicy.js — Adaptation Decision Engine
+ * adaptationPolicy.js — Policy evaluation for the Adaptive Engine (Role 2).
  *
- * Defines the policy rules that determine how NeuroBridge adapts
- * its behavior based on the current user state, context, and history.
+ * Defines the policy rules that determine how NeuroBridge adapts its
+ * behavior based on the current user state.
  *
- * This module governs:
- * - When to trigger adaptation
- * - Which UI mode to activate
- * - How to adjust intervention parameters
- * - Threshold rules for state-driven adaptation
- * - Graceful fallback when state is uncertain
- *
- * The policy acts as the bridge between the Cognitive Reasoning Core
- * and the Adaptive Experience Layer (UI Adapter).
+ * Model:
+ *   - Policies are expressed as PolicyRule objects (see supportSchemas).
+ *   - triggerGroups are OR-ed: a rule fires when ANY trigger group is
+ *     fully satisfied.
+ *   - Each trigger group is AND-ed: it fires only when ALL of its triggers
+ *     are satisfied.
+ *   - Precedence is categorical: a lower numeric tier number wins regardless
+ *     of numeric priority. Numeric priority resolves ties only within the
+ *     same tier. Parameters from higher-precedence rules win.
  *
  * Ownership: Adaptive Intelligence Engineer
  */
 
-import { FEATURES, FEATURE_REGISTRY, resolveEnabledFeatures } from "@/lib/featureRegistry";
-import { DISORDERS } from "@/lib/disorders";
+import { resolveEnabledFeatures } from "@/lib/featureRegistry";
+import {
+  AdaptationActionType,
+  AdaptationDimension,
+  PolicyScope,
+  PriorityTier,
+  TriggerCondition,
+  TriggerGroupOperator,
+  validatePolicyRule,
+} from "@/support/schemas/supportSchemas";
 
 /**
  * @typedef {object} AdaptationTrigger
  * @property {string} stateDimension - Which state dimension triggers adaptation
- * @property {string} condition - The condition to evaluate (e.g., "gte", "lte", "eq")
+ * @property {string} condition - The condition to evaluate (e.g., "eq")
  * @property {*} threshold - The threshold value
  * @property {string} adaptationType - What type of adaptation to apply
  */
@@ -39,8 +47,8 @@ import { DISORDERS } from "@/lib/disorders";
  */
 
 /**
- * Default adaptation rules for state-driven UI changes.
- * Rules are evaluated in priority order.
+ * Legacy adaptation rules, retained unchanged for backward compatibility.
+ * The canonical ruleset is ADAPTATION_POLICIES (PolicyRule contract).
  */
 export const ADAPTATION_RULES = [
   {
@@ -134,36 +142,296 @@ export const ADAPTATION_RULES = [
 ];
 
 /**
- * Evaluate a single condition against a state value.
- * @param {*} stateValue - Current state value
- * @param {string} condition - Comparison operator
- * @param {*} threshold - Threshold to compare against
+ * Canonical adaptation policies (PolicyRule contract), migrated from the
+ * legacy ADAPTATION_RULES. IDs and numeric priorities are preserved; the
+ * numeric priorities act only as within-tier tie-breakers at Tier 8
+ * (CURRENT COGNITIVE/EMOTIONAL STATE).
+ */
+const rawPolicies = [
+  {
+    id: "critical_urgency",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 110,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "urgency", condition: TriggerCondition.EQ, value: "critical" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "overwhelm",
+        adaptationType: "immediate_support",
+        maxVisibleModules: 1,
+        showPrimaryAction: true,
+        showEmergencySupport: true,
+      },
+    },
+  },
+  {
+    id: "overwhelm_simplification",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 100,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [
+          { dimension: "cognitiveLoad", condition: TriggerCondition.EQ, value: "overwhelming" },
+        ],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "overwhelm",
+        adaptationType: "ui_simplification",
+        maxVisibleModules: 1,
+        showPrimaryAction: true,
+        reduceAnimations: true,
+        simplifyNavigation: true,
+      },
+    },
+  },
+  {
+    id: "low_stimulation",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 90,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "mood", condition: TriggerCondition.EQ, value: "anxious" }],
+      },
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "mood", condition: TriggerCondition.EQ, value: "panicked" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "low_stimulation",
+        adaptationType: "sensory_reduction",
+        maxVisibleModules: 3,
+        reduceAnimations: true,
+        reduceColorIntensity: true,
+        showCalmingContent: true,
+      },
+    },
+  },
+  {
+    id: "high_load_minimal",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 80,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "cognitiveLoad", condition: TriggerCondition.EQ, value: "high" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "minimal",
+        adaptationType: "ui_reduction",
+        maxVisibleModules: 2,
+        showPrimaryAction: true,
+        reduceAnimations: true,
+        simplifyNavigation: false,
+      },
+    },
+  },
+  {
+    id: "scattered_guidance",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 70,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "attention", condition: TriggerCondition.EQ, value: "scattered" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "guided",
+        adaptationType: "guidance",
+        maxVisibleModules: 3,
+        showStepByStep: true,
+        highlightNextAction: true,
+      },
+    },
+  },
+  {
+    id: "focus_mode",
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 60,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "attention", condition: TriggerCondition.EQ, value: "focused" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.MODIFY,
+      target: AdaptationDimension.UI,
+      parameters: {
+        mode: "focus",
+        adaptationType: "focus_enhancement",
+        maxVisibleModules: 1,
+        showPrimaryAction: true,
+        reduceDistractions: true,
+      },
+    },
+  },
+];
+
+export const ADAPTATION_POLICIES = rawPolicies.map((policy) => validatePolicyRule(policy));
+
+/**
+ * Compare two triggered-policy entries by precedence.
+ * Lower tier number wins; within a tier, higher numeric priority wins.
+ */
+function comparePrecedence(left, right) {
+  if (left.tier !== right.tier) {
+    return left.tier - right.tier;
+  }
+  return right.priority - left.priority;
+}
+
+/**
+ * Read a state dimension value. UserState exposes dimension values as
+ * strings via property access; raw DimensionResult objects are unwrapped.
+ */
+function readDimension(resolvedState, dimension) {
+  const value = resolvedState?.[dimension];
+  if (value && typeof value === "object" && "value" in value) {
+    return value.value;
+  }
+  return value;
+}
+
+/**
+ * Evaluate a single trigger against a resolved state.
+ * @param {import("../../../support/schemas/supportSchemas").TriggerSchema} trigger
+ * @param {object} resolvedState
  * @returns {boolean}
  */
-function evaluateCondition(stateValue, condition, threshold) {
-  switch (condition) {
-    case "eq": return stateValue === threshold;
-    case "neq": return stateValue !== threshold;
-    case "gte": return stateValue >= threshold;
-    case "lte": return stateValue <= threshold;
-    case "gt": return stateValue > threshold;
-    case "lt": return stateValue < threshold;
-    case "includes": return Array.isArray(stateValue) && stateValue.includes(threshold);
-    default: return false;
+function evaluateTrigger(trigger, resolvedState) {
+  const actual = readDimension(resolvedState, trigger.dimension);
+  switch (trigger.condition) {
+    case TriggerCondition.GTE:
+      return actual >= trigger.value;
+    case TriggerCondition.LTE:
+      return actual <= trigger.value;
+    case TriggerCondition.EQ:
+      return actual === trigger.value;
+    case TriggerCondition.IN:
+      return Array.isArray(trigger.value) && trigger.value.includes(actual);
+    case TriggerCondition.NOT_IN:
+      return Array.isArray(trigger.value) && !trigger.value.includes(actual);
+    default:
+      return false;
   }
 }
 
 /**
- * Evaluate a single adaptation rule against the current user state.
- * @param {AdaptationRule} rule
- * @param {import("../state/userStateModel.js").UserState} userState
- * @returns {boolean}
+ * Evaluate policies against a resolved state.
+ *
+ * @param {Array<import("../../../support/schemas/supportSchemas").PolicyRuleSchema>} rules
+ * @param {object} resolvedState - UserState (dimensions readable by name)
+ * @returns {{ triggered: Array<object> }}
  */
-function evaluateRule(rule, userState) {
-  return rule.triggers.some((trigger) => {
-    const stateValue = userState[trigger.stateDimension];
-    return evaluateCondition(stateValue, trigger.condition, trigger.threshold);
-  });
+export function evaluatePolicies(rules, resolvedState) {
+  const triggered = [];
+
+  for (const rule of rules) {
+    if (!rule || rule.active === false) {
+      continue;
+    }
+    if (!Array.isArray(rule.triggerGroups) || rule.triggerGroups.length === 0) {
+      continue;
+    }
+
+    const matchedGroups = [];
+    rule.triggerGroups.forEach((group, groupIndex) => {
+      if (!group || !Array.isArray(group.triggers) || group.triggers.length === 0) {
+        return;
+      }
+      const matchedTriggers = group.triggers.filter((trigger) => evaluateTrigger(trigger, resolvedState));
+      if (matchedTriggers.length === group.triggers.length) {
+        matchedGroups.push({ groupIndex, matchedTriggers });
+      }
+    });
+
+    if (matchedGroups.length === 0) {
+      continue;
+    }
+
+    triggered.push({
+      ruleId: rule.id,
+      version: rule.version ?? 1,
+      tier: rule.tier,
+      priority: rule.priority ?? 0,
+      scope: rule.scope,
+      action: rule.action,
+      matchedGroups,
+      matchedTriggers: matchedGroups.flatMap((group) => group.matchedTriggers),
+    });
+  }
+
+  triggered.sort(comparePrecedence);
+
+  return { triggered };
+}
+
+/**
+ * Compatibility wrapper: select triggered policies for a resolved state.
+ * @param {object} userState
+ * @param {object} [options]
+ * @param {Array<object>} [options.rules]
+ * @returns {Array<object>} Triggered policies ordered by precedence
+ */
+export function selectRules(userState, options = {}) {
+  return evaluatePolicies(options.rules ?? ADAPTATION_POLICIES, userState).triggered;
+}
+
+/**
+ * Compatibility surface exposing the canonical policies and evaluator.
+ */
+export const adaptationPolicy = {
+  rules: ADAPTATION_POLICIES,
+  evaluate: evaluatePolicies,
+};
+
+/**
+ * Merge adaptation parameters with fixed precedence: higher-precedence rules
+ * win, lower-precedence rules cannot overwrite already-selected parameters.
+ * The engine-facing mode and adaptationType metadata are excluded.
+ */
+function mergeParameters(triggered) {
+  const merged = {};
+  for (const entry of triggered) {
+    const parameters = entry.action?.parameters ?? {};
+    const { mode, adaptationType, ...tuning } = parameters;
+    for (const [key, value] of Object.entries(tuning)) {
+      if (!(key in merged)) {
+        merged[key] = value;
+      }
+    }
+  }
+  return merged;
 }
 
 /**
@@ -171,18 +439,12 @@ function evaluateRule(rule, userState) {
  *
  * @param {import("../state/userStateModel.js").UserState} userState - Current user state
  * @param {object} [options] - Additional context
- * @param {string[]} [options.enabledFeatures] - Currently enabled features
- * @param {string[]} [options.userDisorders] - User's disorder list
  * @returns {{ uiMode: string, parameters: object, activeRules: string[], rationale: string }}
  */
 export function determineAdaptation(userState, options = {}) {
-  // Sort rules by priority (descending)
-  const sortedRules = [...ADAPTATION_RULES].sort((a, b) => b.priority - a.priority);
+  const { triggered } = evaluatePolicies(ADAPTATION_POLICIES, userState);
 
-  // Find all matching rules
-  const activeRules = sortedRules.filter((rule) => evaluateRule(rule, userState));
-
-  if (activeRules.length === 0) {
+  if (triggered.length === 0) {
     return {
       uiMode: "normal",
       parameters: {},
@@ -191,20 +453,13 @@ export function determineAdaptation(userState, options = {}) {
     };
   }
 
-  // Use the highest-priority matching rule as the primary adaptation
-  const primary = activeRules[0];
-
-  // Merge parameters from all matching rules (later rules override earlier ones)
-  const mergedParameters = activeRules.reduce(
-    (acc, rule) => ({ ...acc, ...rule.parameters }),
-    {},
-  );
+  const primary = triggered[0];
 
   return {
-    uiMode: primary.uiMode,
-    parameters: mergedParameters,
-    activeRules: activeRules.map((r) => r.id),
-    rationale: `Rule "${primary.id}" activated: ${primary.description}.`,
+    uiMode: primary.action?.parameters?.mode ?? "normal",
+    parameters: mergeParameters(triggered),
+    activeRules: triggered.map((entry) => entry.ruleId),
+    rationale: `Rule "${primary.ruleId}" activated (${primary.matchedGroups.length} trigger group(s) matched).`,
   };
 }
 
@@ -233,19 +488,13 @@ export function getAvailableFeatures(profile = {}) {
  * @returns {{ recommended: boolean, priority: string }}
  */
 export function checkAdaptationRecommendation(userState, adaptationType) {
-  const sortedRules = [...ADAPTATION_RULES].sort((a, b) => b.priority - a.priority);
+  const { triggered } = evaluatePolicies(ADAPTATION_POLICIES, userState);
 
-  for (const rule of sortedRules) {
-    if (!evaluateRule(rule, userState)) continue;
-
-    const hasMatchingType = rule.triggers.some(
-      (t) => t.adaptationType === adaptationType,
-    );
-
-    if (hasMatchingType) {
+  for (const entry of triggered) {
+    if (entry.action?.parameters?.adaptationType === adaptationType) {
       return {
         recommended: true,
-        priority: rule.priority >= 90 ? "critical" : rule.priority >= 70 ? "high" : "normal",
+        priority: entry.priority >= 90 ? "critical" : entry.priority >= 70 ? "high" : "normal",
       };
     }
   }
