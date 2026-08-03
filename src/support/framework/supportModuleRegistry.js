@@ -193,7 +193,7 @@ const rawSupportModules = [
     description: "Use accessibility controls, TTS, and reading focus tools.",
     category: ModuleCategory.LEARNING,
     interventionTypes: ["adaptive_reading", "tts_support", "reading_accessibility"],
-    route: "/dyslexia/reading-module",
+    route: "/dyslexia/adaptive-reading",
     tags: ["reading_fatigue", "tts", "accessibility", "focus"],
     disorders: [DISORDERS.DYSLEXIA, DISORDERS.APD],
     expectedOutcomeMetrics: ["tts_activations", "word_taps", "adjustments"],
