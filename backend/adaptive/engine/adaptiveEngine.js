@@ -61,9 +61,53 @@ const EMPTY_PREFERENCE_RESULT = {
 
 const DISPOSITION_SEVERITY = { ALLOW: 0, MODIFY: 1, BLOCK: 2, ESCALATE: 3 };
 
+/**
+ * Learned personalization dimensions (Tier 9). `role4Signals.strategyEffectiveness`
+ * is a `Record<strategyId, 0..1>`; each entry is exposed to the existing policy
+ * evaluator as a synthetic resolved-state dimension named
+ * `strategyEffectiveness:<strategyId>`. Only Tier 9 policy rules are expected to
+ * reference these dimensions, so learned signals can only bias selection inside
+ * Tier 9 — the existing categorical precedence (lower tier number wins) keeps
+ * every higher tier protected.
+ */
+const LEARNED_DIMENSION_PREFIX = "strategyEffectiveness:";
+
 // ─────────────────────────────────────────────────────────────────
 //  Small deterministic helpers
 // ─────────────────────────────────────────────────────────────────
+
+function isEffectivenessRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Derive the read-only resolved state handed to `evaluatePolicies`. When
+ * learned personalization is supplied, the overlay adds `strategyEffectiveness:<id>`
+ * dimensions without mutating the UserState (a new object is produced only in
+ * that case). Without learned signals the original UserState reference is
+ * returned, so existing decisions are byte-for-byte unchanged.
+ */
+function resolvePolicyState(userState, strategyEffectiveness) {
+  if (!isEffectivenessRecord(strategyEffectiveness)) {
+    return userState;
+  }
+  const learned = {};
+  let hasLearned = false;
+  for (const [strategyId, rawValue] of Object.entries(strategyEffectiveness)) {
+    if (typeof strategyId !== "string" || strategyId.trim().length === 0) continue;
+    // Only schema-valid effectiveness values (finite 0..1) become dimensions;
+    // anything else is ignored so an out-of-range input cannot fabricate a
+    // learned score at the policy boundary.
+    if (typeof rawValue !== "number" || !Number.isFinite(rawValue)) continue;
+    if (rawValue < 0 || rawValue > 1) continue;
+    learned[`${LEARNED_DIMENSION_PREFIX}${strategyId.trim()}`] = rawValue;
+    hasLearned = true;
+  }
+  if (!hasLearned) {
+    return userState;
+  }
+  return { ...userState, ...learned };
+}
 
 function isFiniteIn01(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -263,7 +307,15 @@ export function decide(input = {}, options = {}) {
   // ── 3 POLICY APPLY (existing Phase 1 evaluator) ──
   const modulePolicies = Array.isArray(context?.modulePolicies) ? context.modulePolicies : [];
   const rules = [...ADAPTATION_POLICIES, ...modulePolicies];
-  const { triggered } = evaluatePolicies(rules, userState);
+  // Tier 9 only: learned personalization surfaces as derived resolved-state
+  // dimensions; the existing evaluator and its precedence order are unchanged.
+  const policyState = resolvePolicyState(
+    userState,
+    isEffectivenessRecord(normalized.role4Signals)
+      ? normalized.role4Signals.strategyEffectiveness
+      : undefined,
+  );
+  const { triggered } = evaluatePolicies(rules, policyState);
 
   // Hard module boundary: restricted dimensions are never adapted.
   const restricted = applyRestrictedDimensions(triggered, context);
@@ -310,6 +362,9 @@ export function decide(input = {}, options = {}) {
   }
   if (normalized.userPreferences !== undefined) {
     sourceTags.add("user_preferences");
+  }
+  if (policyState !== userState) {
+    sourceTags.add("learned_personalization");
   }
 
   const trace = {
