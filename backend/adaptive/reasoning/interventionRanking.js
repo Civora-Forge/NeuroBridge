@@ -1,3 +1,4 @@
+import { scoreModules as scoreModulesCore } from "./sharedModuleScorer.js";
 import { SUPPORT_MODULE_REGISTRY } from "./disorderFeatureRegistry.js";
 
 const DEFAULT_THRESHOLD = 2;
@@ -30,12 +31,7 @@ export function buildTagProfile({ selectedChallenges = [], answersByQuestionId =
 }
 
 export function scoreModules(tagProfile, modules = SUPPORT_MODULE_REGISTRY) {
-  return modules
-    .map((module) => {
-      const score = (module.tags || []).reduce((sum, tag) => sum + (tagProfile[tag] || 0), 0);
-      return { ...module, score };
-    })
-    .sort((a, b) => b.score - a.score);
+  return scoreModulesCore(tagProfile, modules);
 }
 
 export function selectModules(tagProfile, modules = SUPPORT_MODULE_REGISTRY, threshold = DEFAULT_THRESHOLD, minimumModules = DEFAULT_MIN_MODULES) {

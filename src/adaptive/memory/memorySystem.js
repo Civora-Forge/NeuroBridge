@@ -58,12 +58,32 @@ function save(key, data) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
+// Phase 6: legacy global (non-user-scoped) helpers are deprecated in favor of
+// the Role 4-backed, user-scoped flow. Warnings fire once per helper so legacy
+// callers notice the migration path without spamming production logs.
+const warnedDeprecations = new Set();
+
+function warnLegacyHelper(name, replacement) {
+  if (warnedDeprecations.has(name)) return;
+  warnedDeprecations.add(name);
+  if (typeof console !== "undefined" && typeof console.warn === "function") {
+    console.warn(
+      `[memorySystem] ${name}() is deprecated. ` +
+        `Use the Role 4-backed, user-scoped flow instead: ${replacement}.`,
+    );
+  }
+}
+
 /**
  * Store a user preference.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `storeUserMemory(userId, { type: MemoryType.PREFERENCE, key, value })`.
  * @param {string} key - Preference key
  * @param {*} value - Preference value
  */
 export function storePreference(key, value) {
+  warnLegacyHelper("storePreference", "storeUserMemory(userId, { type: MemoryType.PREFERENCE, ... })");
   const preferences = load(MEMORY_KEYS.PREFERENCES, {});
   preferences[key] = {
     value,
@@ -74,22 +94,31 @@ export function storePreference(key, value) {
 
 /**
  * Retrieve a user preference.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `getUserMemory(userId, { type: MemoryType.PREFERENCE })`.
  * @param {string} key
  * @param {*} defaultValue
  * @returns {*}
  */
 export function getPreference(key, defaultValue = null) {
+  warnLegacyHelper("getPreference", "getUserMemory(userId)");
   const preferences = load(MEMORY_KEYS.PREFERENCES, {});
   return preferences[key]?.value ?? defaultValue;
 }
 
 /**
  * Record an intervention strategy outcome.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by
+ *   `recordUserStrategyOutcome(userId, interventionType, successful, context)`,
+ *   and by Phase 5 `reflectionEngine` effectiveness signals.
  * @param {string} interventionType
  * @param {boolean} successful
  * @param {object} [context] - Additional context
  */
 export function recordStrategyOutcome(interventionType, successful, context = {}) {
+  warnLegacyHelper("recordStrategyOutcome", "recordUserStrategyOutcome(userId, interventionType, successful, context)");
   const strategies = load(MEMORY_KEYS.STRATEGIES, []);
   strategies.push({
     interventionType,
@@ -106,10 +135,15 @@ export function recordStrategyOutcome(interventionType, successful, context = {}
 
 /**
  * Get effective strategies for a given intervention type.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by
+ *   `getUserStrategyEffectiveness(userId, interventionType)`, and by Phase 5
+ *   `reflectionEngine` effectiveness signals.
  * @param {string} interventionType
  * @returns {{ effective: number, total: number, rate: number }}
  */
 export function getStrategyEffectiveness(interventionType) {
+  warnLegacyHelper("getStrategyEffectiveness", "getUserStrategyEffectiveness(userId, interventionType)");
   const strategies = load(MEMORY_KEYS.STRATEGIES, []);
   const relevant = strategies.filter((s) => s.interventionType === interventionType);
   const effective = relevant.filter((s) => s.successful).length;
@@ -123,10 +157,14 @@ export function getStrategyEffectiveness(interventionType) {
 
 /**
  * Store a detected behavioral pattern.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `storeUserMemory(userId, { type: MemoryType.LEARNING_PATTERN, key: patternType, value: pattern })`.
  * @param {string} patternType
  * @param {object} pattern
  */
 export function storePattern(patternType, pattern) {
+  warnLegacyHelper("storePattern", "storeUserMemory(userId, { type: MemoryType.LEARNING_PATTERN, ... })");
   const patterns = load(MEMORY_KEYS.PATTERNS, {});
   if (!patterns[patternType]) {
     patterns[patternType] = [];
@@ -144,28 +182,40 @@ export function storePattern(patternType, pattern) {
 
 /**
  * Get stored patterns of a given type.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `getUserMemory(userId)`.
  * @param {string} patternType
  * @returns {object[]}
  */
 export function getPatterns(patternType) {
+  warnLegacyHelper("getPatterns", "getUserMemory(userId)");
   const patterns = load(MEMORY_KEYS.PATTERNS, {});
   return patterns[patternType] || [];
 }
 
 /**
- * Clear all memory data.
+ * Clear all legacy global memory data.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `clearUserRole4Data(userId)` from `@/support/persistence/role4Store`.
  */
 export function clearMemory() {
+  warnLegacyHelper("clearMemory", "clearUserRole4Data(userId)");
   Object.values(MEMORY_KEYS).forEach((key) => {
     localStorage.removeItem(key);
   });
 }
 
 /**
- * Get a summary of all stored memory.
+ * Get a summary of all stored legacy global memory.
+ *
+ * @deprecated Phase 6 — legacy global helper. Superseded by the Role 4-backed
+ *   user-scoped flow, e.g. `getUserMemorySummary(userId)`.
  * @returns {object}
  */
 export function getMemorySummary() {
+  warnLegacyHelper("getMemorySummary", "getUserMemorySummary(userId)");
   return {
     preferences: Object.keys(load(MEMORY_KEYS.PREFERENCES, {})).length,
     strategies: load(MEMORY_KEYS.STRATEGIES, []).length,
