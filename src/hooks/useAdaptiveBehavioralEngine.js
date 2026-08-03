@@ -1,6 +1,6 @@
 /**
  * useAdaptiveBehavioralEngine.js — Adaptive Engine React integration boundary
- * (Phase 3)
+ * (Phase 3 runtime, Phase 4 live wiring)
  *
  * A feature-flagged hook that bridges Role 1 ContextSnapshot data into the
  * Adaptive Engine runtime without making Role 1 responsible for adaptation
@@ -10,6 +10,9 @@
  *   - Consume a ContextSnapshot (via an injected `getSnapshot` function).
  *   - Build the ModuleContext through the Phase 0B adapter when a module ID
  *     is provided.
+ *   - Assemble the live Role 4 read path (`role4Signals` from a userId) and
+ *     any provided userPreferences / currentTask / currentGoal fragments
+ *     (Phase 4).
  *   - Invoke `decide()` and expose the resulting AdaptationPlan + trace.
  *
  * This hook NEVER executes actions automatically. Execution is only possible
@@ -17,14 +20,21 @@
  * application gated behind the `uiExecution` feature flag. When the runtime
  * flag is OFF the hook is inert: no decide, no state, no behavior change.
  *
+ * Dependency stability: the hook re-decides when the snapshot value changes
+ * or when a decision input (moduleId / userId / fragments) changes. The
+ * `getSnapshot` producer must return a referentially stable snapshot for
+ * unchanged state; the hook de-duplicates identical snapshots so an unstable
+ * producer function identity does not cause repeated decide() cycles.
+ *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAdaptiveRuntimeEnabled } from "@backend/adaptive/engine/featureFlags";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
 import { executeAdaptation } from "@backend/adaptive/engine/executor";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
+import { buildRole4Signals } from "@backend/adaptive/engine/role4Signals";
 
 const IDLE_DECISION = {
   plan: null,
@@ -34,29 +44,60 @@ const IDLE_DECISION = {
   lastDecisionAt: null,
 };
 
+const NO_SNAPSHOT = Symbol("no-snapshot");
+
 /**
  * @param {object} [options]
  * @param {string} [options.moduleId] - Canonical FEATURES module id; the
  *   ModuleContext is built via buildModuleContext when provided.
  * @param {() => (object|null)|Promise<object|null>} [options.getSnapshot] -
- *   Async/sync ContextSnapshot producer. When omitted, only `execute()` is
+ *   Async/sync ContextSnapshot producer. Must return a referentially stable
+ *   snapshot for unchanged state. When omitted, only `execute()` is
  *   meaningful (decide runs on whatever snapshot is supplied).
  * @param {boolean} [options.enabled] - Override for the runtime feature flag.
+ * @param {string} [options.userId] - Normalized Role 4 userId. When enabled,
+ *   the Role 4 read path (`buildRole4Signals`) supplies the live
+ *   `role4Signals` input for the decision (Phase 4).
+ * @param {object} [options.role4Signals] - Explicit `role4Signals` override.
+ *   Takes precedence over the userId-driven read path. Callers must pass a
+ *   stable reference (module-level constant or memoized value).
+ * @param {object} [options.userPreferences] - Optional `userPreferences`
+ *   fragment (spec §5). Stable reference required.
+ * @param {object} [options.currentTask] - Optional derived task reference
+ *   (spec §5, labeled `derived` upstream). Stable reference required.
+ * @param {object} [options.currentGoal] - Optional goal reference
+ *   (spec §5, labeled `derived` upstream). Stable reference required.
  */
 export function useAdaptiveBehavioralEngine(options = {}) {
-  const { moduleId, getSnapshot, enabled: enabledOverride } = options;
+  const {
+    moduleId,
+    getSnapshot,
+    enabled: enabledOverride,
+    userId,
+    role4Signals,
+    userPreferences,
+    currentTask,
+    currentGoal,
+  } = options;
   const enabled = enabledOverride !== undefined ? enabledOverride : isAdaptiveRuntimeEnabled();
   const hasSnapshot = typeof getSnapshot === "function";
 
   const [decision, setDecision] = useState(IDLE_DECISION);
   const [execution, setExecution] = useState(null);
 
-  const runDecision = useCallback(async () => {
-    if (!enabled) {
-      return null;
-    }
-    try {
-      const snapshot = typeof getSnapshot === "function" ? await getSnapshot() : null;
+  // Tracks the last decision's snapshot + inputs so an unstable producer
+  // identity does not re-run decide() with unchanged data.
+  const lastRunRef = useRef({ snapshot: NO_SNAPSHOT, run: null });
+
+  const setError = useCallback((error) => {
+    setDecision((current) => ({
+      ...current,
+      error: error?.message ?? String(error),
+    }));
+  }, []);
+
+  const buildInput = useCallback(
+    (snapshot) => {
       const input = { contextSnapshot: snapshot ?? {} };
       if (moduleId) {
         try {
@@ -65,29 +106,95 @@ export function useAdaptiveBehavioralEngine(options = {}) {
           // Unknown module → generic engine fallback; the snapshot still flows.
         }
       }
-      const outcome = decide(input);
-      setDecision({
-        plan: outcome.plan,
-        trace: outcome.trace,
-        error: null,
-        decisionId: outcome.plan.decisionTraceId,
-        lastDecisionAt: outcome.plan.timestamp,
-      });
-      return outcome;
-    } catch (error) {
-      setDecision((current) => ({
-        ...current,
-        error: error?.message ?? String(error),
-      }));
+      const liveRole4Signals =
+        role4Signals !== undefined && role4Signals !== null
+          ? role4Signals
+          : userId
+            ? buildRole4Signals(userId)
+            : undefined;
+      if (liveRole4Signals !== undefined) {
+        input.role4Signals = liveRole4Signals;
+      }
+      if (userPreferences !== undefined && userPreferences !== null) {
+        input.userPreferences = userPreferences;
+      }
+      if (currentTask !== undefined && currentTask !== null) {
+        input.currentTask = currentTask;
+      }
+      if (currentGoal !== undefined && currentGoal !== null) {
+        input.currentGoal = currentGoal;
+      }
+      return input;
+    },
+    [moduleId, userId, role4Signals, userPreferences, currentTask, currentGoal]
+  );
+
+  const decideWithSnapshot = useCallback(
+    async (snapshot) => {
+      if (!enabled) {
+        return null;
+      }
+      try {
+        const outcome = decide(buildInput(snapshot));
+        setDecision({
+          plan: outcome.plan,
+          trace: outcome.trace,
+          error: null,
+          decisionId: outcome.plan.decisionTraceId,
+          lastDecisionAt: outcome.plan.timestamp,
+        });
+        return outcome;
+      } catch (error) {
+        setError(error);
+        return null;
+      }
+    },
+    [enabled, buildInput, setError]
+  );
+
+  const runDecision = useCallback(async () => {
+    if (!enabled) {
       return null;
     }
-  }, [enabled, moduleId, getSnapshot]);
+    let snapshot;
+    try {
+      snapshot = typeof getSnapshot === "function" ? await getSnapshot() : null;
+    } catch (error) {
+      setError(error);
+      return null;
+    }
+    return decideWithSnapshot(snapshot);
+  }, [enabled, getSnapshot, decideWithSnapshot, setError]);
 
   useEffect(() => {
-    if (enabled && hasSnapshot) {
-      void runDecision();
+    if (!enabled || !hasSnapshot) {
+      return undefined;
     }
-  }, [enabled, hasSnapshot, runDecision]);
+    let cancelled = false;
+    (async () => {
+      let snapshot;
+      try {
+        snapshot = await getSnapshot();
+      } catch (error) {
+        if (!cancelled) {
+          setError(error);
+        }
+        return;
+      }
+      if (cancelled) {
+        return;
+      }
+      const last = lastRunRef.current;
+      if (snapshot === last.snapshot && decideWithSnapshot === last.run) {
+        return;
+      }
+      lastRunRef.current = { snapshot, run: decideWithSnapshot };
+      await decideWithSnapshot(snapshot);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, hasSnapshot, getSnapshot, decideWithSnapshot, setError]);
 
   const execute = useCallback(async () => {
     if (!enabled) {
