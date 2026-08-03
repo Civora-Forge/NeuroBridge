@@ -401,3 +401,79 @@ describe("end-to-end state value mapping", () => {
     expect(triggered.map((t) => t.ruleId)).toContain("overwhelm_simplification");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Tier 9 learned personalization boundary
+// ─────────────────────────────────────────────────────────────────
+//  Reflection output belongs ONLY to Tier 9 (LEARNED_PERSONALIZATION).
+//  The existing categorical precedence — lower tier number always wins —
+//  is the mechanism that keeps every higher-priority tier protected.
+//  Learned signals surface as `strategyEffectiveness:<strategyId>`
+//  resolved-state dimensions; only Tier 9 rules reference them.
+
+describe("Tier 9 learned personalization precedence", () => {
+  const learned = (tierNumber, priority = 10) => ({
+    id: `learned_rule_t${tierNumber}`,
+    scope: PolicyScope.GENERIC,
+    tier: PriorityTier.LEARNED_PERSONALIZATION,
+    priority,
+    triggerGroups: [
+      {
+        operator: "and",
+        triggers: [
+          {
+            dimension: "strategyEffectiveness:support.focus_session:focus_session",
+            condition: TriggerCondition.GTE,
+            value: 0.6,
+          },
+        ],
+      },
+    ],
+    action: { type: "recommend", target: "assistance", parameters: { mode: "learned" } },
+  });
+
+  const higher = (id, tierNumber) => ({
+    id,
+    scope: PolicyScope.GENERIC,
+    tier: tierNumber,
+    priority: 1,
+    triggerGroups: [
+      {
+        operator: "and",
+        triggers: [{ dimension: "urgency", condition: TriggerCondition.EQ, value: "critical" }],
+      },
+    ],
+    action: { type: "modify", target: "ui", parameters: { mode: id } },
+  });
+
+  const learnedState = {
+    ...makeState({ urgency: "critical" }),
+    "strategyEffectiveness:support.focus_session:focus_session": 0.8,
+  };
+
+  it("higher tiers (1–8) always win the precedence order over Tier 9 learned signals", () => {
+    for (const tierNumber of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const higherRule = higher(`tier_${tierNumber}_rule`, tierNumber);
+      const { triggered } = evaluatePolicies([learned(tierNumber), higherRule], learnedState);
+      expect(triggered[0].ruleId).toBe(`tier_${tierNumber}_rule`);
+      expect(triggered[1].ruleId).toBe(`learned_rule_t${tierNumber}`);
+    }
+  });
+
+  it("a Tier 9 learned rule triggers on the learned dimension when no higher tier competes", () => {
+    const { triggered } = evaluatePolicies([learned(9)], learnedState);
+    expect(triggered).toHaveLength(1);
+    expect(triggered[0].ruleId).toBe("learned_rule_t9");
+    expect(triggered[0].matchedTriggers[0].dimension).toBe(
+      "strategyEffectiveness:support.focus_session:focus_session",
+    );
+  });
+
+  it("a Tier 9 learned rule does not fire when the learned dimension is absent", () => {
+    const { triggered } = evaluatePolicies(
+      [learned(9)],
+      makeState({ urgency: "critical" }),
+    );
+    expect(triggered).toHaveLength(0);
+  });
+});

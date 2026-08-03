@@ -308,6 +308,177 @@ describe("determinism", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Phase 5 — Tier 9 learned personalization integration
+// ─────────────────────────────────────────────────────────────────
+
+const LEARNED_STRATEGY = "support.focus_session:focus_session";
+const LEARNED_DIMENSION = `strategyEffectiveness:${LEARNED_STRATEGY}`;
+
+function learnedPolicyFixture() {
+  return {
+    id: "learned.recommend_focus",
+    version: 1,
+    scope: PolicyScope.MODULE,
+    moduleId: "focus",
+    tier: PriorityTier.LEARNED_PERSONALIZATION,
+    priority: 10,
+    active: true,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: LEARNED_DIMENSION, condition: TriggerCondition.GTE, value: 0.6 }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.RECOMMEND,
+      target: AdaptationDimension.ASSISTANCE,
+      parameters: { mode: "focus_session" },
+    },
+  };
+}
+
+function safetyPolicyFixture() {
+  return {
+    id: "module.safety_suppress",
+    version: 1,
+    scope: PolicyScope.MODULE,
+    moduleId: "focus",
+    tier: PriorityTier.SAFETY,
+    priority: 1,
+    active: true,
+    triggerGroups: [
+      {
+        operator: TriggerGroupOperator.AND,
+        triggers: [{ dimension: "urgency", condition: TriggerCondition.EQ, value: "critical" }],
+      },
+    ],
+    action: {
+      type: AdaptationActionType.SUPPRESS,
+      target: AdaptationDimension.ASSISTANCE,
+      parameters: { mode: "focus_session" },
+    },
+  };
+}
+
+describe("Tier 9 learned personalization integration", () => {
+  it("fires a Tier 9 learned policy from the strategyEffectiveness overlay", () => {
+    const outcome = decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(),
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    });
+
+    expect(outcome.plan.actions).toHaveLength(1);
+    const action = outcome.plan.actions[0];
+    expect(action.tier).toBe(PriorityTier.LEARNED_PERSONALIZATION);
+    expect(action.type).toBe(AdaptationActionType.RECOMMEND);
+    expect(outcome.trace.sources).toContain("learned_personalization");
+    expect(outcome.trace.sources).toContain("role4_signals");
+    expect(() => validateAdaptationPlan(outcome.plan)).not.toThrow();
+  });
+
+  it("does not fire the learned policy when strategyEffectiveness is absent", () => {
+    const outcome = decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(),
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+    });
+
+    expect(outcome.plan.actions).toEqual([]);
+    expect(outcome.trace.sources).not.toContain("learned_personalization");
+  });
+
+  it("ignores non-finite or out-of-range strategyEffectiveness values", () => {
+    const outcome = decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(),
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+      role4Signals: {
+        strategyEffectiveness: { [LEARNED_STRATEGY]: Number.NaN, "bogus:key": 1.5 },
+      },
+    });
+
+    expect(outcome.plan.actions).toEqual([]);
+    expect(outcome.trace.sources).not.toContain("learned_personalization");
+  });
+
+  it("keeps a Tier 8 state rule ahead of a learned rule in precedence order", () => {
+    const outcome = decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(), // engagementLevel "high" fires the Tier 8 module rule
+      moduleContext: { moduleId: "focus", modulePolicies: [modulePolicyFixture(), learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    });
+
+    const tiers = outcome.plan.actions.map((action) => action.tier);
+    expect(tiers).toEqual([PriorityTier.CURRENT_STATE, PriorityTier.LEARNED_PERSONALIZATION]);
+    expect(outcome.plan.priorityOrder[0]).toBe(outcome.plan.actions[0].actionId);
+  });
+
+  it("never lets a learned rule override a Tier 1 safety rule", () => {
+    const outcome = decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: { ...calmUserState(), urgency: "critical" },
+      moduleContext: { moduleId: "focus", modulePolicies: [safetyPolicyFixture(), learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    });
+
+    expect(outcome.plan.actions.length).toBeGreaterThanOrEqual(1);
+    const safetyAction = outcome.plan.actions.find((action) => action.tier === PriorityTier.SAFETY);
+    const learnedAction = outcome.plan.actions.find(
+      (action) => action.tier === PriorityTier.LEARNED_PERSONALIZATION,
+    );
+    expect(safetyAction).toBeDefined();
+    expect(learnedAction).toBeDefined();
+    // The learned rule never precedes the safety rule and never alters its parameters.
+    expect(outcome.plan.priorityOrder.indexOf(safetyAction.actionId)).toBeLessThan(
+      outcome.plan.priorityOrder.indexOf(learnedAction.actionId),
+    );
+    expect(safetyAction.parameters).toEqual({ mode: "focus_session" });
+  });
+
+  it("does not mutate UserState when learned signals are present", () => {
+    const userState = calmUserState();
+    const snapshot = JSON.parse(JSON.stringify(userState));
+    decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState,
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    });
+    expect(userState).toEqual(snapshot);
+  });
+
+  it("still evaluates policies exactly once (no second policy engine)", () => {
+    const spy = vi.spyOn(adaptationPolicyModule, "evaluatePolicies");
+    decide({
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(),
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("remains deterministic with an identical learned-signal input", () => {
+    const input = {
+      contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+      userState: calmUserState(),
+      moduleContext: { moduleId: "focus", modulePolicies: [learnedPolicyFixture()] },
+      role4Signals: { strategyEffectiveness: { [LEARNED_STRATEGY]: 0.8 } },
+    };
+    const first = decide(input);
+    const second = decide(input);
+
+    expect(first.plan.actions).toHaveLength(second.plan.actions.length);
+    expect(first.plan.actions[0].tier).toBe(second.plan.actions[0].tier);
+    expect(first.plan.actions[0].parameters).toEqual(second.plan.actions[0].parameters);
+    expect(first.plan.actions[0].reason).toBe(second.plan.actions[0].reason);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  Extension points: safety / preference / trace persistence
 // ─────────────────────────────────────────────────────────────────
 
