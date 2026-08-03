@@ -6,7 +6,11 @@
  */
 
 export { contextEngine, ContextEngine } from "./contextEngine.js";
-export { contextStore, ContextStore, getDefaultContextState } from "./contextStore.js";
+export {
+  contextStore,
+  ContextStore,
+  getDefaultContextState,
+} from "./contextStore.js";
 export { contextEventBus, ContextEventBus } from "./events/contextEventBus.js";
 export { ContextEvents } from "./events/contextEvents.js";
 export { createContextSignal } from "./types/contextTypes.js";
@@ -80,11 +84,24 @@ export {
 } from "./contextInteractionTracker.js";
 
 // Public ContextSnapshot API & Services
-export { handleGetContextSnapshot, getContextSnapshotAPI, handleGetUnifiedContext, getUnifiedContextAPI } from "./api/contextApi.js";
+export {
+  handleGetContextSnapshot,
+  getContextSnapshotAPI,
+  handleGetUnifiedContext,
+  getUnifiedContextAPI,
+} from "./api/contextApi.js";
 
 // Public ContextSnapshot Adapter
-export { ContextSnapshotAdapter, toContextSnapshot } from "./contextSnapshotAdapter.js";
+export {
+  ContextSnapshotAdapter,
+  toContextSnapshot,
+} from "./contextSnapshotAdapter.js";
 
 // Pipeline orchestration & observability
 export { processUserMessage, syncProfileContext } from "./contextPipeline.js";
-export { initContextLogger, logFusion, teardownContextLogger, isDebugEnabled } from "./contextLogger.js";
+export {
+  initContextLogger,
+  logFusion,
+  teardownContextLogger,
+  isDebugEnabled,
+} from "./contextLogger.js";

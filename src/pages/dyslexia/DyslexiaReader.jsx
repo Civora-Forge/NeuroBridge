@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import "@fontsource/opendyslexic";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";

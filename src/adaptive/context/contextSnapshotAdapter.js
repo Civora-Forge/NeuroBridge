@@ -12,7 +12,10 @@ import { getInteractionSnapshot } from "./contextInteractionTracker.js";
 const DEFAULT_SNAPSHOT_VERSION = "1.0.0";
 
 function createSnapshotId(timestamp, userId) {
-  const timePart = String(timestamp || new Date().toISOString()).replace(/[:.]/g, "-");
+  const timePart = String(timestamp || new Date().toISOString()).replace(
+    /[:.]/g,
+    "-",
+  );
   const userPart = userId ? String(userId) : "anonymous";
   const randomPart = Math.random().toString(36).slice(2, 7);
   return `snap_${timePart}_${userPart}_${randomPart}`;
@@ -26,9 +29,14 @@ function buildProfile(profile = {}) {
   return {
     userId: profile.userId ?? null,
     disorders: Array.isArray(profile.disorders) ? [...profile.disorders] : [],
-    sensorySensitivities: Array.isArray(profile.sensorySensitivities) ? [...profile.sensorySensitivities] : [],
+    sensorySensitivities: Array.isArray(profile.sensorySensitivities)
+      ? [...profile.sensorySensitivities]
+      : [],
     communicationPreference: profile.communicationPreference || "adaptive",
-    baselineValence: typeof profile.baselineValence === "number" ? profile.baselineValence : 0.5,
+    baselineValence:
+      typeof profile.baselineValence === "number"
+        ? profile.baselineValence
+        : 0.5,
   };
 }
 
@@ -37,9 +45,14 @@ function buildActivity(activity = {}) {
     currentModule: activity.currentModule || "dashboard",
     activity: activity.activity || "idle",
     startedAt: activity.startedAt || new Date().toISOString(),
-    durationSeconds: typeof activity.durationSeconds === "number" ? activity.durationSeconds : 0,
+    durationSeconds:
+      typeof activity.durationSeconds === "number"
+        ? activity.durationSeconds
+        : 0,
     previousActivity: activity.previousActivity ?? null,
-    recentEvents: Array.isArray(activity.recentEvents) ? clone(activity.recentEvents) : [],
+    recentEvents: Array.isArray(activity.recentEvents)
+      ? clone(activity.recentEvents)
+      : [],
   };
 }
 
@@ -48,7 +61,8 @@ function buildEnvironment(environment = {}) {
     currentTime: environment.currentTime || new Date().toISOString(),
     timeOfDay: environment.timeOfDay || "unknown",
     dayOfWeek: environment.dayOfWeek || "unknown",
-    isOnline: typeof environment.isOnline === "boolean" ? environment.isOnline : true,
+    isOnline:
+      typeof environment.isOnline === "boolean" ? environment.isOnline : true,
     device: clone(environment.device) || {
       deviceType: "unknown",
       browser: "unknown",
@@ -64,26 +78,44 @@ function buildEnvironment(environment = {}) {
 function buildConversation(conversation = {}) {
   const analysis = clone(conversation.analysis) ?? null;
   const lastUserMessage = conversation.lastUserMessage ?? null;
-  const detectedIntent = conversation.detectedIntent ?? analysis?.intent ?? null;
-  const conversationExplicitRequest = conversation.explicitRequest ? clone(conversation.explicitRequest) : null;
+  const detectedIntent =
+    conversation.detectedIntent ?? analysis?.intent ?? null;
+  const conversationExplicitRequest = conversation.explicitRequest
+    ? clone(conversation.explicitRequest)
+    : null;
   const explicitRequest = lastUserMessage
     ? {
         intent: detectedIntent,
         requestType: mapRequestType(detectedIntent),
-        priority: mapPriority(detectedIntent, conversation.urgency || analysis?.urgency),
+        priority: mapPriority(
+          detectedIntent,
+          conversation.urgency || analysis?.urgency,
+        ),
         originalText: lastUserMessage,
-        confidence: typeof analysis?.confidence === "number" ? analysis.confidence : null,
-        timestamp: conversation.lastUpdated || conversation.timestamp || conversation.analysis?.timestamp || null,
+        confidence:
+          typeof analysis?.confidence === "number" ? analysis.confidence : null,
+        timestamp:
+          conversation.lastUpdated ||
+          conversation.timestamp ||
+          conversation.analysis?.timestamp ||
+          null,
       }
     : null;
 
   return {
     lastUserMessage,
-    sentimentScore: typeof conversation.sentimentScore === "number" ? conversation.sentimentScore : null,
+    sentimentScore:
+      typeof conversation.sentimentScore === "number"
+        ? conversation.sentimentScore
+        : null,
     detectedIntent,
     urgency: conversation.urgency || "unknown",
-    keyTopics: Array.isArray(conversation.keyTopics) ? [...conversation.keyTopics] : [],
-    emotionalCues: Array.isArray(conversation.emotionalCues) ? [...conversation.emotionalCues] : [],
+    keyTopics: Array.isArray(conversation.keyTopics)
+      ? [...conversation.keyTopics]
+      : [],
+    emotionalCues: Array.isArray(conversation.emotionalCues)
+      ? [...conversation.emotionalCues]
+      : [],
     analysis,
     explicitRequest: conversationExplicitRequest || explicitRequest,
   };
@@ -104,7 +136,13 @@ function mapRequestType(intent) {
 }
 
 function mapPriority(intent, urgency) {
-  if (intent === "focus_support" || intent === "task_support" || intent === "planning_support" || intent === "sensory_support" || intent === "emotional_checkin") {
+  if (
+    intent === "focus_support" ||
+    intent === "task_support" ||
+    intent === "planning_support" ||
+    intent === "sensory_support" ||
+    intent === "emotional_checkin"
+  ) {
     return "high";
   }
 
@@ -137,26 +175,39 @@ function buildSession(session = {}) {
   return {
     sessionId: session.sessionId || `sess_${Date.now()}`,
     startTime: session.startTime || new Date().toISOString(),
-    durationSeconds: typeof session.durationSeconds === "number" ? session.durationSeconds : 0,
+    durationSeconds:
+      typeof session.durationSeconds === "number" ? session.durationSeconds : 0,
     currentScreen: session.currentScreen || "dashboard",
-    navigationHistory: Array.isArray(session.navigationHistory) ? clone(session.navigationHistory) : [],
+    navigationHistory: Array.isArray(session.navigationHistory)
+      ? clone(session.navigationHistory)
+      : [],
   };
 }
 
-function buildMetadata(unifiedContext = {}, snapshotVersion, timestamp, userId) {
+function buildMetadata(
+  unifiedContext = {},
+  snapshotVersion,
+  timestamp,
+  userId,
+) {
   const metadata = unifiedContext.metadata || {};
-  const lastUpdated = metadata.lastUpdated || timestamp || new Date().toISOString();
+  const lastUpdated =
+    metadata.lastUpdated || timestamp || new Date().toISOString();
   const dimensionalConfidence = clone(metadata.dimensionalConfidence) || {};
-  const confidenceValues = Object.values(dimensionalConfidence).filter((value) => typeof value === "number");
+  const confidenceValues = Object.values(dimensionalConfidence).filter(
+    (value) => typeof value === "number",
+  );
   const overallConfidence =
     typeof metadata.overallConfidence === "number"
       ? metadata.overallConfidence
       : confidenceValues.length > 0
-      ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length
-      : 0.5;
+        ? confidenceValues.reduce((sum, value) => sum + value, 0) /
+          confidenceValues.length
+        : 0.5;
 
   return {
-    snapshotVersion: snapshotVersion || metadata.snapshotVersion || DEFAULT_SNAPSHOT_VERSION,
+    snapshotVersion:
+      snapshotVersion || metadata.snapshotVersion || DEFAULT_SNAPSHOT_VERSION,
     lastUpdated,
     observedAt: clone(metadata.observedAt) || {
       earliest: unifiedContext.session?.startTime || lastUpdated,
@@ -164,10 +215,15 @@ function buildMetadata(unifiedContext = {}, snapshotVersion, timestamp, userId) 
     },
     overallConfidence: +Number(overallConfidence || 0).toFixed(2),
     dimensionalConfidence,
-    freshnessIndex: typeof metadata.freshnessIndex === "number" ? metadata.freshnessIndex : 0.5,
+    freshnessIndex:
+      typeof metadata.freshnessIndex === "number"
+        ? metadata.freshnessIndex
+        : 0.5,
     stalenessFlags: clone(metadata.stalenessFlags) || {},
     sourceMap: clone(metadata.sourceMap) || {},
-    conflicts: Array.isArray(metadata.conflicts) ? clone(metadata.conflicts) : [],
+    conflicts: Array.isArray(metadata.conflicts)
+      ? clone(metadata.conflicts)
+      : [],
     snapshotId: undefined,
     userId,
   };
@@ -184,8 +240,16 @@ export function toContextSnapshot(unifiedContext, options = {}) {
   const source = unifiedContext || {};
   const userId = source.profile?.userId ?? null;
   const timestamp = source.metadata?.lastUpdated || new Date().toISOString();
-  const metadata = buildMetadata(source, options.snapshotVersion, timestamp, userId);
-  const snapshotId = options.snapshotId || metadata.snapshotId || createSnapshotId(timestamp, userId);
+  const metadata = buildMetadata(
+    source,
+    options.snapshotVersion,
+    timestamp,
+    userId,
+  );
+  const snapshotId =
+    options.snapshotId ||
+    metadata.snapshotId ||
+    createSnapshotId(timestamp, userId);
   const liveInteractionSnapshot = getInteractionSnapshot();
 
   return {

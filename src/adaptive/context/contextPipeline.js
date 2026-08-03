@@ -26,7 +26,12 @@ function buildConversationData(text, validated) {
     timestamp: now,
     lastUpdated: now,
     inputMode: null,
-    sentimentScore: validated.sentiment === "positive" ? 0.8 : validated.sentiment === "negative" ? -0.8 : 0.0,
+    sentimentScore:
+      validated.sentiment === "positive"
+        ? 0.8
+        : validated.sentiment === "negative"
+          ? -0.8
+          : 0.0,
     detectedIntent: validated.intent,
     urgency: validated.urgency,
     keyTopics: validated.challenges,
@@ -43,8 +48,18 @@ function buildConversationData(text, validated) {
 function buildMoodStoreData(result) {
   return {
     primaryMood: result.value,
-    valence: result.value === "positive" || result.value === "calm" ? 0.8 : result.value === "neutral" ? 0.5 : 0.25,
-    arousal: result.value === "overwhelmed" || result.value === "stressed" || result.value === "frustrated" ? 0.85 : 0.4,
+    valence:
+      result.value === "positive" || result.value === "calm"
+        ? 0.8
+        : result.value === "neutral"
+          ? 0.5
+          : 0.25,
+    arousal:
+      result.value === "overwhelmed" ||
+      result.value === "stressed" ||
+      result.value === "frustrated"
+        ? 0.85
+        : 0.4,
     emotions: [result.value],
     moodTrend: "stable",
     confidence: result.confidence,
@@ -53,7 +68,15 @@ function buildMoodStoreData(result) {
 }
 
 function deriveExplicitRequestPriority(intent, urgency) {
-  if (["focus_support", "task_support", "planning_support", "sensory_support", "emotional_checkin"].includes(intent)) {
+  if (
+    [
+      "focus_support",
+      "task_support",
+      "planning_support",
+      "sensory_support",
+      "emotional_checkin",
+    ].includes(intent)
+  ) {
     return "high";
   }
 
@@ -74,18 +97,22 @@ function deriveExplicitRequestPriority(intent, urgency) {
  */
 export async function processUserMessage(text, options = {}) {
   const env = contextStore.getContext().environment;
-  const useAI = options.useAI !== undefined ? options.useAI : env?.isOnline !== false;
+  const useAI =
+    options.useAI !== undefined ? options.useAI : env?.isOnline !== false;
   const inputMode = options.inputMode || null;
 
   const analysis = await Promise.resolve(
-    analyzeConversation(text, { ...options, useAI, persist: false })
+    analyzeConversation(text, { ...options, useAI, persist: false }),
   );
 
   const conversationData = buildConversationData(text, analysis);
   conversationData.inputMode = inputMode;
   conversationData.explicitRequest = {
     intent: analysis.intent,
-    requestType: analysis.intent === "emotional_checkin" ? "explicit_state_report" : "explicit_help_request",
+    requestType:
+      analysis.intent === "emotional_checkin"
+        ? "explicit_state_report"
+        : "explicit_help_request",
     priority: deriveExplicitRequestPriority(analysis.intent, analysis.urgency),
     originalText: text,
     confidence: analysis.confidence,
@@ -106,7 +133,7 @@ export async function processUserMessage(text, options = {}) {
       payload: conversationData,
       confidence: analysis.confidence,
       ttlSeconds: 120,
-    })
+    }),
   );
 
   const moodInputs = {
@@ -127,7 +154,7 @@ export async function processUserMessage(text, options = {}) {
       payload: { ...moodResult, ...moodStoreData },
       confidence: moodResult.confidence,
       ttlSeconds: 90,
-    })
+    }),
   );
 
   const contextSnapshot = toContextSnapshot(fusedContext);
@@ -162,6 +189,6 @@ export function syncProfileContext(profile) {
       },
       confidence: 1.0,
       ttlSeconds: 3600,
-    })
+    }),
   );
 }

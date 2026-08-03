@@ -32,34 +32,34 @@ NeuroBridge currently provides support across domains including OCD, ADHD, Dysle
 
 ## Table of Contents
 
-* [Architecture](#architecture)
-* [Adaptive Architecture](#adaptive-architecture)
-* [Team Ownership](#team-ownership)
-* [Tech Stack](#tech-stack)
-* [Getting Started](#getting-started)
-* [Project Structure](#project-structure)
-* [Core Systems](#core-systems)
+- [Architecture](#architecture)
+- [Adaptive Architecture](#adaptive-architecture)
+- [Team Ownership](#team-ownership)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Core Systems](#core-systems)
+  - [Context Engine](#1-context-engine)
+  - [Context Fusion](#2-context-fusion)
+  - [User State Model](#3-user-state-model)
+  - [Cognitive Reasoning Core](#4-cognitive-reasoning-core)
+  - [Adaptive Intervention System](#5-adaptive-intervention-system)
+  - [Adaptive Experience Layer](#6-adaptive-experience-layer)
+  - [Support Modules](#7-support-modules)
+  - [Reflection Engine](#8-reflection-engine)
+  - [Memory System](#9-memory-system)
 
-  * [Context Engine](#1-context-engine)
-  * [Context Fusion](#2-context-fusion)
-  * [User State Model](#3-user-state-model)
-  * [Cognitive Reasoning Core](#4-cognitive-reasoning-core)
-  * [Adaptive Intervention System](#5-adaptive-intervention-system)
-  * [Adaptive Experience Layer](#6-adaptive-experience-layer)
-  * [Support Modules](#7-support-modules)
-  * [Reflection Engine](#8-reflection-engine)
-  * [Memory System](#9-memory-system)
-* [Agent Architecture](#agent-architecture)
-* [Authentication & Roles](#authentication--roles)
-* [Adaptive Onboarding](#adaptive-onboarding)
-* [JITAI System](#jitai-system)
-* [Support Domains](#support-domains)
-* [Design System](#design-system)
-* [Development](#development)
-* [Testing](#testing)
-* [Environment Variables](#environment-variables)
-* [Current Implementation](#current-implementation)
-* [Roadmap](#roadmap)
+- [Agent Architecture](#agent-architecture)
+- [Authentication & Roles](#authentication--roles)
+- [Adaptive Onboarding](#adaptive-onboarding)
+- [JITAI System](#jitai-system)
+- [Support Domains](#support-domains)
+- [Design System](#design-system)
+- [Development](#development)
+- [Testing](#testing)
+- [Environment Variables](#environment-variables)
+- [Current Implementation](#current-implementation)
+- [Roadmap](#roadmap)
 
 ---
 
@@ -272,13 +272,13 @@ Primary responsibility:
 
 Responsibilities include:
 
-* Processing conversational signals
-* Inferring emotional and mood-related signals
-* Tracking user activity
-* Processing environmental context
-* Combining multiple signals
-* Producing an internal `UnifiedContext`
-* Publishing a structured `ContextSnapshot` for downstream modules
+- Processing conversational signals
+- Inferring emotional and mood-related signals
+- Tracking user activity
+- Processing environmental context
+- Combining multiple signals
+- Producing an internal `UnifiedContext`
+- Publishing a structured `ContextSnapshot` for downstream modules
 
 ---
 
@@ -300,12 +300,12 @@ Primary responsibility:
 
 Responsibilities include:
 
-* Building the current user state
-* Interpreting contextual signals
-* Generating plans
-* Ranking possible interventions
-* Selecting adaptation strategies
-* Producing an `AdaptationPlan`
+- Building the current user state
+- Interpreting contextual signals
+- Generating plans
+- Ranking possible interventions
+- Selecting adaptation strategies
+- Producing an `AdaptationPlan`
 
 This is the central decision-making layer of NeuroBridge.
 
@@ -329,14 +329,14 @@ Primary responsibility:
 
 Responsibilities include:
 
-* Dynamic interface layouts
-* UI complexity adaptation
-* Navigation adaptation
-* Typography adaptation
-* Reduced-motion modes
-* Focus modes
-* Low-stimulation modes
-* Accessibility configurations
+- Dynamic interface layouts
+- UI complexity adaptation
+- Navigation adaptation
+- Typography adaptation
+- Reduced-motion modes
+- Focus modes
+- Low-stimulation modes
+- Accessibility configurations
 
 ---
 
@@ -357,12 +357,12 @@ Primary responsibility:
 
 Responsibilities include:
 
-* Implementing support modules
-* Tracking intervention outcomes
-* Reflection and feedback
-* User memory
-* Long-term personalization
-* Support-specific intelligent tools
+- Implementing support modules
+- Tracking intervention outcomes
+- Reflection and feedback
+- User memory
+- Long-term personalization
+- Support-specific intelligent tools
 
 ---
 
@@ -392,10 +392,10 @@ Responsibilities include:
 
 ## Prerequisites
 
-* Node.js 18+
-* npm
-* Python 3+
-* Flask for the backend API
+- Node.js 18+
+- npm
+- Python 3+
+- Flask for the backend API
 
 ## Installation
 
@@ -602,14 +602,14 @@ Optional Physiological Signals
 
 The system may derive signals such as:
 
-* Emotional cues
-* Mood indicators
-* Cognitive load
-* Task switching
-* Activity level
-* Current task
-* Time constraints
-* Session behavior
+- Emotional cues
+- Mood indicators
+- Cognitive load
+- Task switching
+- Activity level
+- Current task
+- Time constraints
+- Session behavior
 
 The Context Engine produces structured context rather than directly deciding what intervention to provide.
 
@@ -657,11 +657,11 @@ Unified Context
 
 The fusion layer is responsible for:
 
-* Combining signals
-* Handling conflicting signals
-* Estimating confidence
-* Avoiding over-reliance on a single signal
-* Preparing input for the User State Model
+- Combining signals
+- Handling conflicting signals
+- Estimating confidence
+- Avoiding over-reliance on a single signal
+- Preparing input for the User State Model
 
 The fusion engine works on the internal `UnifiedContext`. Before anything leaves Role 1, the `ContextSnapshotAdapter` converts that internal representation into the public `ContextSnapshot` contract.
 
@@ -708,11 +708,11 @@ The Cognitive Reasoning Core determines how NeuroBridge should respond to the cu
 
 It includes:
 
-* State interpretation
-* Planning
-* Intervention ranking
-* Adaptation decisions
-* Personalization logic
+- State interpretation
+- Planning
+- Intervention ranking
+- Adaptation decisions
+- Personalization logic
 
 Example:
 
@@ -746,24 +746,24 @@ The Adaptive Intervention System determines which support should be provided and
 
 Interventions may include:
 
-* Task breakdown
-* Focus sessions
-* Grounding
-* Sensory regulation
-* Reading assistance
-* Routine support
-* Guided exercises
-* Cognitive reframing
-* Specialized disorder-domain tools
+- Task breakdown
+- Focus sessions
+- Grounding
+- Sensory regulation
+- Reading assistance
+- Routine support
+- Guided exercises
+- Cognitive reframing
+- Specialized disorder-domain tools
 
 Interventions are ranked based on:
 
-* Current user state
-* User preferences
-* Context
-* Historical effectiveness
-* Current task
-* Intervention confidence
+- Current user state
+- User preferences
+- Context
+- Historical effectiveness
+- Current task
+- Intervention confidence
 
 The system should prioritize the **most relevant intervention** rather than overwhelming the user with every available feature.
 
@@ -788,15 +788,15 @@ High-Contrast Mode
 
 Adaptation may affect:
 
-* Number of visible options
-* Navigation complexity
-* Typography
-* Information density
-* Animation
-* Color intensity
-* Interaction patterns
-* Guidance level
-* Module visibility
+- Number of visible options
+- Navigation complexity
+- Typography
+- Information density
+- Animation
+- Color intensity
+- Interaction patterns
+- Guidance level
+- Module visibility
 
 Example:
 
@@ -827,48 +827,48 @@ Modules are organized primarily by support capability.
 
 ### Executive Support
 
-* Task Breakdown
-* Focus Sessions
-* Visual Timeline
-* Routine Planning
-* Body Doubling
+- Task Breakdown
+- Focus Sessions
+- Visual Timeline
+- Routine Planning
+- Body Doubling
 
 ### Emotional Support
 
-* Emotional Check-in
-* Grounding
-* Cognitive Reframing
-* Calm Mode
-* Panic Support
+- Emotional Check-in
+- Grounding
+- Cognitive Reframing
+- Calm Mode
+- Panic Support
 
 ### Learning Support
 
-* Adaptive Reading
-* Phonological Training
-* Pronunciation Analysis
-* Writing Assistance
-* Visual Mathematics
+- Adaptive Reading
+- Phonological Training
+- Pronunciation Analysis
+- Writing Assistance
+- Visual Mathematics
 
 ### Sensory Support
 
-* Sensory Regulation
-* Low-Stimulation Modes
-* Environmental Support
+- Sensory Regulation
+- Low-Stimulation Modes
+- Environmental Support
 
 ### Motor and Coordination Support
 
-* Task Decomposition
-* Motor Exercises
-* Spatial Awareness
-* Haptic Pacing
-* Safe Route Planning
+- Task Decomposition
+- Motor Exercises
+- Spatial Awareness
+- Haptic Pacing
+- Safe Route Planning
 
 ### Specialized Support
 
-* ERP Tracking
-* Exposure Hierarchy
-* Social Story Builder
-* Disorder-specific learning tools
+- ERP Tracking
+- Exposure Hierarchy
+- Social Story Builder
+- Disorder-specific learning tools
 
 Support modules are dynamically selected and configured based on the user's profile, context, state, and previous outcomes.
 
@@ -928,11 +928,11 @@ Long-term Behavioral Patterns
 
 Memory should be:
 
-* User-controlled
-* Transparent
-* Privacy-aware
-* Deletable
-* Minimally collected
+- User-controlled
+- Transparent
+- Privacy-aware
+- Deletable
+- Minimally collected
 
 Current persistence uses a local-first approach with optional Supabase synchronization.
 
@@ -1061,8 +1061,8 @@ NeuroBridge provides three primary user roles.
 
 Authentication supports:
 
-* Supabase authentication
-* Mock authentication for development
+- Supabase authentication
+- Mock authentication for development
 
 Route protection is handled through role and feature-level access control.
 
@@ -1088,10 +1088,10 @@ Initial Profile
 
 The system uses:
 
-* `questionsRegistry.js`
-* Tag-based scoring
-* Module matching
-* Profile persistence
+- `questionsRegistry.js`
+- Tag-based scoring
+- Module matching
+- Profile persistence
 
 The onboarding system is intentionally only the **starting point** of personalization.
 
@@ -1123,13 +1123,13 @@ The JITAI system is intended to determine when an intervention may be relevant b
 
 The current prototype includes:
 
-* Simulated HRV signals
-* Simulated EDA signals
-* Simulated IMU data
-* Rule-based trigger detection
-* Sensory overload triggers
-* Grounding intervention triggers
-* Motor rest recommendations
+- Simulated HRV signals
+- Simulated EDA signals
+- Simulated IMU data
+- Rule-based trigger detection
+- Sensory overload triggers
+- Grounding intervention triggers
+- Motor rest recommendations
 
 The current physiological signals are simulated for prototyping and demonstration.
 
@@ -1145,15 +1145,15 @@ NeuroBridge provides support across multiple neurodivergence and mental well-bei
 
 Current and planned domains include:
 
-* OCD
-* ADHD
-* Dyslexia
-* Dyscalculia
-* Dyspraxia
-* ASD
-* Anxiety
-* Depression
-* APD
+- OCD
+- ADHD
+- Dyslexia
+- Dyscalculia
+- Dyspraxia
+- ASD
+- Anxiety
+- Depression
+- APD
 
 These domains are used to inform available support capabilities, but the adaptive architecture is not restricted to fixed diagnostic categories.
 
@@ -1179,23 +1179,23 @@ The application uses a consistent accessibility-oriented design system.
 
 ## Typography
 
-* Plus Jakarta Sans for headings
-* DM Sans for body text
+- Plus Jakarta Sans for headings
+- DM Sans for body text
 
 ## Styling
 
-* Tailwind CSS
-* CSS custom properties
-* Light and dark modes
-* Accessible interaction patterns
+- Tailwind CSS
+- CSS custom properties
+- Light and dark modes
+- Accessible interaction patterns
 
 ## UI Components
 
 Built using:
 
-* shadcn/ui
-* Radix UI primitives
-* lucide-react icons
+- shadcn/ui
+- Radix UI primitives
+- lucide-react icons
 
 ## Adaptive UI Modes
 
@@ -1272,9 +1272,9 @@ The application should continue to provide core functionality when optional back
 
 Testing is implemented using:
 
-* Vitest
-* jsdom
-* Testing Library
+- Vitest
+- jsdom
+- Testing Library
 
 Run tests:
 
@@ -1325,35 +1325,35 @@ The repository currently contains a mixture of implemented systems, prototypes, 
 
 ## Currently Available
 
-* Authentication
-* Role-based access
-* Protected routes
-* Adaptive onboarding
-* Tag-based initial personalization
-* Feature registry
-* Disorder-domain support modules
-* Guardian and Support dashboards
-* Care-circle synchronization
-* JITAI prototype
-* Local-first persistence
-* Supabase integration
-* Accessibility-oriented design system
-* Initial outcome and personalization logic
+- Authentication
+- Role-based access
+- Protected routes
+- Adaptive onboarding
+- Tag-based initial personalization
+- Feature registry
+- Disorder-domain support modules
+- Guardian and Support dashboards
+- Care-circle synchronization
+- JITAI prototype
+- Local-first persistence
+- Supabase integration
+- Accessibility-oriented design system
+- Initial outcome and personalization logic
 
 ## Adaptive Architecture Under Development
 
-* Conversation-based context extraction
-* Mood and emotion inference
-* Context fusion
-* Unified user state model
-* Cognitive reasoning core
-* Planning system
-* Intervention ranking
-* Adaptive intervention policy
-* Dynamic UI adaptation
-* Reflection-driven personalization
-* Long-term adaptive memory
-* Agentic reasoning components
+- Conversation-based context extraction
+- Mood and emotion inference
+- Context fusion
+- Unified user state model
+- Cognitive reasoning core
+- Planning system
+- Intervention ranking
+- Adaptive intervention policy
+- Dynamic UI adaptation
+- Reflection-driven personalization
+- Long-term adaptive memory
+- Agentic reasoning components
 
 The long-term objective is to unify these systems into a single closed-loop adaptive architecture.
 
@@ -1363,69 +1363,69 @@ The long-term objective is to unify these systems into a single closed-loop adap
 
 ## Phase 1 — Foundation
 
-* [x] Authentication
-* [x] Role-based access
-* [x] Adaptive onboarding
-* [x] Feature registry
-* [x] Core support modules
-* [x] Local-first persistence
-* [x] Initial accessibility system
+- [x] Authentication
+- [x] Role-based access
+- [x] Adaptive onboarding
+- [x] Feature registry
+- [x] Core support modules
+- [x] Local-first persistence
+- [x] Initial accessibility system
 
 ## Phase 2 — Context & Perception
 
-* [ ] Conversation context extraction
-* [ ] Mood and emotion inference
-* [ ] User activity tracking
-* [ ] Environment context
-* [ ] Context fusion
-* [ ] Confidence-aware signal processing
+- [ ] Conversation context extraction
+- [ ] Mood and emotion inference
+- [ ] User activity tracking
+- [ ] Environment context
+- [ ] Context fusion
+- [ ] Confidence-aware signal processing
 
 ## Phase 3 — Adaptive Intelligence
 
-* [ ] Unified User State Model
-* [ ] Cognitive Reasoning Core
-* [ ] Planning system
-* [ ] Intervention ranking
-* [ ] Adaptation policy
-* [ ] Agent-based decision support
+- [ ] Unified User State Model
+- [ ] Cognitive Reasoning Core
+- [ ] Planning system
+- [ ] Intervention ranking
+- [ ] Adaptation policy
+- [ ] Agent-based decision support
 
 ## Phase 4 — Adaptive Experience
 
-* [ ] UI Adapter
-* [ ] Dynamic interface complexity
-* [ ] State-based UI modes
-* [ ] Adaptive navigation
-* [ ] Adaptive typography
-* [ ] Reduced-stimulation experiences
-* [ ] Accessibility personalization
+- [ ] UI Adapter
+- [ ] Dynamic interface complexity
+- [ ] State-based UI modes
+- [ ] Adaptive navigation
+- [ ] Adaptive typography
+- [ ] Reduced-stimulation experiences
+- [ ] Accessibility personalization
 
 ## Phase 5 — Reflection & Memory
 
-* [ ] Intervention outcome tracking
-* [ ] Reflection engine
-* [ ] Strategy effectiveness analysis
-* [ ] Long-term memory
-* [ ] Personalized intervention history
-* [ ] Feedback-driven adaptation
+- [ ] Intervention outcome tracking
+- [ ] Reflection engine
+- [ ] Strategy effectiveness analysis
+- [ ] Long-term memory
+- [ ] Personalized intervention history
+- [ ] Feedback-driven adaptation
 
 ## Phase 6 — Intelligent Support
 
-* [ ] Support-specific intelligent agents
-* [ ] Advanced JITAI integration
-* [ ] Real physiological sensor integration
-* [ ] Cross-domain support personalization
-* [ ] Improved multimodal context understanding
+- [ ] Support-specific intelligent agents
+- [ ] Advanced JITAI integration
+- [ ] Real physiological sensor integration
+- [ ] Cross-domain support personalization
+- [ ] Improved multimodal context understanding
 
 ## Phase 7 — Production
 
-* [ ] Comprehensive automated testing
-* [ ] Accessibility audit
-* [ ] WCAG compliance
-* [ ] Backend consolidation
-* [ ] Production deployment pipeline
-* [ ] Privacy and security review
-* [ ] Mobile application
-* [ ] Multilingual support
+- [ ] Comprehensive automated testing
+- [ ] Accessibility audit
+- [ ] WCAG compliance
+- [ ] Backend consolidation
+- [ ] Production deployment pipeline
+- [ ] Privacy and security review
+- [ ] Mobile application
+- [ ] Multilingual support
 
 ---
 

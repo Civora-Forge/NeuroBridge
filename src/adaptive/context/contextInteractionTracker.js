@@ -63,7 +63,9 @@ function getSessionStartMs() {
 function isEditableTarget(target) {
   if (!target || !target.tagName) return false;
   const tag = String(target.tagName).toLowerCase();
-  return tag === "input" || tag === "textarea" || target.isContentEditable === true;
+  return (
+    tag === "input" || tag === "textarea" || target.isContentEditable === true
+  );
 }
 
 function isPrintableKey(event) {
@@ -88,7 +90,11 @@ function recordInteraction({ countLatency = true } = {}) {
   const now = getNowMs();
   _lastInteractionAt = now;
 
-  if (countLatency && _lastNavigationAt && !_firstInteractionAfterNavigationAt) {
+  if (
+    countLatency &&
+    _lastNavigationAt &&
+    !_firstInteractionAfterNavigationAt
+  ) {
     _firstInteractionAfterNavigationAt = now;
   }
 }
@@ -99,7 +105,10 @@ function recordTypingEvent(event) {
 
   const now = getNowMs();
   const key = event.key || "";
-  const isCorrection = key === "Backspace" || key === "Delete" || event.inputType?.startsWith?.("delete");
+  const isCorrection =
+    key === "Backspace" ||
+    key === "Delete" ||
+    event.inputType?.startsWith?.("delete");
 
   if (isCorrection) {
     _typingCorrectionCount += 1;
@@ -109,7 +118,10 @@ function recordTypingEvent(event) {
     return;
   }
 
-  if (_typingSessionStartAt === null || now - (_lastPrintableKeyAt || now) > FAST_TYPING_GAP_MS) {
+  if (
+    _typingSessionStartAt === null ||
+    now - (_lastPrintableKeyAt || now) > FAST_TYPING_GAP_MS
+  ) {
     _typingSessionStartAt = now;
     _typingEvents = [];
     _typedPrintableCount = 0;
@@ -152,7 +164,9 @@ function recordNavigationInteraction(pathname) {
     _lastPath = pathname;
   }
 
-  _navigationEvents = _navigationEvents.filter((entry) => now - entry.timestamp <= NAVIGATION_WINDOW_MS);
+  _navigationEvents = _navigationEvents.filter(
+    (entry) => now - entry.timestamp <= NAVIGATION_WINDOW_MS,
+  );
   _lastNavigationAt = now;
   _firstInteractionAfterNavigationAt = null;
 
@@ -164,7 +178,12 @@ function recordFocusInterrupt() {
   scheduleEmit("focus_interrupt");
 }
 
-export function recordExplicitRequestInteraction({ requestType = null, inputMode = null, confidence = null, timestamp = null } = {}) {
+export function recordExplicitRequestInteraction({
+  requestType = null,
+  inputMode = null,
+  confidence = null,
+  timestamp = null,
+} = {}) {
   _explicitRequest = {
     requestType,
     inputMode,
@@ -182,11 +201,20 @@ export function recordNavigationSignal(pathname) {
 }
 
 export function startInteractionTracking() {
-  if (_isTracking || typeof window === "undefined" || typeof document === "undefined") return;
+  if (
+    _isTracking ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  )
+    return;
 
   const keydownHandler = (event) => recordTypingEvent(event);
   const beforeInputHandler = (event) => {
-    if (isEditableTarget(event.target) && event.inputType && String(event.inputType).startsWith("delete")) {
+    if (
+      isEditableTarget(event.target) &&
+      event.inputType &&
+      String(event.inputType).startsWith("delete")
+    ) {
       recordInteraction();
       _typingCorrectionCount += 1;
       scheduleEmit("correction");
@@ -229,7 +257,12 @@ export function startInteractionTracking() {
 }
 
 export function stopInteractionTracking() {
-  if (!_isTracking || typeof window === "undefined" || typeof document === "undefined") return;
+  if (
+    !_isTracking ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  )
+    return;
 
   _listeners.forEach(([type, handler, options]) => {
     const target = type === "visibilitychange" ? document : window;
@@ -250,7 +283,10 @@ function computeTypingMetrics(now) {
     return {
       typingSpeed: null,
       typingPauseDuration: null,
-      correctionRate: _typedPrintableCount > 0 ? +(_typingCorrectionCount / _typedPrintableCount).toFixed(2) : null,
+      correctionRate:
+        _typedPrintableCount > 0
+          ? +(_typingCorrectionCount / _typedPrintableCount).toFixed(2)
+          : null,
     };
   }
 
@@ -262,8 +298,14 @@ function computeTypingMetrics(now) {
     gaps.push(_typingEvents[i] - _typingEvents[i - 1]);
   }
 
-  const pauseDuration = gaps.length > 0 ? Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length) : null;
-  const correctionRate = _typedPrintableCount > 0 ? +(_typingCorrectionCount / _typedPrintableCount).toFixed(2) : null;
+  const pauseDuration =
+    gaps.length > 0
+      ? Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length)
+      : null;
+  const correctionRate =
+    _typedPrintableCount > 0
+      ? +(_typingCorrectionCount / _typedPrintableCount).toFixed(2)
+      : null;
 
   return {
     typingSpeed,
@@ -278,15 +320,21 @@ function computeScrollBehavior(now) {
   const first = _scrollEvents[0];
   const last = _scrollEvents[_scrollEvents.length - 1];
   const elapsedSeconds = Math.max(1, (last.timestamp - first.timestamp) / 1000);
-  const totalDistancePx = _scrollEvents.reduce((sum, entry) => sum + Math.abs(entry.delta), 0);
-  const viewportHeight = typeof window !== "undefined" ? window.innerHeight || 1 : 1;
+  const totalDistancePx = _scrollEvents.reduce(
+    (sum, entry) => sum + Math.abs(entry.delta),
+    0,
+  );
+  const viewportHeight =
+    typeof window !== "undefined" ? window.innerHeight || 1 : 1;
   const averageSpeedPxPerSec = Math.round(totalDistancePx / elapsedSeconds);
   const direction = last.delta > 0 ? "down" : last.delta < 0 ? "up" : "steady";
 
-  const currentModule = contextStore.getContext().session?.currentScreen || "dashboard";
-  const readingSpeed = currentModule === "reader"
-    ? Math.max(0, Math.round((totalDistancePx / viewportHeight) * 220))
-    : null;
+  const currentModule =
+    contextStore.getContext().session?.currentScreen || "dashboard";
+  const readingSpeed =
+    currentModule === "reader"
+      ? Math.max(0, Math.round((totalDistancePx / viewportHeight) * 220))
+      : null;
 
   return {
     direction,
@@ -300,22 +348,53 @@ function computeScrollBehavior(now) {
 export function getInteractionSnapshot() {
   const now = getNowMs();
   const sessionStart = getSessionStartMs();
-  const timeSinceLastInteraction = _lastInteractionAt ? Math.max(0, Math.round((now - _lastInteractionAt) / 1000)) : null;
-  const idleDuration = timeSinceLastInteraction;
-  const currentSessionDuration = Math.max(0, Math.round((now - sessionStart) / 1000));
-
-  const recentNavs = _navigationEvents.filter((entry) => now - entry.timestamp <= NAVIGATION_WINDOW_MS);
-  const repeatedNavigation = recentNavs.filter((entry) => entry.repeated).length;
-  const taskSwitchFrequency = +(recentNavs.filter((entry) => !entry.repeated).length / 5).toFixed(2);
-  const interactionLatency = _firstInteractionAfterNavigationAt && _lastNavigationAt
-    ? Math.max(0, Math.round((_firstInteractionAfterNavigationAt - _lastNavigationAt) / 1000))
+  const timeSinceLastInteraction = _lastInteractionAt
+    ? Math.max(0, Math.round((now - _lastInteractionAt) / 1000))
     : null;
+  const idleDuration = timeSinceLastInteraction;
+  const currentSessionDuration = Math.max(
+    0,
+    Math.round((now - sessionStart) / 1000),
+  );
+
+  const recentNavs = _navigationEvents.filter(
+    (entry) => now - entry.timestamp <= NAVIGATION_WINDOW_MS,
+  );
+  const repeatedNavigation = recentNavs.filter(
+    (entry) => entry.repeated,
+  ).length;
+  const taskSwitchFrequency = +(
+    recentNavs.filter((entry) => !entry.repeated).length / 5
+  ).toFixed(2);
+  const interactionLatency =
+    _firstInteractionAfterNavigationAt && _lastNavigationAt
+      ? Math.max(
+          0,
+          Math.round(
+            (_firstInteractionAfterNavigationAt - _lastNavigationAt) / 1000,
+          ),
+        )
+      : null;
 
   const typingMetrics = computeTypingMetrics(now);
   const scrollBehavior = computeScrollBehavior(now);
 
-  const behaviorConfidence = [typingMetrics.typingSpeed, typingMetrics.correctionRate, scrollBehavior].filter(Boolean).length > 0 ? 0.7 : 0.0;
-  const deviceInteractionConfidence = [timeSinceLastInteraction, currentSessionDuration, repeatedNavigation, _focusSessionInterruptions].some((value) => value !== null && value !== undefined) ? 0.7 : 0.0;
+  const behaviorConfidence =
+    [
+      typingMetrics.typingSpeed,
+      typingMetrics.correctionRate,
+      scrollBehavior,
+    ].filter(Boolean).length > 0
+      ? 0.7
+      : 0.0;
+  const deviceInteractionConfidence = [
+    timeSinceLastInteraction,
+    currentSessionDuration,
+    repeatedNavigation,
+    _focusSessionInterruptions,
+  ].some((value) => value !== null && value !== undefined)
+    ? 0.7
+    : 0.0;
 
   return {
     behavior: {
@@ -345,7 +424,9 @@ export function getInteractionSnapshot() {
       inputMode: _explicitRequest.inputMode,
       timestamp: _explicitRequest.timestamp,
       confidence: _explicitRequest.confidence,
-      source: _explicitRequest.inputMode ? `explicit:${_explicitRequest.inputMode}` : null,
+      source: _explicitRequest.inputMode
+        ? `explicit:${_explicitRequest.inputMode}`
+        : null,
     },
     biometrics: null,
     metadata: {
@@ -353,7 +434,9 @@ export function getInteractionSnapshot() {
       sourceMap: {
         behavior: DEFAULT_SOURCE,
         deviceInteraction: DEFAULT_SOURCE,
-        explicitRequests: _explicitRequest.inputMode ? `explicit:${_explicitRequest.inputMode}` : DEFAULT_SOURCE,
+        explicitRequests: _explicitRequest.inputMode
+          ? `explicit:${_explicitRequest.inputMode}`
+          : DEFAULT_SOURCE,
         biometrics: "future_extension",
       },
     },

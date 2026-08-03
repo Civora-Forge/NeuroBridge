@@ -36,9 +36,12 @@ export const ConversationAnalysisSchema = z.object({
 
 // Default Gemini API configuration
 const DEFAULT_GEMINI_KEY =
-  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY);
+  typeof import.meta !== "undefined" &&
+  import.meta.env &&
+  import.meta.env.VITE_GEMINI_API_KEY;
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 const DEFAULT_TIMEOUT_MS = 4000;
 
 /**
@@ -62,32 +65,47 @@ export function heuristicAnalyzeConversation(text) {
 
   // Sentiment detection
   let sentiment = "neutral";
-  if (/happy|great|good|awesome|calm|focused|relaxed|thanks|helpful/i.test(lower)) {
+  if (
+    /happy|great|good|awesome|calm|focused|relaxed|thanks|helpful/i.test(lower)
+  ) {
     sentiment = "positive";
-  } else if (/can't|cannot|hard|stuck|frustrated|overwhelmed|panic|fail|tired|stress|impossible|hate|sad|lost/i.test(lower)) {
+  } else if (
+    /can't|cannot|hard|stuck|frustrated|overwhelmed|panic|fail|tired|stress|impossible|hate|sad|lost/i.test(
+      lower,
+    )
+  ) {
     sentiment = "negative";
   }
 
   // Emotional cues extraction
   const emotionalCues = [];
   if (/frustrat/i.test(lower)) emotionalCues.push("frustration");
-  if (/overwhelm|too much|drowning|too many/i.test(lower)) emotionalCues.push("overwhelm");
-  if (/anxi|panic|fear|scared|worry/i.test(lower)) emotionalCues.push("anxiety");
-  if (/concentrat|focus|distract|mind wandering/i.test(lower)) emotionalCues.push("focus_struggle");
-  if (/tired|exhausted|burnout|sleepy/i.test(lower)) emotionalCues.push("fatigue");
+  if (/overwhelm|too much|drowning|too many/i.test(lower))
+    emotionalCues.push("overwhelm");
+  if (/anxi|panic|fear|scared|worry/i.test(lower))
+    emotionalCues.push("anxiety");
+  if (/concentrat|focus|distract|mind wandering/i.test(lower))
+    emotionalCues.push("focus_struggle");
+  if (/tired|exhausted|burnout|sleepy/i.test(lower))
+    emotionalCues.push("fatigue");
 
   // Challenges extraction
   const challenges = [];
   if (/concentrat|focus|distract/i.test(lower)) challenges.push("focus");
-  if (/work|task|assignment|deadline|so much to do/i.test(lower)) challenges.push("workload");
-  if (/time|late|schedule|plan/i.test(lower)) challenges.push("time_management");
-  if (/sensory|noise|bright|overstimulat/i.test(lower)) challenges.push("sensory_overload");
+  if (/work|task|assignment|deadline|so much to do/i.test(lower))
+    challenges.push("workload");
+  if (/time|late|schedule|plan/i.test(lower))
+    challenges.push("time_management");
+  if (/sensory|noise|bright|overstimulat/i.test(lower))
+    challenges.push("sensory_overload");
 
   // Urgency estimation
   let urgency = "low";
   if (/panic|emergency|crisis|can't breathe|help me now/i.test(lower)) {
     urgency = "critical";
-  } else if (/can't concentrate|so much work|stuck|overwhelmed|urgent/i.test(lower)) {
+  } else if (
+    /can't concentrate|so much work|stuck|overwhelmed|urgent/i.test(lower)
+  ) {
     urgency = "high";
   } else if (/need help|how do i|question|explain/i.test(lower)) {
     urgency = "moderate";
@@ -117,7 +135,11 @@ export function heuristicAnalyzeConversation(text) {
  * @param {number} timeoutMs
  * @returns {Promise<ConversationAnalysisResult>}
  */
-async function callGeminiForAnalysis(text, apiKey = DEFAULT_GEMINI_KEY, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function callGeminiForAnalysis(
+  text,
+  apiKey = DEFAULT_GEMINI_KEY,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -181,9 +203,14 @@ User input: "${text.replace(/"/g, '\\"')}"`;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
-      console.warn("[conversationAgent] AI request timed out. Falling back to heuristic analysis.");
+      console.warn(
+        "[conversationAgent] AI request timed out. Falling back to heuristic analysis.",
+      );
     } else {
-      console.warn("[conversationAgent] AI request failed:", error.message || error);
+      console.warn(
+        "[conversationAgent] AI request failed:",
+        error.message || error,
+      );
     }
     // Fall back to heuristic rule-based analysis
     return heuristicAnalyzeConversation(text);
@@ -224,7 +251,12 @@ export function analyzeConversation(text, options = {}) {
       lastUserMessage: text,
       timestamp: now,
       lastUpdated: now,
-      sentimentScore: validated.sentiment === "positive" ? 0.8 : validated.sentiment === "negative" ? -0.8 : 0.0,
+      sentimentScore:
+        validated.sentiment === "positive"
+          ? 0.8
+          : validated.sentiment === "negative"
+            ? -0.8
+            : 0.0,
       detectedIntent: validated.intent,
       urgency: validated.urgency,
       keyTopics: validated.challenges,
@@ -237,7 +269,12 @@ export function analyzeConversation(text, options = {}) {
     }
 
     // Update Context Store conversation category (silent — engine emits ContextUpdated)
-    contextStore.updateContext("conversation", conversationData, "conversationAgent", validated.confidence);
+    contextStore.updateContext(
+      "conversation",
+      conversationData,
+      "conversationAgent",
+      validated.confidence,
+    );
 
     // Construct and emit ConversationUpdated signal & event
     const signal = createContextSignal({
@@ -261,7 +298,9 @@ export function analyzeConversation(text, options = {}) {
   };
 
   if (useAI) {
-    return callGeminiForAnalysis(text, options.apiKey, options.timeoutMs).then(processResult);
+    return callGeminiForAnalysis(text, options.apiKey, options.timeoutMs).then(
+      processResult,
+    );
   } else {
     const heuristicResult = heuristicAnalyzeConversation(text);
     return processResult(heuristicResult);

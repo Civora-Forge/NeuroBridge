@@ -309,6 +309,8 @@ export function resolveEnabledFeatures(input) {
 
   if (explicitModules.length > 0) {
     const enabled = new Set();
+    const activeDisorders = new Set();
+
     for (const moduleId of explicitModules) {
       if (moduleId === FEATURES.ADHD || moduleId === FEATURES.DEPRESSION) {
         Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
@@ -322,6 +324,7 @@ export function resolveEnabledFeatures(input) {
         enabled.add(moduleId);
       }
     }
+
     return enabled;
   }
 

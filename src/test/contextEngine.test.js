@@ -25,6 +25,7 @@ import {
   resetMoodAgent,
   createContextSignal,
 } from "../adaptive/context/index.js";
+import { resolveEnabledFeatures, FEATURES } from "../lib/featureRegistry.js";
 
 describe("Context & Perception Layer — Validation, Fusion & Unified Context API", () => {
   beforeEach(() => {
@@ -46,7 +47,10 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       expect(res1.isValid).toBe(false);
       expect(res1.effectiveConfidence).toBe(0.0);
 
-      const res2 = validateContextSignal({ source: "activityTracker", payload: "invalid_string_payload" });
+      const res2 = validateContextSignal({
+        source: "activityTracker",
+        payload: "invalid_string_payload",
+      });
       expect(res2.isValid).toBe(true);
       expect(res2.sanitizedSignal.payload).toEqual({});
     });
@@ -64,7 +68,9 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
 
       const secondCheck = validateContextSignal(signal);
       expect(secondCheck.isDuplicate).toBe(true);
-      expect(secondCheck.errors).toContain("Duplicate signal detected within deduplication window");
+      expect(secondCheck.errors).toContain(
+        "Duplicate signal detected within deduplication window",
+      );
     });
 
     it("should evaluate freshness and decay confidence past TTL", () => {
@@ -82,17 +88,22 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
 
     it("should detect conflicts between explicit mood check-in and negative text sentiment", () => {
       const currentContext = {
-        conversation: { lastUserMessage: "Everything is failing", sentimentScore: -0.8 },
+        conversation: {
+          lastUserMessage: "Everything is failing",
+          sentimentScore: -0.8,
+        },
       };
 
-      const conflicts = detectSignalConflicts("mood", { value: "calm" }, currentContext);
+      const conflicts = detectSignalConflicts(
+        "mood",
+        { value: "calm" },
+        currentContext,
+      );
 
       expect(conflicts.length).toBeGreaterThan(0);
       expect(conflicts[0].category).toBe("mood");
       expect(conflicts[0].description).toContain("calm");
-    }
-
-);
+    });
 
     it("should gracefully degrade when optional sources (battery/geo/weather) are unavailable", () => {
       const env = collectEnvironmentContext();
@@ -205,7 +216,10 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
     it("should expose explicitRequest under conversation for downstream modules", async () => {
       contextEngine.init();
 
-      const result = await contextEngine.processUserMessage("I need help focusing.", { useAI: false, inputMode: "chat" });
+      const result = await contextEngine.processUserMessage(
+        "I need help focusing.",
+        { useAI: false, inputMode: "chat" },
+      );
 
       expect(result.context.conversation).toHaveProperty("explicitRequest");
       expect(result.context.conversation.explicitRequest).toMatchObject({
@@ -214,7 +228,9 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
         priority: "high",
         originalText: "I need help focusing.",
       });
-      expect(result.context.conversation.explicitRequest.timestamp).toBeDefined();
+      expect(
+        result.context.conversation.explicitRequest.timestamp,
+      ).toBeDefined();
       expect(result.context.explicitRequests).toMatchObject({
         requestType: "explicit_help_request",
         inputMode: "chat",
@@ -226,11 +242,28 @@ describe("Context & Perception Layer — Validation, Fusion & Unified Context AP
       contextEngine.trackNavigation("reader", { path: "/reader" });
       contextEngine.trackNavigation("reader", { path: "/reader" });
 
-      const snapshot = ContextSnapshotAdapter.toContextSnapshot(contextEngine.getLatestContext());
+      const snapshot = ContextSnapshotAdapter.toContextSnapshot(
+        contextEngine.getLatestContext(),
+      );
 
-      expect(snapshot.deviceInteraction.repeatedNavigation).toBeGreaterThanOrEqual(1);
+      expect(
+        snapshot.deviceInteraction.repeatedNavigation,
+      ).toBeGreaterThanOrEqual(1);
       expect(snapshot.behavior.taskSwitchFrequency).toBeGreaterThanOrEqual(0);
-      expect(snapshot.deviceInteraction.currentSessionDuration).toBeGreaterThanOrEqual(0);
+      expect(
+        snapshot.deviceInteraction.currentSessionDuration,
+      ).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe("4. Feature Registry Normalization", () => {
+    it("should keep root dyslexia access enabled when only dyslexia subfeatures are present", () => {
+      const enabled = resolveEnabledFeatures({
+        enabledModules: [FEATURES.DYSLEXIA_READER],
+      });
+
+      expect(enabled.has(FEATURES.DYSLEXIA)).toBe(true);
+      expect(enabled.has(FEATURES.DYSLEXIA_READER)).toBe(true);
     });
   });
 });

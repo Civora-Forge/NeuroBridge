@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import "@fontsource/opendyslexic";
 import {
   Activity,
   AudioLines,
