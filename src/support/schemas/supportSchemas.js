@@ -850,6 +850,46 @@ export const AdaptationOutcomeEffectivenessSchema =
     correlational: z.literal(true),
   });
 
+/**
+ * EffectivenessSignalSchema — Reflection Engine output (Phase 5).
+ *
+ * One signal aggregates historical Role 4 outcome evidence for a single
+ * deterministic strategy identity (`moduleId:interventionType`). The signal
+ * is strictly OBSERVATIONAL: `correlational` is a literal `true` and
+ * `source` is the literal `observational_outcomes`, so reflection output can
+ * never be mistaken for a causal claim.
+ *
+ * `actionType` holds the Role 4 execution vocabulary value
+ * (`interventionType`); engine action verbs are not recorded on outcomes
+ * (D1 vocabulary separation). `target` is intentionally absent: Role 4
+ * outcome contracts do not record an adaptation target dimension, so none is
+ * invented.
+ *
+ * `effectivenessScore` is omitted (not `0`) when evidence is insufficient —
+ * zero evidence must never become a fabricated 0% or 100% claim.
+ */
+export const EffectivenessSignalSchema = z.object({
+  userId: idSchema.optional(),
+  moduleId: idSchema,
+  actionType: idSchema,
+  strategyId: idSchema,
+
+  sampleSize: z.number().int().nonnegative(),
+  positiveOutcomes: z.number().int().nonnegative(),
+  negativeOutcomes: z.number().int().nonnegative(),
+
+  effectivenessScore: confidenceRange.optional(),
+
+  confidence: confidenceRange,
+
+  evidenceCount: z.number().int().nonnegative(),
+
+  source: z.literal("observational_outcomes"),
+  correlational: z.literal(true),
+
+  generatedAt: epochNumber,
+});
+
 export const AdaptationOutcomeSchema = z.object({
   ...recordBase,
   decisionId: idSchema,
@@ -1134,6 +1174,10 @@ export function validateInterventionLifecycleEvent(
 
 export function validateInterventionOutcome(data) {
   return InterventionOutcomeSchema.parse(data);
+}
+
+export function validateEffectivenessSignal(data) {
+  return EffectivenessSignalSchema.parse(data);
 }
 
 export function validateReflection(data) {
