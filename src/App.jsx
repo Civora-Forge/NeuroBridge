@@ -39,7 +39,6 @@ import FocusSessions from "./pages/adhd/FocusSessions";
 import BodyDoubling from "./pages/adhd/BodyDoubling";
 
 import DyslexiaDashboard from "./pages/dyslexia/DyslexiaDashboard";
-import DyslexiaReader from "./pages/dyslexia/DyslexiaReader";
 import AdaptiveReadingModule from "./pages/dyslexia/AdaptiveReadingModule";
 import PhonologicalTrainingGenerator from "./pages/dyslexia/PhonologicalTrainingGenerator";
 import MultiSensoryReinforcementMode from "./pages/dyslexia/MultiSensoryReinforcementMode";
@@ -250,18 +249,10 @@ function ShellRoutes() {
           }
         />
         <Route
-          path="/dyslexia/reading-module"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <AdaptiveReadingModule />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/dyslexia/adaptive-reading"
           element={
             <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <DyslexiaReader />
+              <AdaptiveReadingModule />
             </ProtectedRoute>
           }
         />
