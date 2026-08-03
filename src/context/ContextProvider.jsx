@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import { useLocation } from "react-router-dom";
 import {
   contextEngine,
@@ -6,7 +13,10 @@ import {
   ContextEvents,
   getContextSnapshotAPI,
 } from "@/adaptive/context";
-import { startInteractionTracking, stopInteractionTracking } from "@/adaptive/context/contextInteractionTracker.js";
+import {
+  startInteractionTracking,
+  stopInteractionTracking,
+} from "@/adaptive/context/contextInteractionTracker.js";
 import { useAuth } from "@/context/AuthContext";
 
 const ContextStateContext = createContext(null);
@@ -42,7 +52,9 @@ export function ContextProvider({ children }) {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
-    contextEngine.init({ initialScreen: resolveModuleFromPath(location.pathname) });
+    contextEngine.init({
+      initialScreen: resolveModuleFromPath(location.pathname),
+    });
     startInteractionTracking();
     getContextSnapshotAPI().then(setContext);
 
@@ -57,7 +69,9 @@ export function ContextProvider({ children }) {
       contextEngine.syncProfile({
         id: user.id,
         disorders: user.disorders,
-        communicationPreference: user.accessibility?.screenReader ? "verbal" : "adaptive",
+        communicationPreference: user.accessibility?.screenReader
+          ? "verbal"
+          : "adaptive",
       });
     }
   }, [user]);
@@ -69,21 +83,27 @@ export function ContextProvider({ children }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    const unsub = contextEventBus.subscribe(ContextEvents.CONTEXT_UPDATED, (payload) => {
-      const nextContext = payload.snapshot || payload.context;
-      if (nextContext) {
-        setContext(nextContext);
-        setLastUpdated(payload.timestamp || new Date().toISOString());
-      }
-    });
+    const unsub = contextEventBus.subscribe(
+      ContextEvents.CONTEXT_UPDATED,
+      (payload) => {
+        const nextContext = payload.snapshot || payload.context;
+        if (nextContext) {
+          setContext(nextContext);
+          setLastUpdated(payload.timestamp || new Date().toISOString());
+        }
+      },
+    );
     return unsub;
   }, []);
 
   useEffect(() => {
-    const unsub = contextEventBus.subscribe(ContextEvents.INTERACTION_UPDATED, () => {
-      getContextSnapshotAPI().then(setContext);
-      setLastUpdated(new Date().toISOString());
-    });
+    const unsub = contextEventBus.subscribe(
+      ContextEvents.INTERACTION_UPDATED,
+      () => {
+        getContextSnapshotAPI().then(setContext);
+        setLastUpdated(new Date().toISOString());
+      },
+    );
     return unsub;
   }, []);
 
@@ -109,10 +129,14 @@ export function ContextProvider({ children }) {
       refreshContext,
       isReady: contextEngine.isInitialized,
     }),
-    [context, lastUpdated, processUserMessage, refreshContext]
+    [context, lastUpdated, processUserMessage, refreshContext],
   );
 
-  return <ContextStateContext.Provider value={value}>{children}</ContextStateContext.Provider>;
+  return (
+    <ContextStateContext.Provider value={value}>
+      {children}
+    </ContextStateContext.Provider>
+  );
 }
 
 export function useContextState() {

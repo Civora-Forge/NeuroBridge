@@ -284,11 +284,14 @@ export function resolveEnabledFeatures(input) {
 
   if (explicitModules.length > 0) {
     const enabled = new Set();
+    const activeDisorders = new Set();
+
     for (const moduleId of explicitModules) {
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
       }
     }
+
     return enabled;
   }
 

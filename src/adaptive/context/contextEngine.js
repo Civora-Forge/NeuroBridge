@@ -15,7 +15,11 @@
 import { contextStore } from "./contextStore.js";
 import { contextEventBus } from "./events/contextEventBus.js";
 import { ContextEvents } from "./events/contextEvents.js";
-import { collectEnvironmentContext, startEnvironmentMonitoring, stopEnvironmentMonitoring } from "./environmentContext.js";
+import {
+  collectEnvironmentContext,
+  startEnvironmentMonitoring,
+  stopEnvironmentMonitoring,
+} from "./environmentContext.js";
 import { trackActivity } from "./activityTracker.js";
 import { startSession, updateSessionNavigation } from "./sessionTracker.js";
 import { createContextSignal } from "./types/contextTypes.js";
@@ -23,7 +27,10 @@ import { validateContextSignal } from "./validation/signalValidator.js";
 import { fuseContext, detectMaterialChange } from "./contextFusion.js";
 import { handleGetContextSnapshot } from "./api/contextApi.js";
 import { initContextLogger } from "./contextLogger.js";
-import { processUserMessage as runPipelineMessage, syncProfileContext } from "./contextPipeline.js";
+import {
+  processUserMessage as runPipelineMessage,
+  syncProfileContext,
+} from "./contextPipeline.js";
 import { toContextSnapshot } from "./contextSnapshotAdapter.js";
 import { recordNavigationSignal } from "./contextInteractionTracker.js";
 
@@ -98,7 +105,11 @@ class ContextEngine {
     const currentContext = contextStore.getContext();
 
     // 1. Validate, sanitize, deduplicate, and evaluate signal freshness
-    const validationResult = validateContextSignal(rawSignal, currentContext, options);
+    const validationResult = validateContextSignal(
+      rawSignal,
+      currentContext,
+      options,
+    );
 
     // Suppress duplicate signals if flagged as duplicate
     if (validationResult.isDuplicate && options.force !== true) {
@@ -113,23 +124,59 @@ class ContextEngine {
 
     // Track active signal conflicts
     if (validationResult.conflicts && validationResult.conflicts.length > 0) {
-      this.activeConflicts = [...this.activeConflicts, ...validationResult.conflicts].slice(-10);
+      this.activeConflicts = [
+        ...this.activeConflicts,
+        ...validationResult.conflicts,
+      ].slice(-10);
     }
 
     // 2. Route signal payload to appropriate context category
     let targetCategory = null;
 
-    if (type === ContextEvents.ACTIVITY_UPDATED || source === "activityTracker" || payload.activity || payload.currentModule) {
+    if (
+      type === ContextEvents.ACTIVITY_UPDATED ||
+      source === "activityTracker" ||
+      payload.activity ||
+      payload.currentModule
+    ) {
       targetCategory = "activity";
-    } else if (type === ContextEvents.ENVIRONMENT_UPDATED || source === "environmentContext" || payload.timeOfDay || payload.device) {
+    } else if (
+      type === ContextEvents.ENVIRONMENT_UPDATED ||
+      source === "environmentContext" ||
+      payload.timeOfDay ||
+      payload.device
+    ) {
       targetCategory = "environment";
-    } else if (type === ContextEvents.SESSION_UPDATED || source === "sessionTracker" || payload.sessionId) {
+    } else if (
+      type === ContextEvents.SESSION_UPDATED ||
+      source === "sessionTracker" ||
+      payload.sessionId
+    ) {
       targetCategory = "session";
-    } else if (type === ContextEvents.CONVERSATION_UPDATED || source === "conversationAgent" || payload.lastUserMessage) {
+    } else if (
+      type === ContextEvents.CONVERSATION_UPDATED ||
+      source === "conversationAgent" ||
+      payload.lastUserMessage
+    ) {
       targetCategory = "conversation";
-    } else if (type === ContextEvents.MOOD_UPDATED || source === "moodAgent" || payload.primaryMood || payload.value) {
+    } else if (
+      type === ContextEvents.MOOD_UPDATED ||
+      source === "moodAgent" ||
+      payload.primaryMood ||
+      payload.value
+    ) {
       targetCategory = "mood";
-    } else if (payload.category && ["profile", "activity", "environment", "conversation", "mood", "session"].includes(payload.category)) {
+    } else if (
+      payload.category &&
+      [
+        "profile",
+        "activity",
+        "environment",
+        "conversation",
+        "mood",
+        "session",
+      ].includes(payload.category)
+    ) {
       targetCategory = payload.category;
     }
 

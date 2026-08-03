@@ -45,7 +45,12 @@ export function handleGetContextSnapshot(req = {}) {
  * @returns {Promise<import("../types/contextTypes.js").ContextSnapshot>}
  */
 export async function getContextSnapshotAPI(options = {}) {
-  const apiBaseUrl = options.apiBaseUrl || (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) || "";
+  const apiBaseUrl =
+    options.apiBaseUrl ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      import.meta.env.VITE_API_BASE_URL) ||
+    "";
 
   if (apiBaseUrl) {
     try {

@@ -20,6 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function ProtectedRoute({ children, role, feature }) {
   const { isAuthenticated, isLoading, user, role: userRole, hasFeature } = useAuth();
   const location = useLocation();
+  const allowFeatureBypass = import.meta.env.DEV && import.meta.env.VITE_BYPASS_FEATURE_GATES !== "false";
 
   // Still hydrating from localStorage – render nothing to avoid flash
   if (isLoading) {
@@ -60,7 +61,7 @@ export default function ProtectedRoute({ children, role, feature }) {
   // Feature gate: if a feature key is required and not enabled, redirect home
   // Neutral redirect — no error message, never exposes what disorder the user
   // lacks.  The UI never says "you don't have X disorder".
-  if (feature && userRole === "user" && !hasFeature(feature)) {
+  if (feature && userRole === "user" && !allowFeatureBypass && !hasFeature(feature)) {
     return <Navigate to="/" replace />;
   }
 
