@@ -1,15 +1,17 @@
 /**
- * moduleSelector.js — Adaptive Module Scoring Engine
+ * moduleSelector.js — Adaptive Module Selection Engine
  *
- * Algorithm:
+ * Pipeline:
  *  1. Merge tagScores from every answered question.
  *  2. Score each candidate module as the sum of tagScores[tag] for each
- *     tag the module declares.
+ *     tag the module declares (scoring math delegated to the Phase 6
+ *     shared scorer `sharedModuleScorer.js`).
  *  3. Enable modules whose score >= THRESHOLD.
  *  4. Enforce MIN_MODULES and MAX_MODULES bounds.
  *  5. Guarantee at least one module per selected challenge area.
  */
 
+import { scoreModule as coreScoreModule, scoreModules as coreScoreModules } from "./sharedModuleScorer.js";
 import { CHALLENGE_MODULE_MAP, getModulesForChallenges } from "@/data/modulesRegistry";
 import { getQuestionsForChallenges } from "./questionEngine.js";
 
@@ -34,14 +36,12 @@ export function buildTagScores(answersByQuestionId = {}, questions = []) {
 
 // ── Score a single module against the accumulated tag scores ──────
 export function scoreModule(tagScores = {}, module) {
-  return (module.tags || []).reduce((sum, tag) => sum + (tagScores[tag] || 0), 0);
+  return coreScoreModule(tagScores, module);
 }
 
 // ── Score all candidate modules and sort descending ───────────────
 export function scoreModules(tagScores = {}, modules = []) {
-  return modules
-    .map((m) => ({ ...m, score: scoreModule(tagScores, m) }))
-    .sort((a, b) => b.score - a.score);
+  return coreScoreModules(tagScores, modules);
 }
 
 // ── Guarantee at least one module per selected challenge area ─────

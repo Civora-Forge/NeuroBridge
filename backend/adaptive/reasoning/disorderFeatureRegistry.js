@@ -1,3 +1,26 @@
+/**
+ * disorderFeatureRegistry.js — Disorder-specific module configuration (Phase 6)
+ *
+ * Ownership boundary (Phase 6 review): this registry does NOT own canonical
+ * feature identity or access authority — `src/lib/featureRegistry.js` owns
+ * FEATURES IDs, FEATURE_REGISTRY labels/disorders, and `resolveEnabledFeatures`.
+ *
+ * This registry is the DISORDER CONFIGURATION layer: it maps each canonical
+ * FEATURES ID to the scoring metadata (title, description, tags, disorders,
+ * path) used by the module-ranking flow (`interventionRanking.js`). IDs are
+ * referenced via `FEATURES` constants rather than duplicated strings, so
+ * canonical identity stays single-sourced in `lib/featureRegistry`.
+ *
+ * The registries remain intentionally separate (spec §21 item 5):
+ *
+ *   lib/featureRegistry        → canonical identity + access authority
+ *   disorderFeatureRegistry    → disorder-specific module scoring config
+ *   support/framework registry → execution lifecycle definitions
+ *   data/modulesRegistry       → onboarding/content metadata
+ *
+ * Ownership: Adaptive Intelligence Engineer
+ */
+
 import { FEATURES } from "@/lib/featureRegistry";
 import { DISORDERS } from "@/lib/disorders";
 
