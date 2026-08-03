@@ -302,6 +302,16 @@ export function decide(input = {}, options = {}) {
   const rejectedEntries = [...restricted.rejected, ...preference.dropped, ...safety.blocked];
   const overrides = [...preference.overrides, ...safety.overrides];
 
+  // Spec §5 availability rules: the trace records which optional input
+  // fragments were present at runtime (role4Signals / userPreferences).
+  const sourceTags = new Set(plan.sources);
+  if (normalized.role4Signals !== undefined) {
+    sourceTags.add("role4_signals");
+  }
+  if (normalized.userPreferences !== undefined) {
+    sourceTags.add("user_preferences");
+  }
+
   const trace = {
     decisionId: plan.decisionTraceId,
     timestamp: plan.timestamp,
@@ -322,7 +332,7 @@ export function decide(input = {}, options = {}) {
     policyVersions: safety.kept.map((entry) => entry.version ?? entry.ruleVersion ?? 1),
     finalActions: plan.actions,
     confidence: plan.overallConfidence,
-    sources: plan.sources,
+    sources: [...sourceTags],
   };
   if (typeof userState?.timestamp === "string") {
     trace.inputRef.userStateRef = userState.timestamp;

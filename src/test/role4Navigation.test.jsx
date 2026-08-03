@@ -29,6 +29,13 @@ vi.mock("@/context/AuthContext", () => ({
 
 vi.mock("@/context/ContextProvider", () => ({
   ContextProvider: ({ children }) => children,
+  useContextState: () => ({
+    context: null,
+    lastUpdated: null,
+    processUserMessage: async () => ({}),
+    refreshContext: async () => ({}),
+  }),
+  resolveModuleFromPath: () => "dashboard",
 }));
 
 vi.mock("@/components/dev/ContextInspector", () => ({
