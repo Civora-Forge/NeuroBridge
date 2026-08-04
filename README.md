@@ -1,6 +1,6 @@
 # NeuroBridge
 
-**Neuro-inclusive, context-aware adaptive support platform**
+**Neuro-inclusive, context-aware adaptive support platform**FDSSFSFER
 
 NeuroBridge is a neuro-inclusive health-assistance web application designed to provide personalized, accessible, and context-aware support for neurodivergent individuals.
 
