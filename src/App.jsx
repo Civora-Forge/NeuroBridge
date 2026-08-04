@@ -264,7 +264,7 @@ function ShellRoutes() {
         <Route
           path="/dyslexia/adaptive-reading"
           element={
-            <ProtectedRoute feature={FEATURES.DYSLEXIA}>
+            <ProtectedRoute feature={FEATURES.DYSLEXIA_ADAPTIVE_READING}>
               <AdaptiveReadingModule />
             </ProtectedRoute>
           }
