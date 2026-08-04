@@ -752,7 +752,7 @@ export const ConflictRecordSchema = z.object({
 });
 
 export const OverrideRecordSchema = z.object({
-  kind: z.enum(["preference", "safety"]),
+  kind: z.enum(["preference", "safety", "hysteresis"]),
   actionId: idSchema.optional(),
   applied: z.boolean(),
   detail: z.string().trim().optional(),
