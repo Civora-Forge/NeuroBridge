@@ -55,6 +55,13 @@ import PatternRecognitionTrainer from "./pages/dyscalculia/PatternRecognitionTra
 import APDPage from "./pages/APDPage";
 import ADHDPage from "./pages/adhd/ADHDPage";
 
+import AnxietyPage from "./pages/AnxietyPage";
+import DyspraxiaDashboard from "./pages/dyspraxia/DyspraxiaDashboard";
+import AOMILibrary from "./pages/dyspraxia/AOMILibrary";
+import HapticPacer from "./pages/dyspraxia/HapticPacer";
+import ARInstructionCards from "./pages/dyspraxia/ARInstructionCards";
+import SafeRoutePlanner from "./pages/dyspraxia/SafeRoutePlanner";
+
 import OCDPage from "./pages/ocd/OCDPage";
 import ERPExposureTracker from "./pages/ocd/ERPExposureTracker";
 import ExposureHierarchyBuilder from "./pages/ocd/ExposureHierarchyBuilder";
@@ -146,7 +153,7 @@ function ShellRoutes() {
         <Route
           path="/asd"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDPage />
             </ProtectedRoute>
           }
@@ -154,7 +161,7 @@ function ShellRoutes() {
         <Route
           path="/asd/routine"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDRoutinePage />
             </ProtectedRoute>
           }
@@ -162,7 +169,7 @@ function ShellRoutes() {
         <Route
           path="/asd/sensory"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDSensoryPage />
             </ProtectedRoute>
           }
@@ -170,7 +177,7 @@ function ShellRoutes() {
         <Route
           path="/asd/stories"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDStoriesPage />
             </ProtectedRoute>
           }
@@ -178,7 +185,7 @@ function ShellRoutes() {
         <Route
           path="/asd/meltdown"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDMeltdownPage />
             </ProtectedRoute>
           }
@@ -186,7 +193,7 @@ function ShellRoutes() {
         <Route
           path="/asd/emotion"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDEmotionPage />
             </ProtectedRoute>
           }
@@ -448,6 +455,54 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.APD}>
               <APDPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA}>
+              <DyspraxiaDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/aomi-library"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_AOMI}>
+              <AOMILibrary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/haptic-pacer"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_HAPTIC}>
+              <HapticPacer />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/ar-instructions"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_AR}>
+              <ARInstructionCards />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/safe-route"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_ROUTE}>
+              <SafeRoutePlanner />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/anxiety"
+          element={
+            <ProtectedRoute feature={FEATURES.ANXIETY}>
+              <AnxietyPage />
             </ProtectedRoute>
           }
         />
