@@ -68,6 +68,7 @@ describe("useAdaptiveBehavioralEngine (Phase 4 live wiring)", () => {
     expect(result.current.enabled).toBe(true);
     expect(result.current.active).toBe(true);
     expect(result.current.trace).toBeDefined();
+    expect(result.current.trace.userId).toBe(USER);
     expect(result.current.trace.sources).toContain("role4_signals");
     expect(result.current.decisionId).toBe(result.current.plan.decisionTraceId);
     expect(result.current.lastDecisionAt).toBe(result.current.plan.timestamp);

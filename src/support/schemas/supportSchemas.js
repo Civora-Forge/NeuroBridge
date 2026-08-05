@@ -764,6 +764,41 @@ export const PreferenceResultSchema = z.object({
   learnedSignalsUsed: z.array(idSchema).default([]),
 });
 
+/**
+ * D14 requestable preference (spec §5 `userPreferences.requested`, §2 D14).
+ * A request is a positive adaptation the user asks the engine to honor. The
+ * preference tier is implied by the input fragment it arrives in:
+ * `requested` → Tier 2 EXPLICIT_USER_REQUEST, `accessibility` → Tier 4
+ * EXPLICIT_PREFERENCE (soft). The schema is additive and the
+ * `AdaptiveEngineInputSchema.userPreferences` field stays loose so arbitrary
+ * existing fragments remain valid at the boundary.
+ */
+export const PreferenceRequestSchema = z.object({
+  id: idSchema,
+  target: z.nativeEnum(AdaptationDimension),
+  type: z.nativeEnum(AdaptationActionType).optional(),
+  parameters: z.record(z.unknown()).default({}),
+  priority: z.number().int().default(0),
+  confidence: confidenceRange.optional(),
+  reason: z.string().trim().optional(),
+});
+
+/**
+ * D14 hard boundary (spec §5 `userPreferences.restricted`, `MemoryType.
+ * SUPPORT_BOUNDARY`). A restriction is a negative constraint: it suppresses
+ * conflicting candidates on its target (Tier 3 EXPLICIT_RESTRICTION) and never
+ * produces an action of its own. A restriction with neither `type` nor
+ * `parameters` is a blanket ban on adapting that target.
+ */
+export const RestrictionSchema = z.object({
+  id: idSchema,
+  target: z.nativeEnum(AdaptationDimension),
+  type: z.nativeEnum(AdaptationActionType).optional(),
+  parameters: z.record(z.unknown()).default({}),
+  priority: z.number().int().default(0),
+  reason: z.string().trim().optional(),
+});
+
 export const DecisionTraceSchema = z.object({
   decisionId: idSchema,
   timestamp: epochNumber,
