@@ -4,34 +4,66 @@
  * Smallest local flag mechanism for the Adaptive Engine runtime, the UI
  * adaptive execution path, and the reflection wiring. No repository-wide
  * feature-flag convention existed at Phase 3 exploration time, so this module
- * owns three boolean switches and all are OFF by default.
+ * owns three boolean switches.
  *
- * Defaults (must not be changed without explicit approval):
- *   - Adaptive Engine runtime: OFF
- *   - UI adaptive execution:   OFF
- *   - Reflection engine wiring: OFF
+ * Activation is explicit and config-driven, never hardcoded ON: each switch's
+ * product default is read from the Vite environment (`VITE_NEUROBRIDGE_ADAPTIVE_*`)
+ * at module load and defaults to OFF when unset. Production activation is
+ * expressed in `.env.production` (currently only stage A: `runtime`), so it
+ * can be rolled back by editing config without touching code.
  *
- * Activation is explicit and never automatic:
- *   - Runtime decisions can be produced by calling `decide()` directly in
- *     tests/integration without enabling any flag.
- *   - Live UI adaptation in the application stays OFF until a caller enables
- *     `uiExecution` (Phase 4 wiring), so existing rendering is unchanged.
- *   - Reflection (Phase 5) is explicit-only: `reflect()` is a pure function
- *     that never runs inside `decide()`. The `reflection` switch gates the
- *     live `reflectUserHistory()` caller, so when it is OFF no learned
- *     signals are produced and none can be injected into decisions.
+ * Staged activation plan:
+ *   - Stage A (current): `runtime` ON for production builds via config. The
+ *     live app produces decisions + traces only; it never auto-executes
+ *     (execution is the explicit `execute()` step, gated by `uiExecution`).
+ *   - Stage B (future): `reflection` — learned signals feeding Tier 9.
+ *   - Stage C (future): `uiExecution` — UI executor applying actions to live
+ *     rendering. Deliberately OFF: changing live rendering behind a flag still
+ *     needs the executor integration review; unsupported executors (timing /
+ *     notification / assistance / content / task / interaction / pacing) have
+ *     no implementation and stay OFF.
+ *
+ * The pure resolver `resolveDefaultFlags(env)` is exported for tests; the
+ * module default reads the real environment. `decide()` itself is flag-free:
+ * tests/integration may call it directly regardless of switch state.
  *
  * Tests flip switches via configureAdaptiveFlags() and restore the product
- * defaults with resetAdaptiveFlags().
+ * defaults (the env-driven defaults) with resetAdaptiveFlags().
  *
  * Ownership: Adaptive Intelligence Engineer
  */
 
-const DEFAULT_STATE = {
-  runtime: false,
-  uiExecution: false,
-  reflection: false,
-};
+function readEnv() {
+  try {
+    if (typeof import.meta === "undefined" || !import.meta.env) return {};
+    return import.meta.env;
+  } catch {
+    return {};
+  }
+}
+
+function flagFromEnv(env, name) {
+  if (env === null || typeof env !== "object") return false;
+  const value = env[name];
+  return value === true || value === "true" || value === "1";
+}
+
+/**
+ * Resolve the product defaults from an environment object. Pure and
+ * deterministic; honors `true`, `"true"`, and `"1"`, and defaults OFF for
+ * anything else.
+ * @param {object} [env] - Environment record (defaults to `import.meta.env`).
+ * @returns {{ runtime: boolean, uiExecution: boolean, reflection: boolean }}
+ */
+export function resolveDefaultFlags(env = readEnv()) {
+  return {
+    runtime: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME"),
+    uiExecution: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_UI_EXECUTION"),
+    reflection: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_REFLECTION"),
+  };
+}
+
+const DEFAULT_STATE = resolveDefaultFlags();
 
 let state = { ...DEFAULT_STATE };
 

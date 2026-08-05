@@ -5,6 +5,7 @@ import {
   isReflectionEnabled,
   configureAdaptiveFlags,
   resetAdaptiveFlags,
+  resolveDefaultFlags,
 } from "../featureFlags.js";
 
 afterEach(() => {
@@ -52,5 +53,49 @@ describe("feature flags", () => {
     expect(isAdaptiveRuntimeEnabled()).toBe(false);
     expect(isUIExecutionEnabled()).toBe(false);
     expect(isReflectionEnabled()).toBe(false);
+  });
+});
+
+describe("env-driven defaults (resolveDefaultFlags)", () => {
+  it("defaults every switch OFF when no env flags are set", () => {
+    expect(resolveDefaultFlags({})).toEqual({
+      runtime: false,
+      uiExecution: false,
+      reflection: false,
+    });
+    expect(resolveDefaultFlags(undefined)).toEqual({
+      runtime: false,
+      uiExecution: false,
+      reflection: false,
+    });
+    expect(resolveDefaultFlags(null)).toEqual({
+      runtime: false,
+      uiExecution: false,
+      reflection: false,
+    });
+  });
+
+  it("honors the runtime env flag only when truthy", () => {
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "true" }).runtime).toBe(true);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "1" }).runtime).toBe(true);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: true }).runtime).toBe(true);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "false" }).runtime).toBe(false);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "" }).runtime).toBe(false);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: 0 }).runtime).toBe(false);
+  });
+
+  it("keeps uiExecution and reflection OFF unless their env flags are set", () => {
+    const flags = resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_UI_EXECUTION: "true" });
+    expect(flags.uiExecution).toBe(true);
+    expect(flags.reflection).toBe(false);
+    expect(flags.runtime).toBe(false);
+  });
+
+  it("reads each switch independently", () => {
+    const flags = resolveDefaultFlags({
+      VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "true",
+      VITE_NEUROBRIDGE_ADAPTIVE_REFLECTION: "true",
+    });
+    expect(flags).toEqual({ runtime: true, uiExecution: false, reflection: true });
   });
 });

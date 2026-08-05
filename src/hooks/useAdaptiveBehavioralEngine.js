@@ -135,7 +135,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
       try {
-        const outcome = decide(buildInput(snapshot));
+        const outcome = decide(buildInput(snapshot), { userId });
         setDecision({
           plan: outcome.plan,
           trace: outcome.trace,
@@ -149,7 +149,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
     },
-    [enabled, buildInput, setError]
+    [enabled, buildInput, setError, userId]
   );
 
   const runDecision = useCallback(async () => {

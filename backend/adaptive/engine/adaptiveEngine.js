@@ -18,8 +18,10 @@
  * Stage boundaries honored by Phase 3:
  *   - Priority/Conflict reuse Phase 1 ordering (evaluatePolicies) and the
  *     planner; no second conflict resolver is introduced.
- *   - Preference is a declared extension point (reads existing inputs only;
- *     no persistence).
+ *   - Preference (D14) is a real stage (reads `userPreferences` only; no
+ *     persistence). Requestable preferences become Tier 2/4 candidates, hard
+ *     restrictions become Tier 3 filters; an injected `options.preference`
+ *     function replaces the default.
  *   - Safety is a declared extension point (no safety logic is implemented
  *     here). A supplied `safety` function may ALLOW / MODIFY / BLOCK /
  *     ESCALATE each candidate entry; the production default reuses the
@@ -51,6 +53,7 @@ import { isNonNullObject } from "@/adaptive/context/contextSnapshot.js";
 import { safetyGate } from "./safetyGate.js";
 import { runHysteresisStage } from "./hysteresis.js";
 import { resolveConflicts } from "./conflictResolution.js";
+import { applyUserPreferences } from "./preferences.js";
 
 const DEFAULT_SAFETY_RESULT = {
   level: SafetyLevel.STANDARD,
@@ -189,17 +192,24 @@ function applyRestrictedDimensions(entries, moduleContext) {
 }
 
 /**
- * Preference stage (extension point). Without an injected function it is a
- * pass-through with an empty PreferenceResult. A provided function may return
- * `{ actions, result, overrides }`.
+ * Preference stage. Defaults to the D14 real implementation
+ * (`applyUserPreferences`), which reads `context.userPreferences` and turns
+ * requestable preferences into Tier 2/4 candidates and hard restrictions into
+ * Tier 3 filters. An injected function overrides the default entirely and may
+ * return `{ actions, result, overrides }`; `outcome.rejected` is optional and
+ * is appended to the dropped entries.
  */
-function runPreferenceStage(entries, moduleContext, preferenceFn) {
-  if (typeof preferenceFn !== "function") {
-    return { entries, result: { ...EMPTY_PREFERENCE_RESULT }, overrides: [], dropped: [] };
-  }
-  const outcome = preferenceFn(entries, moduleContext) ?? {};
+function runPreferenceStage(entries, context, preferenceFn) {
+  const fn = typeof preferenceFn === "function" ? preferenceFn : applyUserPreferences;
+  const outcome = fn(entries, context) ?? {};
   const nextEntries = Array.isArray(outcome.actions) ? outcome.actions : entries;
   const dropped = entries.filter((entry) => !nextEntries.includes(entry));
+  const extraRejected = Array.isArray(outcome.rejected) ? outcome.rejected : [];
+  for (const entry of extraRejected) {
+    if (!dropped.includes(entry)) {
+      dropped.push(entry);
+    }
+  }
   return {
     entries: nextEntries,
     result: { ...EMPTY_PREFERENCE_RESULT, ...(outcome.result ?? {}) },
@@ -288,8 +298,11 @@ function aggregateSafety(entries) {
  * @param {(entry: object, context: object|null) => object|null} [options.safety]
  *   Safety extension point. Defaults to the production safety gate (D5),
  *   which reuses `assessSupportSafety` and fails closed.
- * @param {(entries: object[], context: object|null) => { actions?: object[], result?: object, overrides?: object[] }} [options.preference]
- *   Preference extension point. Defaults to a pass-through.
+ * @param {(entries: object[], context: object|null) => { actions?: object[], result?: object, overrides?: object[], rejected?: object[] }} [options.preference]
+ *   Preference extension point. Defaults to the D14 real stage
+ *   (`applyUserPreferences`), which reads `userPreferences` from the context
+ *   (`{ moduleContext, userPreferences }`). A custom function replaces the
+ *   default entirely.
  * @param {(trace: object) => void|Promise} [options.persistTrace]
  *   Trace persistence hook for a later integration boundary. Never awaited.
  * @param {string} [options.decisionTraceId]
@@ -354,8 +367,12 @@ export function decide(input = {}, options = {}) {
   // ── 4 CONFLICT (D4) — per-target, highest-precedence candidate wins ──
   const conflict = resolveConflicts(restricted.kept);
 
-  // ── 5 PREFERENCE (extension point) ──
-  const preference = runPreferenceStage(conflict.kept, context, options.preference);
+  // ── 5 PREFERENCE (D14 — requestable preferences honored; learned = tier 9) ──
+  const preference = runPreferenceStage(
+    conflict.kept,
+    { moduleContext: context, userPreferences: normalized.userPreferences },
+    options.preference,
+  );
 
   // ── 6 SAFETY (production default reuses assessSupportSafety; DI preserved) ──
   const safety = runSafetyStage(preference.entries, context, options.safety ?? safetyGate);
