@@ -47,30 +47,6 @@ export default function AppLayout({ children }) {
     navigate("/login-user");
   }
 
-  if (role === "user") {
-    return (
-      <div className="min-h-screen bg-[#f8fafc]">
-        <header className="border-b border-green-100 bg-white">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-semibold text-slate-900">NeuroBridge</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link to="/settings" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
-                <Settings className="h-4 w-4" />
-              </Link>
-              <button onClick={handleLogout} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-        <main>{children}</main>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen w-full">
       {/* ── Sidebar (desktop) ─────────────────── */}

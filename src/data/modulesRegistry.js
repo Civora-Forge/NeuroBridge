@@ -219,7 +219,7 @@ export const MODULES_REGISTRY = {
     title: "Adaptive Reading Module",
     description: "OpenDyslexic reader with TTS, focus mode, reading ruler, and full accessibility controls.",
     icon: "BookOpenText",
-    launchRoute: "/dyslexia/reading-module",
+    launchRoute: "/dyslexia/adaptive-reading",
     tags: ["reading_fatigue", "focus", "tts", "accessibility"],
   },
   "dyscalculia.number-sense": {

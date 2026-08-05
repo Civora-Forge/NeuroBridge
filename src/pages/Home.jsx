@@ -21,7 +21,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-900">
-                Welcome back{user?.name ? `, ${user.name}` : ""}
+                Welcome FRONT{user?.name ? `, ${user.name}` : ""}
               </h1>
               <p className="text-sm text-slate-500">Your personalized support tools are ready below.</p>
             </div>

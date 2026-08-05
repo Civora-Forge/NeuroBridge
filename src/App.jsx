@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ContextProvider, useContextState, resolveModuleFromPath } from "@/context/ContextProvider";
 import ContextInspector from "@/components/dev/ContextInspector";
@@ -40,7 +40,6 @@ import FocusSessions from "./pages/adhd/FocusSessions";
 import BodyDoubling from "./pages/adhd/BodyDoubling";
 
 import DyslexiaDashboard from "./pages/dyslexia/DyslexiaDashboard";
-import DyslexiaReader from "./pages/dyslexia/DyslexiaReader";
 import AdaptiveReadingModule from "./pages/dyslexia/AdaptiveReadingModule";
 import PhonologicalTrainingGenerator from "./pages/dyslexia/PhonologicalTrainingGenerator";
 import MultiSensoryReinforcementMode from "./pages/dyslexia/MultiSensoryReinforcementMode";
@@ -56,6 +55,13 @@ import PatternRecognitionTrainer from "./pages/dyscalculia/PatternRecognitionTra
 
 import APDPage from "./pages/APDPage";
 import ADHDPage from "./pages/adhd/ADHDPage";
+
+import AnxietyPage from "./pages/AnxietyPage";
+import DyspraxiaDashboard from "./pages/dyspraxia/DyspraxiaDashboard";
+import AOMILibrary from "./pages/dyspraxia/AOMILibrary";
+import HapticPacer from "./pages/dyspraxia/HapticPacer";
+import ARInstructionCards from "./pages/dyspraxia/ARInstructionCards";
+import SafeRoutePlanner from "./pages/dyspraxia/SafeRoutePlanner";
 
 import OCDPage from "./pages/ocd/OCDPage";
 import ERPExposureTracker from "./pages/ocd/ERPExposureTracker";
@@ -150,7 +156,7 @@ function ShellRoutes() {
         <Route
           path="/asd"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDPage />
             </ProtectedRoute>
           }
@@ -158,7 +164,7 @@ function ShellRoutes() {
         <Route
           path="/asd/routine"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDRoutinePage />
             </ProtectedRoute>
           }
@@ -166,7 +172,7 @@ function ShellRoutes() {
         <Route
           path="/asd/sensory"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDSensoryPage />
             </ProtectedRoute>
           }
@@ -174,7 +180,7 @@ function ShellRoutes() {
         <Route
           path="/asd/stories"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDStoriesPage />
             </ProtectedRoute>
           }
@@ -182,7 +188,7 @@ function ShellRoutes() {
         <Route
           path="/asd/meltdown"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDMeltdownPage />
             </ProtectedRoute>
           }
@@ -190,7 +196,7 @@ function ShellRoutes() {
         <Route
           path="/asd/emotion"
           element={
-            <ProtectedRoute role="user">
+            <ProtectedRoute feature={FEATURES.ASD}>
               <ASDEmotionPage />
             </ProtectedRoute>
           }
@@ -255,16 +261,14 @@ function ShellRoutes() {
         <Route
           path="/dyslexia/reading-module"
           element={
-            <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <AdaptiveReadingModule />
-            </ProtectedRoute>
+            <Navigate to="/dyslexia/adaptive-reading" replace />
           }
         />
         <Route
           path="/dyslexia/adaptive-reading"
           element={
-            <ProtectedRoute feature={FEATURES.DYSLEXIA}>
-              <DyslexiaReader />
+            <ProtectedRoute feature={FEATURES.DYSLEXIA_ADAPTIVE_READING}>
+              <AdaptiveReadingModule />
             </ProtectedRoute>
           }
         />
@@ -454,6 +458,54 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.APD}>
               <APDPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA}>
+              <DyspraxiaDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/aomi-library"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_AOMI}>
+              <AOMILibrary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/haptic-pacer"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_HAPTIC}>
+              <HapticPacer />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/ar-instructions"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_AR}>
+              <ARInstructionCards />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dyspraxia/safe-route"
+          element={
+            <ProtectedRoute feature={FEATURES.DYSPRAXIA_ROUTE}>
+              <SafeRoutePlanner />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/anxiety"
+          element={
+            <ProtectedRoute feature={FEATURES.ANXIETY}>
+              <AnxietyPage />
             </ProtectedRoute>
           }
         />
