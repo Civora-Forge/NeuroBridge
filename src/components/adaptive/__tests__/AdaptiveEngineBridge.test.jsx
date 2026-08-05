@@ -95,6 +95,42 @@ describe("AdaptiveEngineBridge (Phase 4 in-app wiring)", () => {
     expect(buildRole4SignalsMock).toHaveBeenCalledWith(USER);
   });
 
+  it("forwards userPreferences into decide() unchanged", async () => {
+    configureAdaptiveFlags({ runtime: true });
+    const userPreferences = {
+      accessibility: { reduceMotion: true },
+      requested: [{ id: "pref.ui_minimal", target: "UI", parameters: { mode: "minimal" } }],
+      restricted: [{ id: "restrict.no_ui", target: "UI" }],
+    };
+
+    render(
+      <AdaptiveEngineBridge
+        moduleId="support.focus_session"
+        getSnapshot={() => SNAPSHOT}
+        userId={USER}
+        userPreferences={userPreferences}
+      />,
+    );
+
+    await waitFor(() => expect(decideMock).toHaveBeenCalled());
+    expect(decideMock.mock.calls[0][0].userPreferences).toEqual(userPreferences);
+  });
+
+  it("leaves userPreferences undefined when not provided", async () => {
+    configureAdaptiveFlags({ runtime: true });
+
+    render(
+      <AdaptiveEngineBridge
+        moduleId="support.focus_session"
+        getSnapshot={() => SNAPSHOT}
+        userId={USER}
+      />,
+    );
+
+    await waitFor(() => expect(decideMock).toHaveBeenCalled());
+    expect(decideMock.mock.calls[0][0].userPreferences).toBeUndefined();
+  });
+
   it("honors an explicit `enabled` override from the bridge", async () => {
     configureAdaptiveFlags({ runtime: true });
 

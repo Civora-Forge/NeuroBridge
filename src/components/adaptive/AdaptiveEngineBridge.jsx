@@ -3,8 +3,9 @@
  *
  * Mounts the Adaptive Engine decision path in the live app. It is a pure,
  * prop-driven boundary: it forwards the live ContextSnapshot producer
- * (`getSnapshot`), the resolved moduleId, and the authenticated userId into
- * the feature-flagged `useAdaptiveBehavioralEngine` hook.
+ * (`getSnapshot`), the resolved moduleId, the authenticated userId, and the
+ * D14 `userPreferences` fragment into the feature-flagged
+ * `useAdaptiveBehavioralEngine` hook.
  *
  * The bridge renders nothing and NEVER executes actions: it only produces
  * decisions (and their traces) when the Adaptive Engine runtime flag is ON.
@@ -20,7 +21,7 @@
 
 import { useAdaptiveBehavioralEngine } from "@/hooks/useAdaptiveBehavioralEngine";
 
-export default function AdaptiveEngineBridge({ moduleId, getSnapshot, userId, enabled }) {
-  useAdaptiveBehavioralEngine({ moduleId, getSnapshot, userId, enabled });
+export default function AdaptiveEngineBridge({ moduleId, getSnapshot, userId, enabled, userPreferences }) {
+  useAdaptiveBehavioralEngine({ moduleId, getSnapshot, userId, enabled, userPreferences });
   return null;
 }
