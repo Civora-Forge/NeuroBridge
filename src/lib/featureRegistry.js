@@ -69,6 +69,7 @@ export const FEATURES = /** @type {const} */ ({
   ASD_STORIES:  "asd.stories",
   ASD_MELTDOWN: "asd.meltdown",
   ASD_EMOTION:  "asd.emotion",
+  ASD_SOCIAL_SCENARIOS: "asd.social-scenarios",
 });
 
 // ─────────────────────────────────────────────

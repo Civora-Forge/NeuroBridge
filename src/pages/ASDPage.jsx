@@ -1,4 +1,4 @@
-import { Brain, BookOpen, Ear, ShieldCheck, Smile, CalendarCheck } from "lucide-react";
+import { Brain, BookOpen, Ear, ShieldCheck, Smile, CalendarCheck, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const tools = [
@@ -7,6 +7,7 @@ const tools = [
   { to: "/asd/stories",  icon: BookOpen,      title: "Social Stories",      desc: "Practice real-world social scenarios at your own pace." },
   { to: "/asd/meltdown", icon: ShieldCheck,   title: "Meltdown Prevention", desc: "Identify triggers and use calming strategies." },
   { to: "/asd/emotion",  icon: Smile,         title: "Emotion Decoder",     desc: "Recognise and express emotions with guided support." },
+  { to: "/asd/social-scenarios", icon: MessageCircle, title: "Social Scenario Simulator", desc: "Practise real conversations with guided feedback." },
 ];
 
 export default function ASDPage() {

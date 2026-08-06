@@ -13,6 +13,7 @@ export const DEFERRED_MODULE_IDS = new Set([
   "support.mood_checkin",
   "support.accountability_session",
   "support.soundscape",
+  "asd.social-scenarios",
 ]);
 
 async function startPlaceholderExecutor() {
