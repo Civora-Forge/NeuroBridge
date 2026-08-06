@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ContextProvider, useContextState, resolveModuleFromPath } from "@/context/ContextProvider";
 import ContextInspector from "@/components/dev/ContextInspector";
 import AdaptiveEngineBridge from "@/components/adaptive/AdaptiveEngineBridge";
+import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
 import { FEATURES } from "@/lib/featureRegistry";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -31,6 +32,7 @@ import ASDSensoryPage from "./pages/asd/ASDSensoryPage";
 import ASDStoriesPage from "./pages/asd/ASDStoriesPage";
 import ASDMeltdownPage from "./pages/asd/ASDMeltdownPage";
 import ASDEmotionPage from "./pages/asd/ASDEmotionPage";
+import ASDSocialScenariosPage from "./pages/asd/ASDSocialScenariosPage";
 
 import EmotionCoach from "./pages/adhd/EmotionCoach";
 import VisualTimeline from "./pages/adhd/VisualTimeline";
@@ -79,21 +81,23 @@ import EvidenceFolder from "./pages/depression/EvidenceFolder";
 
 const queryClient = new QueryClient();
 
-/** Phase 4 app hook-up: feeds the live ContextSnapshot + userId into the
- *  flag-gated Adaptive Engine bridge (renders nothing; inert while the
- *  runtime flag is OFF). */
+/** Phase 4 app hook-up: feeds the live ContextSnapshot + userId + user
+ *  preferences into the flag-gated Adaptive Engine bridge (renders nothing;
+ *  inert while the runtime flag is OFF). */
 function AdaptiveRuntime() {
   const location = useLocation();
   const { user } = useAuth();
   const { context } = useContextState();
   const moduleId = resolveModuleFromPath(location.pathname);
   const getSnapshot = useCallback(() => context, [context]);
+  const userPreferences = useMemo(() => buildUserPreferencesFragment(user), [user]);
 
   return (
     <AdaptiveEngineBridge
       moduleId={moduleId}
       getSnapshot={context != null ? getSnapshot : undefined}
       userId={user?.id}
+      userPreferences={userPreferences}
     />
   );
 }
@@ -195,6 +199,14 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.ASD}>
               <ASDEmotionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/asd/social-scenarios"
+          element={
+            <ProtectedRoute feature={FEATURES.ASD}>
+              <ASDSocialScenariosPage />
             </ProtectedRoute>
           }
         />

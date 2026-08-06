@@ -206,6 +206,14 @@ export const MODULES_REGISTRY = {
     launchRoute: "/asd/emotion",
     tags: ["emotion_regulation", "social_stress"],
   },
+  [FEATURES.ASD_SOCIAL_SCENARIOS]: {
+    id: FEATURES.ASD_SOCIAL_SCENARIOS,
+    title: "Social Scenario Simulator",
+    description: "Practice real conversations with guided feedback and gentle adaptation.",
+    icon: "MessageCircle",
+    launchRoute: "/asd/social-scenarios",
+    tags: ["social_stress", "communication", "practice"],
+  },
   "dyslexia.adaptive-reading": {
     id: "dyslexia.adaptive-reading",
     title: "Adaptive Reading",
@@ -311,6 +319,7 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.ASD_STORIES,
     FEATURES.ASD_MELTDOWN,
     FEATURES.ASD_EMOTION,
+    FEATURES.ASD_SOCIAL_SCENARIOS,
   ],
   dyslexia: [
     "dyslexia.adaptive-reading",

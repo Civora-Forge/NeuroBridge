@@ -255,6 +255,8 @@ function snapshotUserState(userState) {
  * @property {import("../state/userStateModel.js").UserState} userState
  * @property {import("../../../support/framework/moduleContextAdapter.js").ModuleContext} [moduleContext]
  * @property {string} [decisionTraceId] - Provided trace id (else generated)
+ * @property {number|(() => number)} [now] - Deterministic clock for the plan
+ *   timestamp and derived expiry/reEvaluateAt (else Date.now())
  */
 
 /**
@@ -270,9 +272,15 @@ export function buildAdaptationPlan(input = {}) {
     userState,
     moduleContext,
     decisionTraceId,
+    now,
   } = input;
 
-  const timestamp = Date.now();
+  const timestamp =
+    typeof now === "function"
+      ? now()
+      : isNonNegativeFinite(now)
+        ? now
+        : Date.now();
   const planId = createId("plan", timestamp);
   const traceId =
     typeof decisionTraceId === "string" && decisionTraceId.trim().length > 0

@@ -388,6 +388,12 @@ export function evaluatePolicies(rules, resolvedState) {
       action: rule.action,
       matchedGroups,
       matchedTriggers: matchedGroups.flatMap((group) => group.matchedTriggers),
+      // Carry policy-declared metadata through to downstream stages:
+      // hysteresis enforcement (D6) and planner timing/expiry derive from it.
+      confidence: rule.confidence,
+      hysteresis: rule.hysteresis,
+      durationMs: rule.durationMs,
+      expiry: rule.expiry,
     });
   }
 

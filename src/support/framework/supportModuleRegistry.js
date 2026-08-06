@@ -177,6 +177,18 @@ const rawSupportModules = [
     safetyLevel: SafetyLevel.CAUTION,
   },
   {
+    id: FEATURES.ASD_SOCIAL_SCENARIOS,
+    title: "Social Scenario Simulator",
+    description: "Practice real conversations in safe, guided scenarios with gentle feedback.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["social_scenario_simulation", "social_practice"],
+    route: "/asd/social-scenarios",
+    tags: ["social_stress", "communication", "practice"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
+    expectedOutcomeMetrics: ["communication_score", "turns_completed", "scenario_id"],
+    safetyLevel: SafetyLevel.CAUTION,
+  },
+  {
     id: "dyslexia.adaptive-reading",
     title: "Adaptive Reading",
     description: "Practice guided reading with adaptive pacing.",
