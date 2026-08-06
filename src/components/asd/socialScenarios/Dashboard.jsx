@@ -7,6 +7,7 @@ import CategoryFilter from "./CategoryFilter";
 import DifficultySelector from "./DifficultySelector";
 import ScenarioCard from "./ScenarioCard";
 import { StatsRow } from "./HistoryPanel";
+import { toneFor } from "./tones";
 
 export default function Dashboard({
   stats,
@@ -32,13 +33,18 @@ export default function Dashboard({
       />
 
       {savedScenario && (
-        <Card className="border-amber-200 bg-amber-50/60">
+        <Card className={cn("border-2 bg-white shadow-sm", toneFor(savedScenario).border)}>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-sm font-semibold text-amber-800">You have a conversation in progress</p>
-              <p className="text-sm text-amber-700">
-                “{savedScenario.title}” · pick up right where you left off.
-              </p>
+            <div className="flex items-start gap-3">
+              <span className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl border", toneFor(savedScenario).bg, toneFor(savedScenario).border)}>
+                {["🎓", "💼", "🛒", "💬"][["college", "workplace", "daily_life", "relationships"].indexOf(savedScenario.category)] ?? "🗣️"}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">You have a conversation in progress</p>
+                <p className="text-sm text-slate-500">
+                  “{savedScenario.title}” · pick up right where you left off.
+                </p>
+              </div>
             </div>
             <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={onResume}>
               <PlayCircle className="h-4 w-4 mr-2" /> Resume
@@ -58,7 +64,7 @@ export default function Dashboard({
       </div>
 
       {scenarios.length === 0 ? (
-        <Card className="border-green-100">
+        <Card className="border-emerald-100">
           <CardContent className="pt-6 text-center text-sm text-slate-500">
             No scenarios found in this category.
           </CardContent>

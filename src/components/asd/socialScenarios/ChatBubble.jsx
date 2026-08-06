@@ -9,8 +9,8 @@ export default function ChatBubble({ message, largeText = false }) {
           "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
           largeText && "text-base",
           isNpc
-            ? "bg-white border border-green-100 text-slate-800 rounded-bl-sm"
-            : "bg-green-600 text-white rounded-br-sm",
+            ? "bg-white border border-emerald-100 text-slate-800 rounded-bl-sm"
+            : "bg-emerald-600 text-white rounded-br-sm",
         )}
       >
         {message.text}
