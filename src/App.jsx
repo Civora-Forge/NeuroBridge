@@ -1,14 +1,13 @@
-import { useCallback, useMemo } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { ContextProvider, useContextState, resolveModuleFromPath } from "@/context/ContextProvider";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
+import { ContextProvider } from "@/context/ContextProvider";
 import ContextInspector from "@/components/dev/ContextInspector";
-import AdaptiveEngineBridge from "@/components/adaptive/AdaptiveEngineBridge";
-import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import { AdaptiveRuntimeProvider } from "@/components/adaptive/adaptiveRuntimeContext";
+import AdaptiveUIRuntime from "@/components/adaptive/AdaptiveUIRuntime";
 import { FEATURES } from "@/lib/featureRegistry";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -81,32 +80,13 @@ import EvidenceFolder from "./pages/depression/EvidenceFolder";
 
 const queryClient = new QueryClient();
 
-/** Phase 4 app hook-up: feeds the live ContextSnapshot + userId + user
- *  preferences into the flag-gated Adaptive Engine bridge (renders nothing;
- *  inert while the runtime flag is OFF). */
-function AdaptiveRuntime() {
-  const location = useLocation();
-  const { user } = useAuth();
-  const { context } = useContextState();
-  const moduleId = resolveModuleFromPath(location.pathname);
-  const getSnapshot = useCallback(() => context, [context]);
-  const userPreferences = useMemo(() => buildUserPreferencesFragment(user), [user]);
-
-  return (
-    <AdaptiveEngineBridge
-      moduleId={moduleId}
-      getSnapshot={context != null ? getSnapshot : undefined}
-      userId={user?.id}
-      userPreferences={userPreferences}
-    />
-  );
-}
-
 function ShellRoutes() {
   return (
     <ContextProvider>
-      <AppLayout>
-        <Routes>
+      <AdaptiveRuntimeProvider>
+        <AdaptiveUIRuntime>
+          <AppLayout>
+            <Routes>
         {/* Support-only */}
         <Route
           path="/support-dashboard"
@@ -521,9 +501,10 @@ function ShellRoutes() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-      </AppLayout>
+          </AppLayout>
+        </AdaptiveUIRuntime>
+      </AdaptiveRuntimeProvider>
       <ContextInspector />
-      <AdaptiveRuntime />
     </ContextProvider>
   );
 }

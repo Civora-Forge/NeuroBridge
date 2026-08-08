@@ -29,6 +29,8 @@ backend/.venv/
 
 # Environment variables
 .env
+.env.development
+.env.development.local
 
 # Local Role 4 planning artifacts
 docs/role4/ROLE4_AUDIT.md
