@@ -121,9 +121,14 @@ describe("Adaptive Engine runtime integration — D14 input wiring", () => {
     });
 
     const { result } = await awaitDecision();
-    expect(result.plan.actions).toEqual([]);
     expect(result.trace.preferenceResult.appliedRequests).toEqual([]);
     expect(result.trace.preferenceResult.honoredRestrictions).toEqual(["restrict.no_ui"]);
+    // The UI restriction is honored: no UI action survives the restriction.
+    // Module-scoped actions from the module's own policies target other
+    // dimensions and legitimately remain.
+    expect(
+      result.plan.actions.some((action) => action.target === AdaptationDimension.UI),
+    ).toBe(false);
   });
 
   it("is unchanged when userPreferences is absent at runtime", async () => {

@@ -97,6 +97,29 @@ describe("moduleContextAdapter", () => {
   });
 });
 
+describe("Registered module adaptation contracts", () => {
+  it("carries curated supported dimensions and module-scoped policies", () => {
+    const context = buildModuleContext("support.focus_session");
+    expect(context.supportedAdaptationDimensions).toContain(AdaptationDimension.PACING);
+    expect(context.modulePolicies.length).toBeGreaterThan(0);
+    context.modulePolicies.forEach((policy) => {
+      expect(policy.moduleId).toBe("support.focus_session");
+      expect(policy.scope).toBe(PolicyScope.MODULE);
+      expect(policy.action.target).not.toBe(AdaptationDimension.UI);
+    });
+  });
+
+  it("registers module policies only for modules that declare them", () => {
+    const withPolicies = listModuleContexts().filter(
+      (context) => context.modulePolicies.length > 0,
+    );
+    expect(withPolicies.length).toBeGreaterThan(0);
+    withPolicies.forEach((context) => {
+      expect(context.supportedAdaptationDimensions.length).toBeGreaterThan(0);
+    });
+  });
+});
+
 describe("ModuleContext additive definition fields", () => {
   it("accepts and preserves additive fields on a module definition", () => {
     const context = buildModuleContextFromDefinition({
