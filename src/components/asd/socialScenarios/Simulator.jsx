@@ -87,8 +87,10 @@ export default function Simulator() {
 
   const handleSelectScenario = useCallback(
     (nextId) => {
+      const id = typeof nextId === "string" ? nextId : nextId?.id;
+      if (!id) return;
       practice.reset();
-      setSelectedScenarioId(nextId);
+      setSelectedScenarioId(id);
       setView(VIEWS.PRACTICE);
     },
     [practice],

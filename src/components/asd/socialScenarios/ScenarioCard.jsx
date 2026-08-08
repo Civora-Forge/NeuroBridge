@@ -67,11 +67,11 @@ export default function ScenarioCard({
 
       <div className="mt-auto pt-1 relative">
         {hasSavedSession ? (
-          <Button className={cn("w-full text-white", "bg-amber-500 hover:bg-amber-600")} onClick={() => onSelect(scenario)}>
+          <Button className={cn("w-full text-white", "bg-amber-500 hover:bg-amber-600")} onClick={() => onSelect(scenario.id)}>
             Continue in progress…
           </Button>
         ) : (
-          <Button className={cn("w-full text-white", tone.button)} onClick={() => onSelect(scenario)}>
+          <Button className={cn("w-full text-white", tone.button)} onClick={() => onSelect(scenario.id)}>
             Start practicing
           </Button>
         )}
