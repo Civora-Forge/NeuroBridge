@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import Simulator from "@/components/asd/socialScenarios/Simulator";
+import SocialScenarioSimulatorCard from "@/components/asd/SocialScenarioSimulatorCard";
 import { ArrowLeft } from "lucide-react";
 
 export default function ASDSocialScenariosPage() {
@@ -10,9 +10,9 @@ export default function ASDSocialScenariosPage() {
           to="/asd"
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-green-600 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Sensory & Social Hub
+          <ArrowLeft className="w-4 h-4" /> Back to Social & Emotional Support Hub
         </Link>
-        <Simulator />
+        <SocialScenarioSimulatorCard />
       </div>
     </div>
   );

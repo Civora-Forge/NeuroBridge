@@ -9,10 +9,9 @@
  * `supportModuleRegistry` (with `modulePolicies`) can adopt this to genuinely
  * adapt its content/pacing/task flow to the current user state.
  *
- * The hook never executes actions automatically — it is decision-only, mirror
- * of `useScenarioAdaptation` for the general case. When the engine is
- * disabled or the module has no registered policies, it degrades gracefully
- * to an empty decision.
+ * The hook never executes actions automatically — it is decision-only. When
+ * the engine is disabled or the module has no registered policies, it degrades
+ * gracefully to an empty decision.
  *
  * Ownership: Adaptive Experience Engineer
  */

@@ -661,17 +661,41 @@ const moduleAdaptationSets = {
       },
     ],
   },
-  "asd.sensory": {
+  "asd.emotion-decoder": {
     supportedAdaptationDimensions: [
       AdaptationDimension.PACING,
       AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
     ],
     modulePolicies: [
       {
-        id: "sensory.low_stimulation_on_overload",
+        id: "emotion_decoder.extra_hints_on_distress",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
         priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { showCuesFirst: true, encouragingHints: true },
+        },
+      },
+      {
+        id: "emotion_decoder.simplify_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
         triggerGroups: [
           {
             operator: TriggerGroupOperator.AND,
@@ -687,45 +711,46 @@ const moduleAdaptationSets = {
         action: {
           type: AdaptationActionType.SIMPLIFY,
           target: AdaptationDimension.PACING,
-          parameters: { lowStimulation: true },
-        },
-      },
-      {
-        id: "sensory.calm_flow_on_distress",
-        scope: PolicyScope.MODULE,
-        tier: PriorityTier.CURRENT_STATE,
-        priority: 40,
-        triggerGroups: [
-          {
-            operator: TriggerGroupOperator.AND,
-            triggers: [
-              {
-                dimension: "mood",
-                condition: TriggerCondition.IN,
-                value: ["anxious", "panicked", "overwhelmed"],
-              },
-            ],
-          },
-        ],
-        action: {
-          type: AdaptationActionType.SIMPLIFY,
-          target: AdaptationDimension.CONTENT,
-          parameters: { calmFlow: true },
+          parameters: { oneScenarioAtATime: true, fewerCues: true },
         },
       },
     ],
   },
-  "asd.meltdown": {
+  "asd.social-scenarios": {
     supportedAdaptationDimensions: [
       AdaptationDimension.PACING,
       AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
     ],
     modulePolicies: [
       {
-        id: "meltdown.low_stimulation_on_overload",
+        id: "social_scenarios.extra_hints_on_distress",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
         priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { showCuesFirst: true, encouragingHints: true },
+        },
+      },
+      {
+        id: "social_scenarios.simplify_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
         triggerGroups: [
           {
             operator: TriggerGroupOperator.AND,
@@ -741,30 +766,30 @@ const moduleAdaptationSets = {
         action: {
           type: AdaptationActionType.SIMPLIFY,
           target: AdaptationDimension.PACING,
-          parameters: { lowStimulation: true, minimalSteps: true },
+          parameters: { oneScenarioAtATime: true, fewerCues: true },
         },
       },
       {
-        id: "meltdown.prioritize_calm_on_distress",
+        id: "social_scenarios.slow_pace_on_low_energy",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
-        priority: 40,
+        priority: 30,
         triggerGroups: [
           {
             operator: TriggerGroupOperator.AND,
             triggers: [
               {
-                dimension: "mood",
+                dimension: "energy",
                 condition: TriggerCondition.IN,
-                value: ["anxious", "panicked", "overwhelmed"],
+                value: ["tired", "exhausted"],
               },
             ],
           },
         ],
         action: {
-          type: AdaptationActionType.REORDER,
-          target: AdaptationDimension.CONTENT,
-          parameters: { calmFirst: true },
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", extendedThinkTime: true },
         },
       },
     ],
@@ -917,40 +942,45 @@ const rawSupportModules = [
     repetitionLimit: { maxCount: 6, windowHours: 24 },
   },
   {
-    id: FEATURES.ASD_SENSORY,
-    title: "Sensory Regulation",
-    description: "Adjust sensory load and access calming supports.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["sensory_regulation", "low_stimulation"],
-    route: "/asd/sensory",
-    tags: ["sensory_overload", "overwhelm", "stress_reactivity"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["trigger", "before_level", "after_level"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
-    id: FEATURES.ASD_MELTDOWN,
-    title: "Meltdown Prevention",
-    description: "Use a low-stimulation workflow during overload risk.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["overload_support", "meltdown_prevention"],
-    route: "/asd/meltdown",
-    tags: ["panic", "overwhelm", "sensory_overload"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["risk_level", "steps_completed"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
     id: FEATURES.ASD_SOCIAL_SCENARIOS,
+    moduleId: FEATURES.ASD_SOCIAL_SCENARIOS,
     title: "Social Scenario Simulator",
-    description: "Practice real conversations in safe, guided scenarios with gentle feedback.",
+    description: "Practise responding to one realistic social situation at a time, with voice or text and gentle structured feedback.",
     category: ModuleCategory.SPECIALIZED,
     interventionTypes: ["social_scenario_simulation", "social_practice"],
     route: "/asd/social-scenarios",
     tags: ["social_stress", "communication", "practice"],
     disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["communication_score", "turns_completed", "scenario_id"],
+    expectedOutcomeMetrics: ["attempts", "average_score", "scenario_id"],
+    developmentDomain: "asd",
+    supportedNeeds: ["social_understanding", "communication_practice", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "submit_response", "next", "read_aloud"],
+    configurableParameters: { category: true, difficulty: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["attempts", "average_score", "scenario_id"],
     safetyLevel: SafetyLevel.CAUTION,
+  },
+  {
+    id: "asd.emotion-decoder",
+    moduleId: "asd.emotion-decoder",
+    title: "Emotion Decoder",
+    description: "Practise reading what someone might be feeling from their voice, face and body, with gentle feedback.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["emotion_recognition", "social_understanding"],
+    route: "/asd/emotion",
+    tags: ["emotion_recognition", "social_cues", "practice"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
+    expectedOutcomeMetrics: ["attempts", "accuracy", "hints_used"],
+    developmentDomain: "asd",
+    supportedNeeds: ["emotion_recognition", "social_understanding", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "answer", "next", "read_aloud"],
+    configurableParameters: { difficulty: true, activityType: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["attempts", "accuracy", "hints_used"],
   },
   {
     id: "dyslexia.adaptive-reading",

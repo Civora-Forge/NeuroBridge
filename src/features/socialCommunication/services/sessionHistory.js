@@ -5,7 +5,7 @@
  * contract (saveInterventionOutcome) so history is queryable and consistent
  * with every other module — no new database architecture. An in-progress
  * session is additionally mirrored to the user's own localStorage for resume
- * after a refresh, matching the scenarioStore convention.
+ * after a refresh, matching the other support modules' storage convention.
  *
  * Privacy: transcripts are never written to Role 4. Metrics only.
  */
@@ -15,7 +15,6 @@ import {
   COMMUNICATION_STORAGE_PREFIX,
   SESSION_STATUS,
 } from "../types/communicationTypes";
-import { computeStreak } from "@/support/modules/socialScenarioSimulator/scenarioStore";
 import { listInterventionOutcomes, saveInterventionOutcome } from "@/support/persistence/role4Store";
 import {
   InterventionStatus,
@@ -26,6 +25,61 @@ import {
 
 function normalizeUserId(userId) {
   return userId ? String(userId) : null;
+}
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function toDateKey(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export function computeStreak(sessions) {
+  const dates = [
+    ...new Set(
+      (Array.isArray(sessions) ? sessions : [])
+        .filter((session) => session?.completedAt)
+        .map((session) => toDateKey(session.completedAt))
+        .filter(Boolean),
+    ),
+  ].sort();
+
+  if (dates.length === 0) {
+    return { current: 0, best: 0, lastPracticedOn: null };
+  }
+
+  const dayMs = 86400000;
+  const timeOf = (key) => new Date(`${key}T00:00:00`).getTime();
+
+  let best = 1;
+  let run = 1;
+  for (let index = 1; index < dates.length; index += 1) {
+    const gap = (timeOf(dates[index]) - timeOf(dates[index - 1])) / dayMs;
+    run = gap === 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+  }
+
+  const today = toDateKey(new Date());
+  const yesterday = toDateKey(new Date(Date.now() - dayMs));
+  const lastPracticedOn = dates.includes(today) ? today : dates.includes(yesterday) ? yesterday : null;
+
+  let current = 0;
+  if (lastPracticedOn) {
+    let index = dates.indexOf(lastPracticedOn);
+    let streak = 1;
+    while (index > 0) {
+      const gap = (timeOf(dates[index]) - timeOf(dates[index - 1])) / dayMs;
+      if (gap !== 1) break;
+      streak += 1;
+      index -= 1;
+    }
+    current = streak;
+  }
+
+  return { current, best, lastPracticedOn };
 }
 
 function storageKey(userId) {

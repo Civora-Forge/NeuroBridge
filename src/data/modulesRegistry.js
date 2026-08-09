@@ -166,22 +166,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/ocd/progress",
     tags: ["progress", "exposure", "patterns"],
   },
-  [FEATURES.ASD_ROUTINE]: {
-    id: FEATURES.ASD_ROUTINE,
-    title: "Routine Visualizer",
-    description: "Build and track daily routines with visual timeline support.",
-    icon: "Clock",
-    launchRoute: "/asd/routine",
-    tags: ["routine", "stability"],
-  },
-  [FEATURES.ASD_SENSORY]: {
-    id: FEATURES.ASD_SENSORY,
-    title: "Sensory Regulation",
-    description: "Tune sensory thresholds and access calming tools.",
-    icon: "Activity",
-    launchRoute: "/asd/sensory",
-    tags: ["sensory_overload", "overwhelm"],
-  },
   [FEATURES.ASD_STORIES]: {
     id: FEATURES.ASD_STORIES,
     title: "Social Story Builder",
@@ -189,14 +173,6 @@ export const MODULES_REGISTRY = {
     icon: "BookOpen",
     launchRoute: "/asd/stories",
     tags: ["social_stress", "communication"],
-  },
-  [FEATURES.ASD_MELTDOWN]: {
-    id: FEATURES.ASD_MELTDOWN,
-    title: "Meltdown Prevention",
-    description: "Risk awareness and calming workflow for overload moments.",
-    icon: "Shield",
-    launchRoute: "/asd/meltdown",
-    tags: ["panic", "overwhelm"],
   },
   [FEATURES.ASD_EMOTION]: {
     id: FEATURES.ASD_EMOTION,
@@ -322,10 +298,7 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.OCD_PROGRESS,
   ],
   asd: [
-    FEATURES.ASD_ROUTINE,
-    FEATURES.ASD_SENSORY,
     FEATURES.ASD_STORIES,
-    FEATURES.ASD_MELTDOWN,
     FEATURES.ASD_EMOTION,
     FEATURES.ASD_SOCIAL_SCENARIOS,
     FEATURES.COMMUNICATION,
