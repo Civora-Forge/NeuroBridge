@@ -70,6 +70,9 @@ export const FEATURES = /** @type {const} */ ({
   ASD_MELTDOWN: "asd.meltdown",
   ASD_EMOTION:  "asd.emotion",
   ASD_SOCIAL_SCENARIOS: "asd.social-scenarios",
+
+  // ── Cross-disorder communication practice ──
+  COMMUNICATION: "communication.simulator",
 });
 
 // ─────────────────────────────────────────────
@@ -259,6 +262,10 @@ export const FEATURE_REGISTRY = {
   [FEATURES.ASD_EMOTION]: {
     label: "Emotional Check-in",
     disorders: [DISORDERS.ASD],
+  },
+  [FEATURES.COMMUNICATION]: {
+    label: "Conversation Practice",
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY, DISORDERS.ADHD, DISORDERS.APD],
   },
 };
 

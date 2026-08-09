@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { Clock, Timer, Brain, Activity, Leaf, BookOpen, Calculator, Shield, Hand, Ear, Zap, Headphones, Mic, PenTool, User, Map, BarChart2, Wind, Smile, MessageCircle } from "lucide-react";
+import { Clock, Timer, Brain, Activity, Leaf, BookOpen, Calculator, Shield, Hand, Ear, Zap, Headphones, Mic, PenTool, User, Map, BarChart2, Wind, Smile, MessageCircle, MessagesSquare } from "lucide-react";
 
 const ICONS = {
   Clock, Timer, Brain, Activity, Leaf, BookOpen, Calculator, Shield,
   Hand, Ear, Zap, Headphones, Mic, PenTool, User, Map, BarChart2, Wind, Smile, MessageCircle,
+  MessagesSquare,
 };
 
 export default function ModuleCard({ title, description, icon = "Activity", launchRoute = "/" }) {

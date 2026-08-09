@@ -1099,6 +1099,28 @@ const rawSupportModules = [
     actions: ["save_entry", "complete", "abandon"], configurableParameters: { category: true }, launchPolicy: "confirmation_required",
     lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned", "rated"], outcomeFields: ["entries_saved", "rating"], legacyIds: [],
   },
+  {
+    id: FEATURES.COMMUNICATION,
+    moduleId: FEATURES.COMMUNICATION,
+    title: "Conversation Practice",
+    description: "Practice real conversations with an AI partner, using voice or text, with structured feedback and adaptive difficulty.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["communication_simulation", "social_practice"],
+    route: "/communication",
+    tags: ["communication", "social_practice", "conversation"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY, DISORDERS.ADHD, DISORDERS.APD],
+    expectedOutcomeMetrics: ["communication_score", "turns_completed", "difficulty"],
+    safetyLevel: SafetyLevel.CAUTION,
+    developmentDomain: "general",
+    supportedNeeds: ["communication_practice", "social_practice", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "adhd", "apd", "general"],
+    actions: ["start", "submit_reply", "pause", "resume", "complete", "abandon"],
+    configurableParameters: { domain: true, difficulty: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "completed", "abandoned", "rated"],
+    outcomeFields: ["communication_score", "turns_completed", "difficulty"],
+    legacyIds: [],
+  },
 ];
 
 export const SUPPORT_MODULES = rawSupportModules.map((module) =>
