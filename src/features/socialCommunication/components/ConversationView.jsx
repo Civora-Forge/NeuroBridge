@@ -198,10 +198,25 @@ export default function ConversationView({ engine }) {
           </Button>
         </div>
 
-        {voice.supported && !isPaused && (
+        {voice.supported && !isPaused && !voice.listening && (
           <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
             <Mic className="w-3 h-3" /> Tap the mic and speak, or type. You can use both.
           </p>
+        )}
+
+        {voice.supported && voice.listening && (
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-medium text-red-600">
+            <span className="relative flex h-2 w-2" aria-hidden="true">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+            </span>
+            <span>
+              Listening… {voice.listeningFor}s — speak now
+            </span>
+            <button type="button" className="underline hover:no-underline" onClick={voice.stop}>
+              stop
+            </button>
+          </div>
         )}
       </div>
     </div>

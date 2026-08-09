@@ -169,6 +169,10 @@ export const EvaluationInsightsSchema = z.object({
   overallComment: z.string().trim().min(1).optional(),
 });
 
+export const ToneAssessmentSchema = z.object({
+  toneScore: z.number().min(0).max(100),
+});
+
 // ─────────────────────────────────────────────
 //  Feature-level mode config (per-disorder overrides)
 // ─────────────────────────────────────────────

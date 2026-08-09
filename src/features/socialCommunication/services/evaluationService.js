@@ -6,7 +6,11 @@
  * text/transcript features — never from an arbitrary LLM judgement. An
  * optional AI refinement may enrich only the QUALITATIVE fields (strengths,
  * improvements, alternatives, comment); scores are always owned by this
- * module. No dimension penalises eye contact, gestures, accent, or register.
+ * module. The `tone` dimension may additionally blend in an optional AI
+ * politeness rating (clamped, only when available) so that rudeness which is
+ * hard to detect from surface words — sarcasm, passive aggression — is still
+ * caught once an API key is configured. No dimension penalises eye contact,
+ * gestures, accent, or register.
  */
 
 import {
@@ -16,7 +20,7 @@ import {
   SCORE_BANDS,
   SPEAKER,
 } from "../types/communicationTypes";
-import { generateEvaluationInsights } from "./aiService";
+import { generateEvaluationInsights, generateToneAssessment } from "./aiService";
 import { countWords } from "./speechAnalysis";
 
 const STOPWORDS = new Set([
@@ -44,9 +48,36 @@ const POLITE_PATTERNS = [
   /\bif that's okay\b/, /\bif that works\b/, /\bsorry\b/, /\bno problem\b/,
 ];
 
-const HOSTILE_PATTERNS = [
-  /\bshut up\b/, /\bwhatever\b/i, /\bstupid\b/, /\bidiot\b/, /\bhate you\b/,
+// Rudeness is hard to detect from words alone; these are deliberately
+// conservative so we never penalise a person for setting a boundary or
+// asserting a preference. Each pattern carries a severity weight.
+const RUDENESS_PATTERNS = [
+  { pattern: /\b(shut up|stupid|idiot|moron|dumb|loser|jerk|annoying|clueless|ridiculous)\b/i, weight: 2 },
+  { pattern: /\bdamn\b/i, weight: 1 },
+  { pattern: /\b(give me|gimme|you must|do it now|right now|listen to me|go away)\b/i, weight: 2 },
+  { pattern: /\b(whatever|i don't care|i do not care|not my problem|not your problem|so what|who cares|big deal)\b/i, weight: 2 },
+  { pattern: /\b(your fault|you always|you never|this is on you)\b/i, weight: 2 },
 ];
+
+/**
+ * Conservative surface signal for rudeness. Returns a severity score plus a
+ * flag for all-caps shouting (short, uppercase-heavy turns).
+ */
+function computeRudeness(text) {
+  if (!text) return { severity: 0, hasYelling: false };
+  let severity = 0;
+  for (const { pattern, weight } of RUDENESS_PATTERNS) {
+    const matches = text.match(pattern);
+    if (matches) severity += matches.length * weight;
+  }
+  const words = text.split(/\s+/).filter(Boolean);
+  const hasYelling =
+    words.length > 0 &&
+    words.length <= 20 &&
+    words.some((word) => word.length >= 3 && word === word.toUpperCase() && /[A-Z]/.test(word));
+  if (hasYelling) severity += 2;
+  return { severity, hasYelling };
+}
 
 function clamp(value, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(value)));
@@ -107,15 +138,20 @@ const DIMENSION_SCORERS = {
     if (allLong && questionCount === 0) score -= 12;
     return clamp(score);
   },
-  tone({ politeCount, hostileCount }) {
-    let score = 80;
-    if (politeCount > 0) score += Math.min(10, politeCount * 3);
-    if (hostileCount > 0) score -= Math.min(35, hostileCount * 15);
+  tone({ politeCount, rudenessScore, hasYelling, aiToneScore }) {
+    let score = 82;
+    if (politeCount > 0) score += Math.min(10, politeCount * 2);
+    score -= Math.min(65, rudenessScore * 8);
+    if (hasYelling) score -= 10;
+    if (Number.isFinite(aiToneScore)) {
+      score = Math.round(score * 0.5 + aiToneScore * 0.5);
+    }
     return clamp(score);
   },
-  emotion({ userTurns, hostileCount }) {
+  emotion({ userTurns, rudenessScore, hasYelling }) {
     let score = 85;
-    if (hostileCount > 0) score -= Math.min(25, hostileCount * 10);
+    score -= Math.min(30, rudenessScore * 5);
+    if (hasYelling) score -= 8;
     const brief = userTurns.filter((text) => countWords(text) < 3).length;
     if (userTurns.length > 0 && brief / userTurns.length > 0.5) score -= 8;
     return clamp(Math.max(55, score));
@@ -175,7 +211,7 @@ function userTurnTexts(session) {
     : [];
 }
 
-export function evaluateSession(session) {
+export function evaluateSession(session, { aiToneScore } = {}) {
   const userTurns = userTurnTexts(session);
   const texts = userTurns.map((turn) => turn.text ?? "");
 
@@ -196,7 +232,9 @@ export function evaluateSession(session) {
   const ackCount = texts.filter((text) => ACK_PATTERNS.some((pattern) => pattern.test(text))).length;
   const questionCount = texts.filter((text) => QUESTION_PATTERNS.some((pattern) => pattern.test(text))).length;
   const politeCount = texts.filter((text) => POLITE_PATTERNS.some((pattern) => pattern.test(text))).length;
-  const hostileCount = texts.filter((text) => HOSTILE_PATTERNS.some((pattern) => pattern.test(text))).length;
+  const rudeness = texts.map(computeRudeness);
+  const rudenessScore = rudeness.reduce((sum, item) => sum + item.severity, 0);
+  const hasYelling = rudeness.some((item) => item.hasYelling);
 
   const goal = session?.scenario?.goal ?? "";
   const keywords = goalKeywords(goal);
@@ -226,7 +264,9 @@ export function evaluateSession(session) {
     ackCount,
     questionCount,
     politeCount,
-    hostileCount,
+    rudenessScore,
+    hasYelling,
+    aiToneScore: Number.isFinite(aiToneScore) ? clamp(aiToneScore) : undefined,
     hasSpeech,
     wpm,
     estimatedSilenceMs,
@@ -306,6 +346,27 @@ export function evaluateSession(session) {
       usedFallback: Boolean(session?.scenario?.source === "fallback"),
     },
   };
+}
+
+/**
+ * Ask the model to rate how warm/rude the user's replies sound (0-100). Used
+ * to blend into the `tone` dimension so sarcasm and passive aggression are
+ * caught once an API key is configured. Returns a clamped number or null
+ * when unavailable — never fabricates a rating.
+ */
+export async function assessToneWithAI(session, { apiKey } = {}) {
+  if (!apiKey) return null;
+  const userTurns = userTurnTexts(session).map((turn) => turn.text);
+  try {
+    const assessment = await generateToneAssessment({
+      userTurns,
+      scenario: session?.scenario,
+      apiKey,
+    });
+    return Number.isFinite(assessment?.toneScore) ? clamp(assessment.toneScore) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

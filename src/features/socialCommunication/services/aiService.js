@@ -18,6 +18,7 @@ import {
   EvaluationInsightsSchema,
   NpcTurnSchema,
   ScenarioContentSchema,
+  ToneAssessmentSchema,
 } from "../types/communicationTypes";
 
 const GEMINI_MODEL_URL =
@@ -185,5 +186,24 @@ export async function generateEvaluationInsights({ evaluation, userTurns, scenar
     `Use warm, non-judgmental language. Never criticise accent, eye contact, gestures or a disability.`;
 
   const result = await callGeminiJson(prompt, EvaluationInsightsSchema, { apiKey, fetchImpl });
+  return result.ok ? result.data : null;
+}
+
+export async function generateToneAssessment({ userTurns, scenario, apiKey, fetchImpl }) {
+  const prompt =
+    `Rate how rude or unfriendly this person sounds in a practice conversation.\n` +
+    `Conversation goal: ${scenario?.goal ?? ""}.\n` +
+    `Their replies: "${clampPromptSlice((userTurns ?? []).join(" | "))}"\n` +
+    `Return ONLY JSON with one key "toneScore": a number 0-100 where 100 is warm and polite, ` +
+    `70 is neutral, and anything under 40 is hostile, rude, condescending or sarcastic. ` +
+    `Consider demanding tone, dismissal, insults, sarcasm and passive aggression — not only profanity. ` +
+    `If there are no replies, use 50.`;
+
+  const result = await callGeminiJson(prompt, ToneAssessmentSchema, {
+    apiKey,
+    fetchImpl,
+    temperature: 0.2,
+    maxOutputTokens: 60,
+  });
   return result.ok ? result.data : null;
 }

@@ -4,8 +4,9 @@ import {
   extractJsonObject,
   generateScenarioContent,
   generateNpcTurn,
+  generateToneAssessment,
 } from "../services/aiService";
-import { NpcTurnSchema, ScenarioContentSchema } from "../types/communicationTypes";
+import { NpcTurnSchema, ScenarioContentSchema, ToneAssessmentSchema } from "../types/communicationTypes";
 
 describe("extractJsonObject", () => {
   it("parses a raw JSON object", () => {
@@ -169,6 +170,40 @@ describe("generateNpcTurn", () => {
       }),
     });
     const result = await generateNpcTurn({ scenario: {}, userTurn: "hi", turnIndex: 1, totalTurns: 3, apiKey: "k", fetchImpl });
+    expect(result).toBeNull();
+  });
+});
+
+describe("generateToneAssessment", () => {
+  it("returns a validated tone score when the AI responds", async () => {
+    const fetchImpl = async () => ({
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: '{"toneScore": 15}' }] } }],
+      }),
+    });
+    const result = await generateToneAssessment({ userTurns: ["whatever"], apiKey: "key", fetchImpl });
+    expect(ToneAssessmentSchema.safeParse(result).success).toBe(true);
+    expect(result.toneScore).toBe(15);
+  });
+
+  it("returns null when the score is out of range", async () => {
+    const fetchImpl = async () => ({
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: '{"toneScore": 500}' }] } }],
+      }),
+    });
+    const result = await generateToneAssessment({ userTurns: [], apiKey: "key", fetchImpl });
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the AI is unavailable", async () => {
+    const result = await generateToneAssessment({
+      userTurns: [],
+      apiKey: "key",
+      fetchImpl: async () => ({ ok: false, status: 429 }),
+    });
     expect(result).toBeNull();
   });
 });
