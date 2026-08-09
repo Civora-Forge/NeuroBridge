@@ -32,6 +32,7 @@ import {
   saveSessionOutcome,
 } from "../services/sessionHistory";
 import { useCommunicationAdaptation } from "./useCommunicationAdaptation";
+import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
 
 export const COMMUNICATION_VIEWS = Object.freeze({
   LAUNCH: "launch",
@@ -66,11 +67,16 @@ export function useSocialCommunication() {
   const [historyStats, setHistoryStats] = useState(null);
   const [a11y, setA11y] = useState(loadA11y);
 
+  const userPreferences = useMemo(
+    () => buildUserPreferencesFragment(user),
+    [user],
+  );
+
   const adaptation = useCommunicationAdaptation({
     userId,
     user,
     session,
-    userPreferences: user?.accessibility ? { accessibility: user.accessibility } : undefined,
+    userPreferences,
   });
 
   const apiKey = getGeminiApiKey();

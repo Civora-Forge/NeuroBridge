@@ -44,7 +44,21 @@ const IDLE_DECISION = {
   lastDecisionAt: null,
 };
 
-const NO_SNAPSHOT = Symbol("no-snapshot");
+/**
+ * Content signature for decision de-duplication. Callers may legitimately
+ * pass unstable references (inline `userPreferences` objects, snapshot
+ * producers that build a fresh object on every call), so reference identity
+ * must never gate re-decide decisions. When the value is not JSON-serializable
+ * the fallback keeps the conservative "re-decide" behaviour rather than
+ * silently skipping a real change.
+ */
+function signatureOf(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return `non-serializable:${Date.now()}:${Math.random()}`;
+  }
+}
 
 /**
  * @param {object} [options]
@@ -85,9 +99,9 @@ export function useAdaptiveBehavioralEngine(options = {}) {
   const [decision, setDecision] = useState(IDLE_DECISION);
   const [execution, setExecution] = useState(null);
 
-  // Tracks the last decision's snapshot + inputs so an unstable producer
-  // identity does not re-run decide() with unchanged data.
-  const lastRunRef = useRef({ snapshot: NO_SNAPSHOT, run: null });
+  // Tracks the signature of the last decision so an unstable producer
+  // identity or option reference does not re-run decide() with unchanged data.
+  const lastRunRef = useRef(null);
 
   const setError = useCallback((error) => {
     setDecision((current) => ({
@@ -184,11 +198,20 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       if (cancelled) {
         return;
       }
+      // Content-based de-duplication: both the snapshot producer and the
+      // optional decision fragments may be reference-unstable across renders
+      // (e.g. an inline `userPreferences` object). Reference equality would
+      // defeat the guard and re-run decide() on every render, producing an
+      // unbounded render → decide → render storm. Comparing the serialized
+      // input content preserves the "re-decide on real change" contract while
+      // ignoring identity churn.
+      const input = buildInput(snapshot);
+      const signature = signatureOf({ snapshot, input, userId });
       const last = lastRunRef.current;
-      if (snapshot === last.snapshot && decideWithSnapshot === last.run) {
+      if (last && last.signature === signature) {
         return;
       }
-      lastRunRef.current = { snapshot, run: decideWithSnapshot };
+      lastRunRef.current = { signature };
       await decideWithSnapshot(snapshot);
     })();
     return () => {
