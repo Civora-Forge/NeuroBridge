@@ -41,6 +41,7 @@ export function createSpeechController(recognition, handlers = {}) {
   let startedAt = null;
   let firstResultAt = null;
   let finalText = "";
+  let pendingInterim = "";
   let cancelled = false;
 
   recognition.onresult = (event) => {
@@ -55,10 +56,13 @@ export function createSpeechController(recognition, handlers = {}) {
     }
     if (final) {
       if (firstResultAt === null) firstResultAt = Date.now();
-      finalText = `${finalText} ${final}`.trim();
+      finalText = `${finalText} ${pendingInterim} ${final}`.replace(/\s{2,}/g, " ").trim();
+      pendingInterim = "";
       onFinal?.(finalText);
+    } else if (interim) {
+      pendingInterim = interim;
+      onInterim?.(interim);
     }
-    if (interim) onInterim?.(interim);
   };
 
   recognition.onerror = (event) => {
@@ -69,7 +73,7 @@ export function createSpeechController(recognition, handlers = {}) {
     const durationMs = startedAt ? Date.now() - startedAt : null;
     const latencyMs = firstResultAt && startedAt ? firstResultAt - startedAt : null;
     if (!cancelled) {
-      onDone?.({ transcript: finalText, durationMs, latencyMs });
+      onDone?.({ transcript: finalText || pendingInterim, durationMs, latencyMs });
     }
     cancelled = false;
     firstResultAt = null;
@@ -78,6 +82,7 @@ export function createSpeechController(recognition, handlers = {}) {
   return {
     start() {
       finalText = "";
+      pendingInterim = "";
       firstResultAt = null;
       startedAt = Date.now();
       cancelled = false;

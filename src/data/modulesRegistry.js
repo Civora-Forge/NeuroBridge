@@ -214,6 +214,14 @@ export const MODULES_REGISTRY = {
     launchRoute: "/asd/social-scenarios",
     tags: ["social_stress", "communication", "practice"],
   },
+  [FEATURES.COMMUNICATION]: {
+    id: FEATURES.COMMUNICATION,
+    title: "Conversation Practice",
+    description: "Practice real conversations by voice or text with an AI partner and structured feedback.",
+    icon: "MessagesSquare",
+    launchRoute: "/communication",
+    tags: ["communication", "social_stress", "practice", "voice"],
+  },
   "dyslexia.adaptive-reading": {
     id: "dyslexia.adaptive-reading",
     title: "Adaptive Reading",
@@ -320,6 +328,7 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.ASD_MELTDOWN,
     FEATURES.ASD_EMOTION,
     FEATURES.ASD_SOCIAL_SCENARIOS,
+    FEATURES.COMMUNICATION,
   ],
   dyslexia: [
     "dyslexia.adaptive-reading",
@@ -343,7 +352,7 @@ export const CHALLENGE_MODULE_MAP = {
     "support.mood_checkin",
     "support.accountability_session",
   ],
-  anxiety: ["support.mood_checkin"],
+  anxiety: ["support.mood_checkin", FEATURES.COMMUNICATION],
   depression: [
     "support.gentle_activity",
     "support.grounding",

@@ -186,7 +186,7 @@ export function evaluateSession(session) {
 
   const fillerCount = texts.reduce((sum, text) => {
     const words = countWords(text);
-    return sum + (words > 0 ? (text.toLowerCase().match(/\b(um|uh|er|erm|ah|hmm|like)\b/g) ?? []).length : 0);
+    return sum + (words > 0 ? (text.toLowerCase().match(/\b(um|uh|er|erm|ah|hmm)\b/g) ?? []).length : 0);
   }, 0);
   const fillerRatio = totalWords > 0 ? fillerCount / totalWords : 0;
 
@@ -252,7 +252,9 @@ export function evaluateSession(session) {
   }, {});
 
   const overallScore = clamp(
-    dimensions.reduce((sum, dimension) => sum + dimension.score, 0) / dimensions.length,
+    userTurns.length === 0
+      ? 25
+      : dimensions.reduce((sum, dimension) => sum + dimension.score, 0) / dimensions.length,
   );
 
   const strengths = [];

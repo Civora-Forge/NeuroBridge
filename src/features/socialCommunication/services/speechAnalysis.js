@@ -6,7 +6,7 @@
  * never penalises accent, register, or word choice.
  */
 
-const FILLER_TOKENS = new Set(["um", "uh", "er", "erm", "ah", "like", "you know", "hmm"]);
+const FILLER_TOKENS = new Set(["um", "uh", "er", "erm", "ah", "you know", "hmm"]);
 const ESTIMATED_MS_PER_WORD = 420;
 
 function toWords(text) {

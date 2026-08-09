@@ -33,6 +33,8 @@ import ASDMeltdownPage from "./pages/asd/ASDMeltdownPage";
 import ASDEmotionPage from "./pages/asd/ASDEmotionPage";
 import ASDSocialScenariosPage from "./pages/asd/ASDSocialScenariosPage";
 
+import SocialCommunicationPage from "./features/socialCommunication/components/SocialCommunicationPage";
+
 import EmotionCoach from "./pages/adhd/EmotionCoach";
 import VisualTimeline from "./pages/adhd/VisualTimeline";
 import TaskBreakdown from "./pages/adhd/TaskBreakdown";
@@ -187,6 +189,14 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.ASD}>
               <ASDSocialScenariosPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/communication"
+          element={
+            <ProtectedRoute feature={FEATURES.COMMUNICATION}>
+              <SocialCommunicationPage />
             </ProtectedRoute>
           }
         />
