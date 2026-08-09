@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as aiService from "../services/aiService";
-import { evaluateSession, refineEvaluationWithAI } from "../services/evaluationService";
+import { assessToneWithAI, evaluateSession, refineEvaluationWithAI } from "../services/evaluationService";
 import { EVALUATION_DIMENSION_IDS, EVALUATION_VERSION } from "../types/communicationTypes";
 
 function buildSession({ turns = [], scenario = { goal: "ask for help finding a book", domain: "requesting_help" } } = {}) {
@@ -64,10 +64,59 @@ describe("evaluateSession", () => {
     expect(short.dimensionScores.tone).toBeGreaterThanOrEqual(70);
   });
 
+  it("penalises openly rude or demanding replies in tone and emotion", () => {
+    const rude = evaluateSession(buildSession({ turns: ["Shut up and give me the book now."] }));
+    expect(rude.dimensionScores.tone).toBeLessThan(60);
+    expect(rude.dimensionScores.emotion).toBeLessThan(75);
+  });
+
+  it("catches dismissive rudeness without an explicit insult", () => {
+    const dismissive = evaluateSession(buildSession({ turns: ["Whatever, this is your fault, I don't care."] }));
+    expect(dismissive.dimensionScores.tone).toBeLessThan(55);
+  });
+
+  it("penalises all-caps shouting", () => {
+    const yelling = evaluateSession(buildSession({ turns: ["GIVE ME THE BOOK NOW"] }));
+    expect(yelling.dimensionScores.tone).toBeLessThan(60);
+  });
+
+  it("keeps polite replies scoring high on tone", () => {
+    const polite = evaluateSession(buildSession({ turns: GOOD_TURNS }));
+    expect(polite.dimensionScores.tone).toBeGreaterThanOrEqual(80);
+  });
+
+  it("blends an AI tone score into the tone dimension when provided", () => {
+    const session = buildSession({ turns: GOOD_TURNS });
+    const noAI = evaluateSession(session);
+    const hostileAI = evaluateSession(session, { aiToneScore: 20 });
+    expect(hostileAI.dimensionScores.tone).toBeLessThan(noAI.dimensionScores.tone);
+    expect(hostileAI.dimensionScores.tone).toBeGreaterThanOrEqual(20);
+  });
+
   it("keeps speech features optional and safe", () => {
     const evaluation = evaluateSession(buildSession({ turns: GOOD_TURNS }));
     expect(evaluation.stats.voiceTurns).toBe(2);
     expect(evaluation.stats.textTurns).toBe(2);
+  });
+});
+
+describe("assessToneWithAI", () => {
+  it("returns null without an api key", async () => {
+    expect(await assessToneWithAI(buildSession({ turns: GOOD_TURNS }), { apiKey: "" })).toBeNull();
+  });
+
+  it("returns a clamped numeric score when the model responds", async () => {
+    const spy = vi.spyOn(aiService, "generateToneAssessment").mockResolvedValue({ toneScore: 18 });
+    const score = await assessToneWithAI(buildSession({ turns: ["whatever"] }), { apiKey: "key" });
+    expect(score).toBe(18);
+    spy.mockRestore();
+  });
+
+  it("returns null when the model is unavailable", async () => {
+    const spy = vi.spyOn(aiService, "generateToneAssessment").mockResolvedValue(null);
+    const score = await assessToneWithAI(buildSession({ turns: ["whatever"] }), { apiKey: "key" });
+    expect(score).toBeNull();
+    spy.mockRestore();
   });
 });
 

@@ -21,7 +21,7 @@ import {
   retryLastUserTurn,
   submitUserTurn,
 } from "../services/conversationService";
-import { evaluateSession, refineEvaluationWithAI } from "../services/evaluationService";
+import { assessToneWithAI, evaluateSession, refineEvaluationWithAI } from "../services/evaluationService";
 import { computeNextDifficulty } from "../services/difficultyController";
 import {
   clearActiveSession,
@@ -172,7 +172,11 @@ export function useSocialCommunication() {
 
   const showFeedback = useCallback(
     async (finished) => {
-      let evaluation = evaluateSession(finished);
+      let aiToneScore = null;
+      if (apiKey) {
+        aiToneScore = await assessToneWithAI(finished, { apiKey });
+      }
+      let evaluation = evaluateSession(finished, { aiToneScore });
       if (apiKey) {
         const refined = await refineEvaluationWithAI(evaluation, {
           session: finished,
