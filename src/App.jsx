@@ -27,9 +27,7 @@ import ToolWorkspace from "./pages/ToolWorkspace";
 
 import ASDPage from "./pages/ASDPage";
 import ASDRoutinePage from "./pages/asd/ASDRoutinePage";
-import ASDSensoryPage from "./pages/asd/ASDSensoryPage";
 import ASDStoriesPage from "./pages/asd/ASDStoriesPage";
-import ASDMeltdownPage from "./pages/asd/ASDMeltdownPage";
 import ASDEmotionPage from "./pages/asd/ASDEmotionPage";
 import ASDSocialScenariosPage from "./pages/asd/ASDSocialScenariosPage";
 
@@ -153,26 +151,10 @@ function ShellRoutes() {
           }
         />
         <Route
-          path="/asd/sensory"
-          element={
-            <ProtectedRoute feature={FEATURES.ASD}>
-              <ASDSensoryPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/asd/stories"
           element={
             <ProtectedRoute feature={FEATURES.ASD}>
               <ASDStoriesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/asd/meltdown"
-          element={
-            <ProtectedRoute feature={FEATURES.ASD}>
-              <ASDMeltdownPage />
             </ProtectedRoute>
           }
         />

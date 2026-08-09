@@ -184,8 +184,10 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading");
     expect(resolveCanonicalModuleId("/dyscalculia/step-practice")).toBe("dyscalculia.step-practice");
     expect(resolveCanonicalModuleId("/dyscalculia/calm-mode")).toBe("dyscalculia.calm-mode");
-    expect(resolveCanonicalModuleId("/asd/sensory")).toBe("asd.sensory");
-    expect(resolveCanonicalModuleId("/asd/meltdown")).toBe("asd.meltdown");
+    expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
+    expect(resolveCanonicalModuleId("/asd/routine")).toBe("asd.routine-breakdown");
+    expect(resolveCanonicalModuleId("/asd/sensory")).toBeNull();
+    expect(resolveCanonicalModuleId("/asd/meltdown")).toBeNull();
   });
 
   it("handles queries, root, and unknown routes", () => {

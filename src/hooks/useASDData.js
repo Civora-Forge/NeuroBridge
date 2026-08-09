@@ -1,55 +1,19 @@
 /**
- * useASDData.js — React adapter that wires ASD module data (routines, sensory
- * profile, social stories, meltdown logs, emotion check-in) into the standalone
- * feature pages. Extracted from the legacy ASDModule tab container so each
- * /asd/* page can render its feature component with live props.
+ * useASDData.js — React adapter that wires ASD module data (routines, social
+ * stories) into the standalone feature pages so each /asd/* page can render
+ * its feature component with live props.
  */
 
 import { useEffect, useState } from "react";
 import { useAuth, CARE_LINK_REGISTRY, MOCK_WARD_ACTIVITY } from "@/context/AuthContext";
 import { loadWardTasks, saveWardTasks, toAsdRoutineTask, fromAsdRoutineTask } from "@/support/stores/wardTaskStore";
-import { loadWardSyncData, pushWardActivity, pushWardAlert } from "@/support/stores/careSyncStore";
+import { pushWardActivity, pushWardAlert } from "@/support/stores/careSyncStore";
 
 const ROLE_FALLBACK = "user";
-const ASD_PROFILE_PREFIX = "nb_asd_profile_";
 const ASD_STORIES_PREFIX = "nb_asd_stories_";
-const ASD_MELTDOWN_PREFIX = "nb_asd_meltdown_";
 const RUNTIME_SYNC_WARD_KEY = "nb_runtime_sync_ward_id";
 
 const createStep = (id, text, image_url = "") => ({ id, text, image_url });
-
-const EMOTION_STATES = [
-  {
-    label: "Calm",
-    supportText: "I feel calm. I can continue my plan one small step at a time.",
-    risk: "low",
-  },
-  {
-    label: "Excited",
-    supportText: "I feel excited. I will take one deep breath so my body stays steady.",
-    risk: "low",
-  },
-  {
-    label: "Worried",
-    supportText: "I feel worried. I can ask one clear question and use my breathing card.",
-    risk: "moderate",
-  },
-  {
-    label: "Frustrated",
-    supportText: "I feel frustrated. I can pause, stretch my hands, and try again slowly.",
-    risk: "moderate",
-  },
-  {
-    label: "Overwhelmed",
-    supportText: "I feel overwhelmed. I need a quiet break and support from my coping plan.",
-    risk: "high",
-  },
-  {
-    label: "Upset",
-    supportText: "I feel upset. I will move to a safe space and do five calm breaths.",
-    risk: "high",
-  },
-];
 
 const getBuiltInStories = (name = "the child") => [
   {
@@ -274,17 +238,12 @@ export function useASDData() {
   const [targetWardId, setTargetWardId] = useState(null);
 
   const [routines, setRoutines] = useState([]);
-  const [sensoryProfile, setSensoryProfile] = useState(null);
   const [stories, setStories] = useState([]);
-  const [meltdownLogs, setMeltdownLogs] = useState([]);
-  const [emotionCheckin, setEmotionCheckin] = useState("Calm");
 
   const isGuardian = role === "guardian";
   const isManagerMode = isGuardian || role === "admin";
   const canEditRoutine = isManagerMode;
   const canManageStories = isManagerMode;
-  const canViewMeltdownLogs = isManagerMode;
-  const canUseCalmingTools = role === "user" || role === "guardian";
 
   useEffect(() => {
     if (authLoading) return;
@@ -317,19 +276,8 @@ export function useASDData() {
     const wardTaskList = loadAndNormalizeWardTasks({ targetWardId, appUser, currentUser });
     setRoutines(wardTaskList.map((task) => toAsdRoutineTask(task, targetWardId)));
 
-    setSensoryProfile(
-      readJson(`${ASD_PROFILE_PREFIX}${targetWardId}`, {
-        user_id: targetWardId,
-        sound_threshold: 60,
-        light_threshold: 60,
-        crowd_threshold: 50,
-        notes: "Local ASD profile",
-      }),
-    );
-
     const customStories = readJson(`${ASD_STORIES_PREFIX}${targetWardId}`, []);
     setStories([...builtInStories, ...customStories]);
-    setMeltdownLogs(readJson(`${ASD_MELTDOWN_PREFIX}${targetWardId}`, []));
 
     setLoading(false);
   }, [targetWardId, currentUser?.id, currentUser?.name, role, appUser?.id, appUser?.careLinkId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -340,11 +288,9 @@ export function useASDData() {
     const refresh = () => {
       const wardTaskList = loadAndNormalizeWardTasks({ targetWardId, appUser, currentUser });
       setRoutines(wardTaskList.map((task) => toAsdRoutineTask(task, targetWardId)));
-      setSensoryProfile(readJson(`${ASD_PROFILE_PREFIX}${targetWardId}`, sensoryProfile || null));
       const builtInStories = getBuiltInStories(currentUser?.name || "the child");
       const customStories = readJson(`${ASD_STORIES_PREFIX}${targetWardId}`, []);
       setStories([...builtInStories, ...customStories]);
-      setMeltdownLogs(readJson(`${ASD_MELTDOWN_PREFIX}${targetWardId}`, []));
     };
 
     const refreshFromFocus = () => {
@@ -370,7 +316,7 @@ export function useASDData() {
       window.removeEventListener("focus", refreshFromFocus);
       document.removeEventListener("visibilitychange", refreshFromVisibility);
     };
-  }, [targetWardId, currentUser?.name, currentUser?.id, role, sensoryProfile, appUser?.id, appUser?.careLinkId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetWardId, currentUser?.name, currentUser?.id, role, appUser?.id, appUser?.careLinkId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const persistRoutines = (nextRoutines) => {
     if (!targetWardId) return;
@@ -467,13 +413,6 @@ export function useASDData() {
     }
   };
 
-  const saveThresholds = (payload) => {
-    if (!canEditRoutine || !targetWardId) return;
-    const next = { ...sensoryProfile, ...payload };
-    setSensoryProfile(next);
-    writeJson(`${ASD_PROFILE_PREFIX}${targetWardId}`, next);
-  };
-
   const createStory = ({ title, content, steps }) => {
     if (!canManageStories || !targetWardId) return;
 
@@ -524,59 +463,6 @@ export function useASDData() {
     setStories([...getBuiltInStories(currentUser?.name || "the child"), ...nextCustom]);
   };
 
-  const createMeltdownLog = (payload) => {
-    if (!canUseCalmingTools || !targetWardId) return;
-
-    const entry = {
-      id: `local-log-${Date.now()}`,
-      user_id: targetWardId,
-      created_at: new Date().toISOString(),
-      ...payload,
-    };
-
-    const next = [entry, ...meltdownLogs];
-    setMeltdownLogs(next);
-    writeJson(`${ASD_MELTDOWN_PREFIX}${targetWardId}`, next);
-
-    pushWardAlert(targetWardId, {
-      level: payload?.risk_level === "high" ? "high" : "medium",
-      message: payload?.notes || "Coping mode activated",
-      source: "ward",
-      kind: payload?.event_type || "meltdown-log",
-    });
-  };
-
-  const readEmotionAloud = (text) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) {
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new window.SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleSelectEmotion = (state) => {
-    if (!state) return;
-    setEmotionCheckin(state.label);
-    readEmotionAloud(`${state.label}. ${state.supportText}`);
-    if (targetWardId) {
-      pushWardActivity(targetWardId, {
-        event: `Emotion selected: ${state.label}`,
-        type: "neutral",
-      });
-    }
-
-    if (state.risk === "high" || state.risk === "moderate") {
-      createMeltdownLog({
-        event_type: "emotional-checkin",
-        notes: `Emotion selected: ${state.label}`,
-        risk_level: state.risk,
-      });
-    }
-  };
-
   return {
     loading,
     error,
@@ -584,24 +470,14 @@ export function useASDData() {
     targetWardId,
     canEditRoutine,
     canManageStories,
-    canViewMeltdownLogs,
-    canUseCalmingTools,
     routines,
-    sensoryProfile,
     stories,
-    meltdownLogs,
-    emotionStates: EMOTION_STATES,
-    selectedEmotion: emotionCheckin,
     addRoutineTask,
     toggleTaskCompletion,
     editRoutineTask,
     deleteRoutineTask,
-    saveThresholds,
     createStory,
     updateStory,
     deleteStory,
-    createMeltdownLog,
-    readEmotionAloud,
-    handleSelectEmotion,
   };
 }

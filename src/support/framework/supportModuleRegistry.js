@@ -661,17 +661,41 @@ const moduleAdaptationSets = {
       },
     ],
   },
-  "asd.sensory": {
+  "asd.emotion-decoder": {
     supportedAdaptationDimensions: [
       AdaptationDimension.PACING,
       AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
     ],
     modulePolicies: [
       {
-        id: "sensory.low_stimulation_on_overload",
+        id: "emotion_decoder.extra_hints_on_distress",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
         priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { showCuesFirst: true, encouragingHints: true },
+        },
+      },
+      {
+        id: "emotion_decoder.simplify_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
         triggerGroups: [
           {
             operator: TriggerGroupOperator.AND,
@@ -687,45 +711,23 @@ const moduleAdaptationSets = {
         action: {
           type: AdaptationActionType.SIMPLIFY,
           target: AdaptationDimension.PACING,
-          parameters: { lowStimulation: true },
-        },
-      },
-      {
-        id: "sensory.calm_flow_on_distress",
-        scope: PolicyScope.MODULE,
-        tier: PriorityTier.CURRENT_STATE,
-        priority: 40,
-        triggerGroups: [
-          {
-            operator: TriggerGroupOperator.AND,
-            triggers: [
-              {
-                dimension: "mood",
-                condition: TriggerCondition.IN,
-                value: ["anxious", "panicked", "overwhelmed"],
-              },
-            ],
-          },
-        ],
-        action: {
-          type: AdaptationActionType.SIMPLIFY,
-          target: AdaptationDimension.CONTENT,
-          parameters: { calmFlow: true },
+          parameters: { oneScenarioAtATime: true, fewerCues: true },
         },
       },
     ],
   },
-  "asd.meltdown": {
+  "asd.emotion-quiz": {
     supportedAdaptationDimensions: [
       AdaptationDimension.PACING,
       AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
     ],
     modulePolicies: [
       {
-        id: "meltdown.low_stimulation_on_overload",
+        id: "emotion_quiz.shorter_sets_on_overload",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
-        priority: 45,
+        priority: 40,
         triggerGroups: [
           {
             operator: TriggerGroupOperator.AND,
@@ -739,13 +741,45 @@ const moduleAdaptationSets = {
           },
         ],
         action: {
-          type: AdaptationActionType.SIMPLIFY,
-          target: AdaptationDimension.PACING,
-          parameters: { lowStimulation: true, minimalSteps: true },
+          type: AdaptationActionType.REDUCE,
+          target: AdaptationDimension.CONTENT,
+          parameters: { questionSet: "short", showOneAtATime: true },
         },
       },
       {
-        id: "meltdown.prioritize_calm_on_distress",
+        id: "emotion_quiz.reassure_on_anxiety",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { encouragingHints: true, gentleTone: true },
+        },
+      },
+    ],
+  },
+  "asd.routine-breakdown": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
+    ],
+    modulePolicies: [
+      {
+        id: "routine_breakdown.smaller_steps_on_overload",
         scope: PolicyScope.MODULE,
         tier: PriorityTier.CURRENT_STATE,
         priority: 40,
@@ -754,17 +788,40 @@ const moduleAdaptationSets = {
             operator: TriggerGroupOperator.AND,
             triggers: [
               {
-                dimension: "mood",
+                dimension: "cognitiveLoad",
                 condition: TriggerCondition.IN,
-                value: ["anxious", "panicked", "overwhelmed"],
+                value: ["overwhelming", "high"],
               },
             ],
           },
         ],
         action: {
-          type: AdaptationActionType.REORDER,
-          target: AdaptationDimension.CONTENT,
-          parameters: { calmFirst: true },
+          type: AdaptationActionType.DECOMPOSE,
+          target: AdaptationDimension.TASK,
+          parameters: { stepSize: "small", showOneStep: true },
+        },
+      },
+      {
+        id: "routine_breakdown.gentle_pacing_on_low_energy",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "energy",
+                condition: TriggerCondition.IN,
+                value: ["tired", "exhausted"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.PACING,
+          parameters: { pacing: "gentle", shorterSteps: true },
         },
       },
     ],
@@ -917,30 +974,6 @@ const rawSupportModules = [
     repetitionLimit: { maxCount: 6, windowHours: 24 },
   },
   {
-    id: FEATURES.ASD_SENSORY,
-    title: "Sensory Regulation",
-    description: "Adjust sensory load and access calming supports.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["sensory_regulation", "low_stimulation"],
-    route: "/asd/sensory",
-    tags: ["sensory_overload", "overwhelm", "stress_reactivity"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["trigger", "before_level", "after_level"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
-    id: FEATURES.ASD_MELTDOWN,
-    title: "Meltdown Prevention",
-    description: "Use a low-stimulation workflow during overload risk.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["overload_support", "meltdown_prevention"],
-    route: "/asd/meltdown",
-    tags: ["panic", "overwhelm", "sensory_overload"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["risk_level", "steps_completed"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
     id: FEATURES.ASD_SOCIAL_SCENARIOS,
     title: "Social Scenario Simulator",
     description: "Practice real conversations in safe, guided scenarios with gentle feedback.",
@@ -951,6 +984,66 @@ const rawSupportModules = [
     disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
     expectedOutcomeMetrics: ["communication_score", "turns_completed", "scenario_id"],
     safetyLevel: SafetyLevel.CAUTION,
+  },
+  {
+    id: "asd.emotion-decoder",
+    moduleId: "asd.emotion-decoder",
+    title: "Emotion Decoder",
+    description: "Practise reading what someone might be feeling from their voice, face and body, with gentle feedback.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["emotion_recognition", "social_understanding"],
+    route: "/asd/emotion",
+    tags: ["emotion_recognition", "social_cues", "practice"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
+    expectedOutcomeMetrics: ["attempts", "accuracy", "hints_used"],
+    developmentDomain: "asd",
+    supportedNeeds: ["emotion_recognition", "social_understanding", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "answer", "next", "read_aloud"],
+    configurableParameters: { difficulty: true, activityType: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["attempts", "accuracy", "hints_used"],
+  },
+  {
+    id: "asd.emotion-quiz",
+    moduleId: "asd.emotion-quiz",
+    title: "Emotion Quiz",
+    description: "Practise matching situations, cues and helpful reactions through quick, gentle questions.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["emotion_quiz", "social_understanding"],
+    route: "/asd/emotion",
+    tags: ["emotion_recognition", "social_cues", "practice"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
+    expectedOutcomeMetrics: ["total", "correct", "accuracy", "streak"],
+    developmentDomain: "asd",
+    supportedNeeds: ["emotion_recognition", "social_understanding", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "answer", "next"],
+    configurableParameters: { difficulty: true, questionType: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["total", "correct", "accuracy", "streak"],
+  },
+  {
+    id: "asd.routine-breakdown",
+    moduleId: "asd.routine-breakdown",
+    title: "Routine Breakdown",
+    description: "Turn any routine task into a clear, ordered list of small steps you can tick off.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["task_breakdown", "routine_support"],
+    route: "/asd/routine",
+    tags: ["routine", "task_start", "planning", "overwhelm"],
+    disorders: [DISORDERS.ASD],
+    expectedOutcomeMetrics: ["steps_created", "steps_completed", "completion_rate"],
+    developmentDomain: "asd",
+    supportedNeeds: ["task_initiation", "routine_support", "task_simplification"],
+    potentiallyRelevantDomains: ["asd", "adhd", "anxiety", "general"],
+    actions: ["generate", "complete_step", "next"],
+    configurableParameters: { stepCount: true, selectedStyle: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["steps_created", "steps_completed", "completion_rate"],
   },
   {
     id: "dyslexia.adaptive-reading",

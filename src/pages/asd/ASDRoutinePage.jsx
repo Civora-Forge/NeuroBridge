@@ -12,7 +12,7 @@ export default function ASDRoutinePage() {
           to="/asd"
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-green-600 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Sensory & Social Hub
+          <ArrowLeft className="w-4 h-4" /> Back to Social & Emotional Support Hub
         </Link>
         <RoutineVisualizer
           role={asd.role}

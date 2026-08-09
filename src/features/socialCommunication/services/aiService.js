@@ -1,8 +1,9 @@
 /**
- * aiService.js — The ONLY place the Social Communication Simulator talks to an
- * LLM. Mirrors the existing Gemini REST pattern (see
- * src/adaptive/context/conversationAgent.js) and never reaches the model from
- * UI components.
+ * aiService.js — The ONLY place the app talks to an LLM. Mirrors the existing
+ * Gemini REST pattern (see src/adaptive/context/conversationAgent.js) and never
+ * reaches the model from UI components. Both the Social Communication Simulator
+ * and the ASD decoder / quiz / routine-decomposition features route every model
+ * call through this file.
  *
  * Every call returns a Zod-validated object or `null`. A `null` result means
  * "AI unavailable" and the caller MUST fall back to a deterministic path —
@@ -20,6 +21,9 @@ import {
   ScenarioContentSchema,
   ToneAssessmentSchema,
 } from "../types/communicationTypes";
+import { EmotionDecoderScenarioSchema } from "@/support/modules/emotionDecoder/emotionDecoderTypes";
+import { EmotionQuizQuestionSchema } from "@/support/modules/emotionQuiz/emotionQuizTypes";
+import { RoutineBreakdownSchema } from "@/support/modules/routineBreakdown/routineBreakdownTypes";
 
 const GEMINI_MODEL_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
@@ -204,6 +208,98 @@ export async function generateToneAssessment({ userTurns, scenario, apiKey, fetc
     fetchImpl,
     temperature: 0.2,
     maxOutputTokens: 60,
+  });
+  return result.ok ? result.data : null;
+}
+
+// ─────────────────────────────────────────────
+//  ASD decoder / quiz / routine decomposition
+// ─────────────────────────────────────────────
+
+export async function generateEmotionDecoderScenario({ config, apiKey, fetchImpl }) {
+  const difficulty = config?.difficulty ?? 1;
+  const activityLabel = config?.activityLabel ?? "a daily situation";
+  const prompt =
+    `You create one short "Emotion Decoder" practice item.\n` +
+    `The user reads a situation and the other person's words, notices the observable cues, and names the emotion.\n` +
+    `Return ONLY a JSON object with exactly these keys:\n` +
+    `- "scenario": the situation in one or two sentences\n` +
+    `- "dialogue": a short, realistic line or behaviour the other person shows\n` +
+    `- "cues": 2-3 observable clues in the dialogue or situation (what you can hear or see)\n` +
+    `- "question": "What is this person most likely feeling?"\n` +
+    `- "expectedInterpretations": 1-2 plain emotion labels (e.g. ["worried"])\n` +
+    `- "explanation": why the cues point to that emotion, in one kind sentence\n` +
+    `- "difficulty": ${difficulty} (1 = very clear cues, 2 = a little subtler, 3 = mixed or similar-feeling options)\n` +
+    `- "activityType": "${activityLabel}"\n` +
+    `Rules: everyday situations only; neutral tone; no stereotypes about accent, disability or culture; ` +
+    `keep the whole item under 90 words; the emotion must be readable from the cues alone.` +
+    (config?.contextHint ? `\nRelevant detail for this user: ${clampPromptSlice(config.contextHint)}` : "");
+
+  const result = await callGeminiJson(prompt, EmotionDecoderScenarioSchema, {
+    apiKey,
+    fetchImpl,
+    temperature: 0.6,
+    maxOutputTokens: 700,
+  });
+  return result.ok ? result.data : null;
+}
+
+export async function generateEmotionQuizQuestion({ config, apiKey, fetchImpl }) {
+  const type = config?.questionType ?? "match_scenario";
+  const difficulty = config?.difficulty ?? 1;
+  const typeInstruction = {
+    match_scenario:
+      `Present a short situation and ask "What emotion is this person most likely feeling?" ` +
+      `with 3-4 answer options that are emotion labels.`,
+    identify_cue:
+      `Name one emotion (e.g. "Which clue best suggests someone feels frustrated?") ` +
+      `with 3-4 answer options that are observable cues or behaviours.`,
+    reaction:
+      `Describe a moment when someone notices a feeling, and ask which reaction is most helpful. ` +
+      `The correct option is the helpful, calm reaction; distractors are plausible but less helpful.`,
+  }[type];
+  const prompt =
+    `You create one multiple-choice question for an "Emotion Quiz" that teaches reading emotions.\n` +
+    `Question type: ${type}. ${typeInstruction}\n` +
+    `Return ONLY a JSON object with exactly these keys:\n` +
+    `- "type": "${type}"\n` +
+    `- "prompt": the question text\n` +
+    `- "scenario": a short situation (optional for the cue/reaction types but preferred)\n` +
+    `- "options": an array of { "id": "a" | "b" | "c" | "d", "label": the answer text }\n` +
+    `- "correctOptionId": the id of the correct option\n` +
+    `- "explanation": why the correct option is right, in one kind sentence\n` +
+    `- "difficulty": ${difficulty} (1 = obvious, 2 = a little subtler, 3 = tricky but fair)\n` +
+    `Rules: everyday situations; neutral tone; no stereotypes about accent, disability or culture; ` +
+    `one unambiguous correct option; plausible but clearly less-good distractors.`;
+
+  const result = await callGeminiJson(prompt, EmotionQuizQuestionSchema, {
+    apiKey,
+    fetchImpl,
+    temperature: 0.6,
+    maxOutputTokens: 700,
+  });
+  return result.ok ? result.data : null;
+}
+
+export async function generateRoutineBreakdown({ task, config, apiKey, fetchImpl }) {
+  const stepCount = config?.stepCount ?? 5;
+  const prompt =
+    `Break this task into a clear, calm sequence of steps for someone who benefits from predictable structure.\n` +
+    `Task: "${clampPromptSlice(task)}"\n` +
+    `Return ONLY a JSON object with exactly these keys:\n` +
+    `- "taskId": a short slug of the task (lowercase words joined by dashes)\n` +
+    `- "title": the task title\n` +
+    `- "description": one sentence about the goal (or omit it)\n` +
+    `- "steps": an array of exactly ${stepCount} steps, each with "id" (a unique slug), "order" (0-based), ` +
+    `"title" (short action phrase), "description" (one sentence, optional), "estimatedEffort" (whole minutes, optional), "completed" (false)\n` +
+    `Rules: steps must be small enough to finish one at a time; order must build a complete path to the task; ` +
+    `neutral tone; no jargon; every step title must be non-empty.`;
+
+  const result = await callGeminiJson(prompt, RoutineBreakdownSchema, {
+    apiKey,
+    fetchImpl,
+    temperature: 0.5,
+    maxOutputTokens: 900,
   });
   return result.ok ? result.data : null;
 }

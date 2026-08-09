@@ -1,10 +1,33 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock3, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { getGeminiApiKey } from "@/features/socialCommunication/services/aiService";
+import { useModuleAdaptation } from "@/hooks/useModuleAdaptation";
+import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import {
+  BREAKDOWN_DEFAULT_STEP_COUNT,
+  ROUTINE_BREAKDOWN_MODULE_ID,
+} from "@/support/modules/routineBreakdown/routineBreakdownTypes";
+import {
+  buildBreakdownConfig,
+  buildBreakdownProgress,
+  buildRoutineBreakdownPerformance,
+  generateRoutineBreakdown,
+} from "@/support/modules/routineBreakdown/routineBreakdownService";
+import {
+  CheckCircle2,
+  Clock3,
+  ListChecks,
+  Pencil,
+  Plus,
+  RefreshCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 
 const TASK_COLORS = [
   { bg: "bg-blue-100 dark:bg-blue-950/50",    border: "border-blue-300 dark:border-blue-700",    accent: "bg-blue-500",    text: "text-blue-700 dark:text-blue-300"    },
@@ -21,10 +44,21 @@ const TASK_DEFAULT_SECONDS = 300;
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatCountdown(s) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
 
+function deriveSignals(adjustments = []) {
+  return {
+    simplify: adjustments.some((adj) => adj.type === "SIMPLIFY" || adj.type === "REDUCE"),
+    provideHints: adjustments.some((adj) => adj.type === "GUIDE" || adj.type === "DECOMPOSE"),
+  };
+}
+
 export default function RoutineVisualizer({
   role, canManageRoutine, routines, loading,
   onAddTask, onToggleTask, onEditTask, onDeleteTask,
 }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const apiKey = getGeminiApiKey();
+
   const [taskTitle, setTaskTitle] = useState("");
   const [taskTime, setTaskTime] = useState("");
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -34,7 +68,35 @@ export default function RoutineVisualizer({
   const [timerSeconds, setTimerSeconds] = useState(TASK_DEFAULT_SECONDS);
   const timerRef = useRef(null);
 
+  const [openBreakdownId, setOpenBreakdownId] = useState(null);
+  const [breakdowns, setBreakdowns] = useState({});
+  const [breakdownBusy, setBreakdownBusy] = useState(false);
+
   const canEditRoutine = typeof canManageRoutine === "boolean" ? canManageRoutine : role === "guardian";
+
+  const userPreferences = useMemo(() => buildUserPreferencesFragment(user), [user]);
+
+  const adaptation = useModuleAdaptation({
+    moduleId: ROUTINE_BREAKDOWN_MODULE_ID,
+    getSnapshot: useCallback(
+      () => ({
+        screen: "asd.routine-breakdown",
+        session: {
+          taskCount: routines.length,
+          completedTasks: routines.filter((task) => task.is_completed).length,
+        },
+        userProfile: {
+          accessibility: user?.accessibility ?? null,
+          disorders: Array.isArray(user?.disorders) ? user.disorders : [],
+        },
+      }),
+      [routines, user],
+    ),
+    userId,
+    userPreferences,
+  });
+
+  const signals = useMemo(() => deriveSignals(adaptation.adjustments), [adaptation.adjustments]);
 
   const completion = useMemo(() => {
     if (!routines.length) return 0;
@@ -63,6 +125,84 @@ export default function RoutineVisualizer({
 
   const timerPct = TASK_DEFAULT_SECONDS > 0 ? Math.round((timerSeconds / TASK_DEFAULT_SECONDS) * 100) : 0;
   const timerColor = timerPct > 60 ? "bg-emerald-500" : timerPct > 25 ? "bg-amber-400" : "bg-red-400";
+
+  const handleBreakDown = useCallback(
+    async (task) => {
+      setOpenBreakdownId((current) => {
+        if (current === task.id && breakdowns[task.id]) return null;
+        return task.id;
+      });
+      if (breakdowns[task.id]) return;
+
+      setBreakdownBusy(true);
+      try {
+        const config = buildBreakdownConfig({
+          task: task.title,
+          stepCount: BREAKDOWN_DEFAULT_STEP_COUNT,
+          signals,
+          variantSeed: 0,
+        });
+        const outcome = await generateRoutineBreakdown(task.title, config, { apiKey });
+        setBreakdowns((current) => ({
+          ...current,
+          [task.id]: {
+            taskId: task.id,
+            breakdown: outcome.breakdown,
+            source: outcome.source,
+            fallbackIndex: 0,
+            completedIds: [],
+            aiError: outcome.aiError,
+          },
+        }));
+      } finally {
+        setBreakdownBusy(false);
+      }
+    },
+    [breakdowns, apiKey, signals],
+  );
+
+  const handleRegenerateBreakdown = useCallback(
+    async (task) => {
+      const entry = breakdowns[task.id];
+      const nextIndex = (entry?.fallbackIndex ?? 0) + 1;
+      setBreakdownBusy(true);
+      try {
+        const config = buildBreakdownConfig({
+          task: task.title,
+          stepCount: BREAKDOWN_DEFAULT_STEP_COUNT,
+          signals,
+          variantSeed: nextIndex,
+        });
+        const outcome = await generateRoutineBreakdown(task.title, config, { apiKey });
+        setBreakdowns((current) => ({
+          ...current,
+          [task.id]: {
+            ...current[task.id],
+            taskId: task.id,
+            breakdown: outcome.breakdown,
+            source: outcome.source,
+            fallbackIndex: nextIndex,
+            completedIds: [],
+            aiError: outcome.aiError,
+          },
+        }));
+      } finally {
+        setBreakdownBusy(false);
+      }
+    },
+    [breakdowns, apiKey, signals],
+  );
+
+  const handleToggleStep = useCallback((task, stepId) => {
+    setBreakdowns((current) => {
+      const entry = current[task.id];
+      if (!entry) return current;
+      const completedIds = entry.completedIds.includes(stepId)
+        ? entry.completedIds.filter((id) => id !== stepId)
+        : [...entry.completedIds, stepId];
+      return { ...current, [task.id]: { ...entry, completedIds } };
+    });
+  }, []);
 
   return (
     <Card className="overflow-hidden">
@@ -118,6 +258,8 @@ export default function RoutineVisualizer({
                 const color = TASK_COLORS[index % TASK_COLORS.length];
                 const isActive = activeTask?.id === task.id;
                 const isJustDone = justCompletedId === task.id;
+                const entry = breakdowns[task.id] ?? null;
+                const progress = entry ? buildBreakdownProgress(entry.breakdown?.steps, entry.completedIds) : null;
                 return (
                   <motion.article
                     key={task.id} layout
@@ -125,7 +267,7 @@ export default function RoutineVisualizer({
                     animate={{ opacity: 1, y: 0, scale: isJustDone ? 1.02 : 1 }}
                     exit={{ opacity: 0, x: -30, transition: { duration: 0.25 } }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className={`rounded-2xl border-2 p-4 flex items-center justify-between gap-3 transition-colors ${
+                    className={`rounded-2xl border-2 transition-colors ${
                       task.is_completed
                         ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-400 dark:border-emerald-600"
                         : isJustDone ? "bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500"
@@ -133,48 +275,157 @@ export default function RoutineVisualizer({
                         : `${color.bg} ${color.border}`
                     }`}
                   >
-                    <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-white text-sm ${task.is_completed ? "bg-emerald-500" : color.accent}`}>
-                      {task.is_completed ? <CheckCircle2 size={18} /> : index + 1}
+                    <div className="p-4 flex items-center justify-between gap-3">
+                      <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-white text-sm ${task.is_completed ? "bg-emerald-500" : color.accent}`}>
+                        {task.is_completed ? <CheckCircle2 size={18} /> : index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {editingTaskId === task.id ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} placeholder="Task name" />
+                            <Input value={editingTime} onChange={(e) => setEditingTime(e.target.value)} placeholder="Time" />
+                          </div>
+                        ) : (
+                          <>
+                            <p className={`font-semibold text-base ${task.is_completed ? "line-through text-muted-foreground" : color.text}`}>{task.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{task.time_label || "No time set"}</p>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          onClick={() => handleBreakDown(task)}
+                          disabled={breakdownBusy}
+                          title="Break this task into steps"
+                        >
+                          <ListChecks size={14} />
+                          {entry ? (openBreakdownId === task.id ? "Hide steps" : "Steps") : "Break down"}
+                        </Button>
+                        {canEditRoutine && editingTaskId === task.id ? (
+                          <>
+                            <Button size="sm" onClick={() => { const nt = editingTitle.trim(); if (!nt) return; onEditTask?.(task, { title: nt, time_label: editingTime.trim() || null }); setEditingTaskId(null); setEditingTitle(""); setEditingTime(""); }}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditingTaskId(null); setEditingTitle(""); setEditingTime(""); }}><X size={14} /></Button>
+                          </>
+                        ) : (
+                          <>
+                            {canEditRoutine && (
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingTaskId(task.id); setEditingTitle(task.title || ""); setEditingTime(task.time_label || ""); }}><Pencil size={14} /></Button>
+                            )}
+                            {canEditRoutine && (
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDeleteTask?.(task)}><Trash2 size={14} /></Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant={task.is_completed ? "secondary" : "default"}
+                              className={`gap-1 min-w-[130px] ${task.is_completed ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300" : ""}`}
+                              onClick={() => handleToggle(task)}
+                            >
+                              <CheckCircle2 size={14} />
+                              {task.is_completed ? "✓ Completed" : "Mark Done"}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      {editingTaskId === task.id ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} placeholder="Task name" />
-                          <Input value={editingTime} onChange={(e) => setEditingTime(e.target.value)} placeholder="Time" />
-                        </div>
-                      ) : (
-                        <>
-                          <p className={`font-semibold text-base ${task.is_completed ? "line-through text-muted-foreground" : color.text}`}>{task.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{task.time_label || "No time set"}</p>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {canEditRoutine && editingTaskId === task.id ? (
-                        <>
-                          <Button size="sm" onClick={() => { const nt = editingTitle.trim(); if (!nt) return; onEditTask?.(task, { title: nt, time_label: editingTime.trim() || null }); setEditingTaskId(null); setEditingTitle(""); setEditingTime(""); }}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => { setEditingTaskId(null); setEditingTitle(""); setEditingTime(""); }}><X size={14} /></Button>
-                        </>
-                      ) : (
-                        <>
-                          {canEditRoutine && (
-                            <Button size="sm" variant="ghost" onClick={() => { setEditingTaskId(task.id); setEditingTitle(task.title || ""); setEditingTime(task.time_label || ""); }}><Pencil size={14} /></Button>
-                          )}
-                          {canEditRoutine && (
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDeleteTask?.(task)}><Trash2 size={14} /></Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant={task.is_completed ? "secondary" : "default"}
-                            className={`gap-1 min-w-[130px] ${task.is_completed ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300" : ""}`}
-                            onClick={() => handleToggle(task)}
-                          >
-                            <CheckCircle2 size={14} />
-                            {task.is_completed ? "✓ Completed" : "Mark Done"}
-                          </Button>
-                        </>
-                      )}
-                    </div>
+
+                    {openBreakdownId === task.id && (
+                      <AnimatePresence>
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="px-4 pb-4"
+                        >
+                          <div className="rounded-xl bg-white/60 dark:bg-slate-900/40 border border-muted p-4 space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <p className="text-sm font-semibold">Steps for “{task.title}”</p>
+                              {entry?.source && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {entry.source === "ai" ? "AI plan" : "Built-in plan"}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {!entry ? (
+                              <p className="text-sm text-muted-foreground">Building steps…</p>
+                            ) : (
+                              <>
+                                {progress && progress.total > 0 && (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                      <span>{progress.completed} of {progress.total} done</span>
+                                      <span>{Math.round(progress.completionRate * 100)}%</span>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                      <motion.div className="h-full rounded-full bg-emerald-500" animate={{ width: `${progress.completionRate * 100}%` }} />
+                                    </div>
+                                  </div>
+                                )}
+
+                                <ol className="space-y-2">
+                                  {entry.breakdown?.steps.map((step) => {
+                                    const done = entry.completedIds.includes(step.id);
+                                    return (
+                                      <li key={step.id}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleStep(task, step.id)}
+                                          className={`w-full rounded-xl border-2 p-3 flex items-start gap-3 text-left transition-colors ${
+                                            done
+                                              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
+                                              : "border-muted hover:border-emerald-400/60"
+                                          }`}
+                                        >
+                                          <span className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-400"}`}>
+                                            {done && <CheckCircle2 size={13} />}
+                                          </span>
+                                          <span className="min-w-0">
+                                            <span className={`block text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`}>
+                                              {step.order + 1}. {step.title}
+                                            </span>
+                                            {step.description && (
+                                              <span className="block text-xs text-muted-foreground mt-0.5">{step.description}</span>
+                                            )}
+                                            {step.estimatedEffort != null && (
+                                              <span className="block text-[11px] text-muted-foreground mt-0.5">~{step.estimatedEffort} min</span>
+                                            )}
+                                          </span>
+                                        </button>
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+
+                                {progress && progress.status === "completed" && (
+                                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                    All steps done — you did it!
+                                  </p>
+                                )}
+
+                                {entry.aiError && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Showing a built-in plan; live steps will appear when the AI service is available.
+                                  </p>
+                                )}
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  onClick={() => handleRegenerateBreakdown(task)}
+                                  disabled={breakdownBusy}
+                                >
+                                  <RefreshCcw size={13} /> Try a different plan
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
+                    )}
                   </motion.article>
                 );
               })}
@@ -186,6 +437,19 @@ export default function RoutineVisualizer({
                 <p className="text-sm text-muted-foreground">You completed every task. Be proud of yourself!</p>
               </motion.div>
             )}
+          </div>
+        )}
+
+        {adaptation.adjustments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {adaptation.adjustments.map((adj) => (
+              <span
+                key={adj.actionId ?? `${adj.target}:${adj.type}`}
+                className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-foreground"
+              >
+                {adj.label}
+              </span>
+            ))}
           </div>
         )}
       </CardContent>
