@@ -1,9 +1,9 @@
 /**
  * aiService.js — The ONLY place the app talks to an LLM. Mirrors the existing
  * Gemini REST pattern (see src/adaptive/context/conversationAgent.js) and never
- * reaches the model from UI components. Both the Social Communication Simulator
- * and the ASD decoder / quiz / routine-decomposition features route every model
- * call through this file.
+ * reaches the model from UI components. The Social Communication Simulator
+ * (Conversation Practice), the ASD Emotion Decoder and the ASD Social Scenario
+ * Simulator all route every model call through this file.
  *
  * Every call returns a Zod-validated object or `null`. A `null` result means
  * "AI unavailable" and the caller MUST fall back to a deterministic path —
@@ -22,8 +22,10 @@ import {
   ToneAssessmentSchema,
 } from "../types/communicationTypes";
 import { EmotionDecoderScenarioSchema } from "@/support/modules/emotionDecoder/emotionDecoderTypes";
-import { EmotionQuizQuestionSchema } from "@/support/modules/emotionQuiz/emotionQuizTypes";
-import { RoutineBreakdownSchema } from "@/support/modules/routineBreakdown/routineBreakdownTypes";
+import {
+  SocialScenarioEvaluationSchema,
+  SocialScenarioSchema,
+} from "@/support/modules/socialScenarioSimulator/socialScenarioTypes";
 
 const GEMINI_MODEL_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
@@ -213,7 +215,7 @@ export async function generateToneAssessment({ userTurns, scenario, apiKey, fetc
 }
 
 // ─────────────────────────────────────────────
-//  ASD decoder / quiz / routine decomposition
+//  ASD decoder + Social Scenario Simulator
 // ─────────────────────────────────────────────
 
 export async function generateEmotionDecoderScenario({ config, apiKey, fetchImpl }) {
@@ -244,62 +246,80 @@ export async function generateEmotionDecoderScenario({ config, apiKey, fetchImpl
   return result.ok ? result.data : null;
 }
 
-export async function generateEmotionQuizQuestion({ config, apiKey, fetchImpl }) {
-  const type = config?.questionType ?? "match_scenario";
-  const difficulty = config?.difficulty ?? 1;
-  const typeInstruction = {
-    match_scenario:
-      `Present a short situation and ask "What emotion is this person most likely feeling?" ` +
-      `with 3-4 answer options that are emotion labels.`,
-    identify_cue:
-      `Name one emotion (e.g. "Which clue best suggests someone feels frustrated?") ` +
-      `with 3-4 answer options that are observable cues or behaviours.`,
-    reaction:
-      `Describe a moment when someone notices a feeling, and ask which reaction is most helpful. ` +
-      `The correct option is the helpful, calm reaction; distractors are plausible but less helpful.`,
-  }[type];
+/**
+ * Generate ONE single-response social scenario for the ASD Social Scenario
+ * Simulator. The output is validated against `SocialScenarioSchema`; a null
+ * result means "AI unavailable" and the caller MUST use the deterministic pool.
+ */
+export async function generateSocialScenario({ config, apiKey, fetchImpl }) {
+  const categoryLabel = config?.categoryLabel ?? "Daily Life";
+  const difficultyLabel = config?.difficultyLabel ?? "Easy";
+  const variant = Number.isFinite(config?.variantSeed) ? config.variantSeed : 0;
+  const hintRequest =
+    config?.hintsEnabled
+      ? `Include a gentle "hint" that points at one social cue.`
+      : `The "hint" may be an empty string.`;
   const prompt =
-    `You create one multiple-choice question for an "Emotion Quiz" that teaches reading emotions.\n` +
-    `Question type: ${type}. ${typeInstruction}\n` +
+    `You create one short, realistic single social scenario for a "Social Scenario Simulator" used by a young person.\n` +
+    `The learner reads ONE defined situation, takes a role, then speaks ONE response. This is NOT a chatbot conversation.\n` +
     `Return ONLY a JSON object with exactly these keys:\n` +
-    `- "type": "${type}"\n` +
-    `- "prompt": the question text\n` +
-    `- "scenario": a short situation (optional for the cue/reaction types but preferred)\n` +
-    `- "options": an array of { "id": "a" | "b" | "c" | "d", "label": the answer text }\n` +
-    `- "correctOptionId": the id of the correct option\n` +
-    `- "explanation": why the correct option is right, in one kind sentence\n` +
-    `- "difficulty": ${difficulty} (1 = obvious, 2 = a little subtler, 3 = tricky but fair)\n` +
+    `- "category": "${categoryLabel.toLowerCase()}"\n` +
+    `- "title": short title\n` +
+    `- "setting": where the situation happens\n` +
+    `- "situation": one or two sentences describing what is happening\n` +
+    `- "role": who the learner is in this situation\n` +
+    `- "question": the other person's words or the direct thing the learner should respond to\n` +
+    `- "cues": 2-3 observable social cues the learner could notice (tone, words, actions)\n` +
+    `- "suggestedResponse": one calm, polite example response the learner could give\n` +
+    `- "hint": a gentle tip (or empty string)\n` +
     `Rules: everyday situations; neutral tone; no stereotypes about accent, disability or culture; ` +
-    `one unambiguous correct option; plausible but clearly less-good distractors.`;
+    `keep the whole item under 110 words; the situation must be a single exchange, not a series of turns.\n` +
+    `${hintRequest}\n` +
+    `Variety: this is variant #${variant} — please produce a DIFFERENT scenario than the previous one.`;
 
-  const result = await callGeminiJson(prompt, EmotionQuizQuestionSchema, {
+  const result = await callGeminiJson(prompt, SocialScenarioSchema, {
     apiKey,
     fetchImpl,
-    temperature: 0.6,
+    temperature: 0.8,
     maxOutputTokens: 700,
   });
   return result.ok ? result.data : null;
 }
 
-export async function generateRoutineBreakdown({ task, config, apiKey, fetchImpl }) {
-  const stepCount = config?.stepCount ?? 5;
+/**
+ * Refine the qualitative feedback for a single user response. The model never
+ * moves the score (always deterministic) — it may only reword strengths,
+ * improvements, detected cues, a suggested response and the reasoning. Output
+ * is Zod-validated; a null result means the caller keeps its deterministic
+ * evaluation.
+ */
+export async function generateSocialScenarioEvaluation({ scenario, response, capture, config, apiKey, fetchImpl }) {
+  const speechFeatureLine =
+    capture && Number.isFinite(capture.durationMs) && capture.transcript
+      ? `\nBrowser timing (rough, pacing only): ${clampPromptSlice(String(capture.durationMs))}ms duration for the spoken reply. Describe pacing neutrally if at all; NEVER infer emotion or confidence from audio.`
+      : `\nNo reliable speech timing is available — do not comment on speaking style.`;
   const prompt =
-    `Break this task into a clear, calm sequence of steps for someone who benefits from predictable structure.\n` +
-    `Task: "${clampPromptSlice(task)}"\n` +
+    `You write kind, structured feedback for ONE spoken-or-typed reply in a single social scenario.\n` +
+    `Scenario title: ${scenario?.title ?? ""}. Setting: ${scenario?.setting ?? ""}.\n` +
+    `Situation: ${scenario?.situation ?? ""}\n` +
+    `The other person said: "${scenario?.question ?? ""}"\n` +
+    `Social cues in the situation: ${(scenario?.cues ?? []).join(" | ")}\n` +
+    `The learner replied: "${clampPromptSlice(response)}\"${speechFeatureLine}\n` +
     `Return ONLY a JSON object with exactly these keys:\n` +
-    `- "taskId": a short slug of the task (lowercase words joined by dashes)\n` +
-    `- "title": the task title\n` +
-    `- "description": one sentence about the goal (or omit it)\n` +
-    `- "steps": an array of exactly ${stepCount} steps, each with "id" (a unique slug), "order" (0-based), ` +
-    `"title" (short action phrase), "description" (one sentence, optional), "estimatedEffort" (whole minutes, optional), "completed" (false)\n` +
-    `Rules: steps must be small enough to finish one at a time; order must build a complete path to the task; ` +
-    `neutral tone; no jargon; every step title must be non-empty.`;
+    `- "strengths": up to 3 kind, specific positives\n` +
+    `- "improvements": up to 3 neutral, actionable suggestions\n` +
+    `- "detectedCues": which of the listed social cues the reply seemed to notice (only ones actually addressed)\n` +
+    `- "suggestedResponse": one calm example reply the learner could try next time (or empty string)\n` +
+    `- "reasoning": one encouraging sentence about how the reply handled the situation\n` +
+    `- "speechNotes": one short neutral note about pacing ONLY if browser timing was given; otherwise an empty string\n` +
+    `Rules: warm, non-judgmental; never criticise accent, grammar, eye contact or a disability; ` +
+    `never claim to read emotion from voice; a very short reply is still treated kindly.`;
 
-  const result = await callGeminiJson(prompt, RoutineBreakdownSchema, {
+  const result = await callGeminiJson(prompt, SocialScenarioEvaluationSchema, {
     apiKey,
     fetchImpl,
     temperature: 0.5,
-    maxOutputTokens: 900,
+    maxOutputTokens: 600,
   });
   return result.ok ? result.data : null;
 }

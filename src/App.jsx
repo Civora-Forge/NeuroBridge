@@ -26,7 +26,6 @@ import SupportDashboard from "./pages/support/SupportDashboard";
 import ToolWorkspace from "./pages/ToolWorkspace";
 
 import ASDPage from "./pages/ASDPage";
-import ASDRoutinePage from "./pages/asd/ASDRoutinePage";
 import ASDStoriesPage from "./pages/asd/ASDStoriesPage";
 import ASDEmotionPage from "./pages/asd/ASDEmotionPage";
 import ASDSocialScenariosPage from "./pages/asd/ASDSocialScenariosPage";
@@ -139,14 +138,6 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.ASD}>
               <ASDPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/asd/routine"
-          element={
-            <ProtectedRoute feature={FEATURES.ASD}>
-              <ASDRoutinePage />
             </ProtectedRoute>
           }
         />

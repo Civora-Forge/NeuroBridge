@@ -64,7 +64,6 @@ export const FEATURES = /** @type {const} */ ({
   DYSPRAXIA_MOOD:      "dyspraxia.mood-tracker",
 
   // ── ASD sub-features ────────────────────────
-  ASD_ROUTINE:  "asd.routine",
   ASD_STORIES:  "asd.stories",
   ASD_EMOTION:  "asd.emotion",
   ASD_SOCIAL_SCENARIOS: "asd.social-scenarios",
@@ -241,10 +240,6 @@ export const FEATURE_REGISTRY = {
   },
 
   // ── ASD sub-features ────────────────────────
-  [FEATURES.ASD_ROUTINE]: {
-    label: "Routine Visualizer",
-    disorders: [DISORDERS.ASD],
-  },
   [FEATURES.ASD_STORIES]: {
     label: "Social Story Builder",
     disorders: [DISORDERS.ASD],

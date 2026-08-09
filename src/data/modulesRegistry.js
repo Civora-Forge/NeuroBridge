@@ -166,14 +166,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/ocd/progress",
     tags: ["progress", "exposure", "patterns"],
   },
-  [FEATURES.ASD_ROUTINE]: {
-    id: FEATURES.ASD_ROUTINE,
-    title: "Routine Visualizer",
-    description: "Build and track daily routines with visual timeline support.",
-    icon: "Clock",
-    launchRoute: "/asd/routine",
-    tags: ["routine", "stability"],
-  },
   [FEATURES.ASD_STORIES]: {
     id: FEATURES.ASD_STORIES,
     title: "Social Story Builder",
@@ -306,7 +298,6 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.OCD_PROGRESS,
   ],
   asd: [
-    FEATURES.ASD_ROUTINE,
     FEATURES.ASD_STORIES,
     FEATURES.ASD_EMOTION,
     FEATURES.ASD_SOCIAL_SCENARIOS,

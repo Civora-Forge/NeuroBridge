@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import EmotionDecoderCard from "@/components/asd/EmotionDecoderCard";
-import EmotionQuizCard from "@/components/asd/EmotionQuizCard";
 import { ArrowLeft } from "lucide-react";
 
 export default function ASDEmotionPage() {
@@ -11,7 +10,6 @@ export default function ASDEmotionPage() {
           <ArrowLeft className="w-4 h-4" /> Back to Social & Emotional Support Hub
         </Link>
         <EmotionDecoderCard />
-        <EmotionQuizCard />
       </div>
     </div>
   );

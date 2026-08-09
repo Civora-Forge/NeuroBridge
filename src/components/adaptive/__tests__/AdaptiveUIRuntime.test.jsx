@@ -185,7 +185,7 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/dyscalculia/step-practice")).toBe("dyscalculia.step-practice");
     expect(resolveCanonicalModuleId("/dyscalculia/calm-mode")).toBe("dyscalculia.calm-mode");
     expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
-    expect(resolveCanonicalModuleId("/asd/routine")).toBe("asd.routine-breakdown");
+    expect(resolveCanonicalModuleId("/asd/social-scenarios")).toBe("asd.social-scenarios");
     expect(resolveCanonicalModuleId("/asd/sensory")).toBeNull();
     expect(resolveCanonicalModuleId("/asd/meltdown")).toBeNull();
   });
