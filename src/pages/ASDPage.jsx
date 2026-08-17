@@ -1,13 +1,11 @@
-import { Brain, BookOpen, Ear, ShieldCheck, Smile, CalendarCheck, MessageCircle } from "lucide-react";
+import { Brain, BookOpen, Smile, MessageCircle, MessagesSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const tools = [
-  { to: "/asd/routine",  icon: CalendarCheck, title: "Routine Visualizer",  desc: "Build a visual daily routine with step-by-step guidance." },
-  { to: "/asd/sensory",  icon: Ear,           title: "Sensory Regulation",  desc: "Manage sensory overload with personalised visual tools." },
   { to: "/asd/stories",  icon: BookOpen,      title: "Social Stories",      desc: "Practice real-world social scenarios at your own pace." },
-  { to: "/asd/meltdown", icon: ShieldCheck,   title: "Meltdown Prevention", desc: "Identify triggers and use calming strategies." },
   { to: "/asd/emotion",  icon: Smile,         title: "Emotion Decoder",     desc: "Recognise and express emotions with guided support." },
-  { to: "/asd/social-scenarios", icon: MessageCircle, title: "Social Scenario Simulator", desc: "Practise real conversations with guided feedback." },
+  { to: "/asd/social-scenarios", icon: MessageCircle, title: "Social Scenario Simulator", desc: "Practise responding to one situation at a time with gentle feedback." },
+  { to: "/communication", icon: MessagesSquare, title: "Conversation Practice", desc: "Practise real conversations by voice or text with structured feedback." },
 ];
 
 export default function ASDPage() {
@@ -18,10 +16,10 @@ export default function ASDPage() {
           <Brain className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-black bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-2">
-          Sensory & Social Hub
+          Social & Emotional Support Hub
         </h1>
         <p className="text-base text-slate-600 max-w-xl mx-auto">
-          Tools for sensory regulation, emotional support and social confidence.
+          Tools for emotional understanding and social confidence.
         </p>
       </div>
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

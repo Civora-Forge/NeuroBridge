@@ -166,22 +166,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/ocd/progress",
     tags: ["progress", "exposure", "patterns"],
   },
-  [FEATURES.ASD_ROUTINE]: {
-    id: FEATURES.ASD_ROUTINE,
-    title: "Routine Visualizer",
-    description: "Build and track daily routines with visual timeline support.",
-    icon: "Clock",
-    launchRoute: "/asd/routine",
-    tags: ["routine", "stability"],
-  },
-  [FEATURES.ASD_SENSORY]: {
-    id: FEATURES.ASD_SENSORY,
-    title: "Sensory Regulation",
-    description: "Tune sensory thresholds and access calming tools.",
-    icon: "Activity",
-    launchRoute: "/asd/sensory",
-    tags: ["sensory_overload", "overwhelm"],
-  },
   [FEATURES.ASD_STORIES]: {
     id: FEATURES.ASD_STORIES,
     title: "Social Story Builder",
@@ -189,14 +173,7 @@ export const MODULES_REGISTRY = {
     icon: "BookOpen",
     launchRoute: "/asd/stories",
     tags: ["social_stress", "communication"],
-  },
-  [FEATURES.ASD_MELTDOWN]: {
-    id: FEATURES.ASD_MELTDOWN,
-    title: "Meltdown Prevention",
-    description: "Risk awareness and calming workflow for overload moments.",
-    icon: "Shield",
-    launchRoute: "/asd/meltdown",
-    tags: ["panic", "overwhelm"],
+    homeGroup: FEATURES.ASD,
   },
   [FEATURES.ASD_EMOTION]: {
     id: FEATURES.ASD_EMOTION,
@@ -205,6 +182,7 @@ export const MODULES_REGISTRY = {
     icon: "Smile",
     launchRoute: "/asd/emotion",
     tags: ["emotion_regulation", "social_stress"],
+    homeGroup: FEATURES.ASD,
   },
   [FEATURES.ASD_SOCIAL_SCENARIOS]: {
     id: FEATURES.ASD_SOCIAL_SCENARIOS,
@@ -213,6 +191,15 @@ export const MODULES_REGISTRY = {
     icon: "MessageCircle",
     launchRoute: "/asd/social-scenarios",
     tags: ["social_stress", "communication", "practice"],
+    homeGroup: FEATURES.ASD,
+  },
+  [FEATURES.COMMUNICATION]: {
+    id: FEATURES.COMMUNICATION,
+    title: "Conversation Practice",
+    description: "Practice real conversations by voice or text with an AI partner and structured feedback.",
+    icon: "MessagesSquare",
+    launchRoute: "/communication",
+    tags: ["communication", "social_stress", "practice", "voice"],
   },
   "dyslexia.adaptive-reading": {
     id: "dyslexia.adaptive-reading",
@@ -305,6 +292,20 @@ export const MODULES_REGISTRY = {
   },
 };
 
+// Hub root cards for grouped toolkits. Any enabled module flagged with
+// `homeGroup` collapses into this single card so Home links to the hub instead
+// of deep-linking to a tool (keeps browser-back from dumping users on Home).
+const HOME_HUB_GROUPS = {
+  [FEATURES.ASD]: {
+    id: FEATURES.ASD,
+    title: "Social & Emotional Support",
+    description: "Social stories, emotion tools and conversation practice in one place.",
+    icon: "Brain",
+    launchRoute: "/asd",
+    tags: ["social_stress", "communication", "emotion_regulation"],
+  },
+};
+
 export const CHALLENGE_MODULE_MAP = {
   ocd: [
     FEATURES.OCD_ERP_TRACKER,
@@ -314,12 +315,10 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.OCD_PROGRESS,
   ],
   asd: [
-    FEATURES.ASD_ROUTINE,
-    FEATURES.ASD_SENSORY,
     FEATURES.ASD_STORIES,
-    FEATURES.ASD_MELTDOWN,
     FEATURES.ASD_EMOTION,
     FEATURES.ASD_SOCIAL_SCENARIOS,
+    FEATURES.COMMUNICATION,
   ],
   dyslexia: [
     "dyslexia.adaptive-reading",
@@ -343,7 +342,7 @@ export const CHALLENGE_MODULE_MAP = {
     "support.mood_checkin",
     "support.accountability_session",
   ],
-  anxiety: ["support.mood_checkin"],
+  anxiety: ["support.mood_checkin", FEATURES.COMMUNICATION],
   depression: [
     "support.gentle_activity",
     "support.grounding",
@@ -372,15 +371,40 @@ export function composeHomeModules(candidateModuleIds = []) {
   const seen = new Set();
   const modules = [];
 
+  // Collapse grouped toolkits (e.g. ASD) into a single hub-root card so Home
+  // links to the hub rather than deep-linking to an individual tool.
+  const activeGroups = new Set();
   for (const candidateId of candidateModuleIds) {
+    const groupId = MODULES_REGISTRY[candidateId]?.homeGroup;
+    if (groupId && HOME_HUB_GROUPS[groupId]) activeGroups.add(groupId);
+  }
+
+  for (const candidateId of candidateModuleIds) {
+    if (seen.has(candidateId)) continue;
+
+    if (HOME_HUB_GROUPS[candidateId]) {
+      seen.add(candidateId);
+      modules.push({ ...HOME_HUB_GROUPS[candidateId], id: candidateId });
+      continue;
+    }
+
     const canonicalId = getCanonicalSupportModuleId(candidateId) ?? candidateId;
     if (seen.has(canonicalId)) continue;
 
     const module = MODULES_REGISTRY[canonicalId] ?? MODULES_REGISTRY[candidateId];
     if (!module || module.isNavigationOnly || module.isHidden || module.isUnavailable) continue;
+    if (module.homeGroup && activeGroups.has(module.homeGroup)) continue;
 
     seen.add(canonicalId);
     modules.push({ ...module, id: canonicalId });
+  }
+
+  // Emit hub roots implied by enabled grouped tools, once each.
+  for (const [groupId, hub] of Object.entries(HOME_HUB_GROUPS)) {
+    if (activeGroups.has(groupId) && !seen.has(groupId)) {
+      seen.add(groupId);
+      modules.push({ ...hub, id: groupId });
+    }
   }
 
   return modules;

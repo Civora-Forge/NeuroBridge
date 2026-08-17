@@ -10,7 +10,7 @@ import AgentChat from "./AgentChat";
 // featureKey: null means always visible (Home)
 const USER_NAV = [
   { title: "Home",        path: "/",            icon: Home,       featureKey: null },
-  { title: "Sensory Balance",  path: "/asd",         icon: Brain,      featureKey: FEATURES.ASD },
+  { title: "Social & Emotional Support",  path: "/asd",         icon: Brain,      featureKey: FEATURES.ASD },
   { title: "Focus Flow",       path: "/adhd",        icon: Zap,        featureKey: FEATURES.ADHD },
   { title: "Reading Support",  path: "/dyslexia",    icon: BookOpen,   featureKey: FEATURES.DYSLEXIA },
   { title: "Number Confidence",path: "/dyscalculia", icon: Calculator, featureKey: FEATURES.DYSCALCULIA },

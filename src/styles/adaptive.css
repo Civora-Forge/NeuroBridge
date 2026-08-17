@@ -1,0 +1,68 @@
+/* ============================================================
+   Adaptive Engine — UI execution shell styles (Phase 4)
+   ------------------------------------------------------------
+   Scoped to `.adaptive-root` (the AdaptiveUIRuntime wrapper).
+   Every rule is driven by `data-adaptive-*` attributes that the
+   shell sets from the engine's public `plan`. Removing the
+   attributes (revert / unmount / no decision) restores defaults.
+
+   The engine's UI modes: normal | focus | minimal |
+   low_stimulation | overwhelm | guided | reading | high_contrast
+   ============================================================ */
+
+/* ---- Reduced motion (preference + mode flags) -------------- */
+.adaptive-root[data-adaptive-reduce-motion="true"] *,
+.adaptive-root[data-adaptive-reduce-motion="true"] *::before,
+.adaptive-root[data-adaptive-reduce-motion="true"] *::after {
+  animation-duration: 0.001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001s !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---- Reduced color intensity (low-stimulation / overwhelm) - */
+.adaptive-root[data-adaptive-reduce-color="true"] img,
+.adaptive-root[data-adaptive-reduce-color="true"] video,
+.adaptive-root[data-adaptive-mode="low_stimulation"] img,
+.adaptive-root[data-adaptive-mode="overwhelm"] img {
+  filter: saturate(0.6);
+}
+
+/* ---- Calming content affordance ---------------------------- */
+.adaptive-root[data-adaptive-mode="low_stimulation"] {
+  --adaptive-calming: 1;
+}
+
+/* ---- Focus mode: de-emphasize chrome, keep content forward - */
+.adaptive-root[data-adaptive-mode="focus"] aside,
+.adaptive-root[data-adaptive-mode="focus"] header {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+.adaptive-root[data-adaptive-mode="focus"] aside:hover,
+.adaptive-root[data-adaptive-mode="focus"] aside:focus-within,
+.adaptive-root[data-adaptive-mode="focus"] header:hover {
+  opacity: 1;
+}
+.adaptive-root[data-adaptive-mode="focus"] .neuro-btn-ghost {
+  --tw-ring-color: transparent;
+}
+
+/* ---- Guided mode: highlight opt-in primary actions --------- */
+.adaptive-root[data-adaptive-mode="guided"] [data-guide-target="true"],
+.adaptive-root[data-adaptive-guide="true"] [data-guide-target="true"] {
+  outline: 2px solid var(--primary, #6366f1);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+/* ---- Simplified navigation (overwhelm / minimal) ----------- */
+.adaptive-root[data-adaptive-mode="overwhelm"] aside nav,
+.adaptive-root[data-adaptive-mode="minimal"] aside nav,
+.adaptive-root[data-adaptive-simplify-nav="true"] aside nav {
+  gap: 0.25rem;
+}
+.adaptive-root[data-adaptive-mode="overwhelm"] aside nav a span,
+.adaptive-root[data-adaptive-mode="minimal"] aside nav a span {
+  font-size: 0.8125rem;
+}

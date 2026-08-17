@@ -1,11 +1,800 @@
 import { FEATURES } from "@/lib/featureRegistry";
 import { DISORDERS } from "@/lib/disorders";
 import {
+  AdaptationActionType,
+  AdaptationDimension,
   ModuleCategory,
+  PolicyScope,
   PrivacyLevel,
+  PriorityTier,
   SafetyLevel,
+  TriggerCondition,
+  TriggerGroupOperator,
   validateSupportModuleDefinition,
 } from "@/support/schemas/supportSchemas";
+
+/**
+ * Module-scoped adaptation contracts (Role 2, module level).
+ *
+ * Each entry declares which AdaptationDimensions the module can adapt and a
+ * curated set of module policies. Policies fire ONLY against engine-derived
+ * UserState dimensions (mood / attention / energy / cognitiveLoad /
+ * stressLevel), so they are valid against both the app-level context snapshot
+ * and a module-local snapshot. The engine merges these into the plan; the
+ * app-level shell and `useModuleAdaptation` consumers surface the resulting
+ * non-UI actions.
+ */
+const moduleAdaptationSets = {
+  "support.focus_session": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.ASSISTANCE,
+      AdaptationDimension.NOTIFICATIONS,
+    ],
+    modulePolicies: [
+      {
+        id: "focus_session.gentle_pacing_on_scatter",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "attention",
+                condition: TriggerCondition.IN,
+                value: ["scattered", "fragmented"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.PACING,
+          parameters: { pacing: "gentle", reduceDistractions: true },
+        },
+      },
+      {
+        id: "focus_session.shorten_blocks_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { blockMinutes: "short", pauseMore: true },
+        },
+      },
+    ],
+  },
+  "support.task_breakdown": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
+    ],
+    modulePolicies: [
+      {
+        id: "task_breakdown.smaller_steps_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECOMPOSE,
+          target: AdaptationDimension.TASK,
+          parameters: { stepSize: "small", showOneStep: true },
+        },
+      },
+      {
+        id: "task_breakdown.gentle_pacing_on_low_energy",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "energy",
+                condition: TriggerCondition.IN,
+                value: ["tired", "exhausted"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.PACING,
+          parameters: { pacing: "gentle", shorterSteps: true },
+        },
+      },
+    ],
+  },
+  "support.visual_timeline": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.TIMING,
+      AdaptationDimension.NOTIFICATIONS,
+    ],
+    modulePolicies: [
+      {
+        id: "visual_timeline.reduce_density_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.REDUCE,
+          target: AdaptationDimension.CONTENT,
+          parameters: { density: "low", showTimeRangeOnly: true },
+        },
+      },
+      {
+        id: "visual_timeline.calm_layout_on_distress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.CONTENT,
+          parameters: { calmLayout: true },
+        },
+      },
+    ],
+  },
+  "support.mood_checkin": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
+      AdaptationDimension.TASK,
+    ],
+    modulePolicies: [
+      {
+        id: "mood_checkin.calm_first_on_distress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 50,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.REORDER,
+          target: AdaptationDimension.CONTENT,
+          parameters: { calmStrategiesFirst: true },
+        },
+      },
+    ],
+  },
+  "support.grounding": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.PACING,
+      AdaptationDimension.ASSISTANCE,
+    ],
+    modulePolicies: [
+      {
+        id: "grounding.guide_breathing_on_stress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 50,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "stressLevel",
+                condition: TriggerCondition.IN,
+                value: ["high", "acute"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.TASK,
+          parameters: { guidedBreathing: true },
+        },
+      },
+      {
+        id: "grounding.slow_pace_on_panic",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.EQ,
+                value: "panicked",
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", longerPauses: true },
+        },
+      },
+    ],
+  },
+  "support.gentle_activity": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.TASK,
+      AdaptationDimension.CONTENT,
+    ],
+    modulePolicies: [
+      {
+        id: "gentle_activity.slow_pace_on_low_energy",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "energy",
+                condition: TriggerCondition.IN,
+                value: ["tired", "exhausted"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", shortSteps: true },
+        },
+      },
+      {
+        id: "gentle_activity.reduce_scope_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECOMPOSE,
+          target: AdaptationDimension.TASK,
+          parameters: { stepSize: "small", showOneStep: true },
+        },
+      },
+    ],
+  },
+  "support.cognitive_reframing": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.CONTENT,
+    ],
+    modulePolicies: [
+      {
+        id: "cognitive_reframing.guide_on_rumination",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["sad", "frustrated", "anxious"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { guidedPrompts: true },
+        },
+      },
+      {
+        id: "cognitive_reframing.small_reframes_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.TASK,
+          parameters: { reframeSize: "small" },
+        },
+      },
+    ],
+  },
+  "support.social_connection": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.TASK,
+      AdaptationDimension.ASSISTANCE,
+    ],
+    modulePolicies: [
+      {
+        id: "social_connection.gentle_templates_on_low_mood",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["sad", "anxious", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.CONTENT,
+          parameters: { gentleTemplates: true },
+        },
+      },
+      {
+        id: "social_connection.shorter_messages_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.REDUCE,
+          target: AdaptationDimension.CONTENT,
+          parameters: { messageLength: "short" },
+        },
+      },
+    ],
+  },
+  "support.evidence_journal": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.TASK,
+    ],
+    modulePolicies: [
+      {
+        id: "evidence_journal.highlight_wins_on_low_mood",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["sad", "anxious"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.REORDER,
+          target: AdaptationDimension.CONTENT,
+          parameters: { winsFirst: true },
+        },
+      },
+    ],
+  },
+  "dyslexia.adaptive-reading": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.INTERACTION,
+      AdaptationDimension.TASK,
+    ],
+    modulePolicies: [
+      {
+        id: "adaptive_reading.slow_pacing_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", ttsRate: "slower" },
+        },
+      },
+      {
+        id: "adaptive_reading.reduce_load_on_fatigue",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "energy",
+                condition: TriggerCondition.IN,
+                value: ["tired", "exhausted"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.REDUCE,
+          target: AdaptationDimension.CONTENT,
+          parameters: { sentenceChunks: "short", fewerWordsPerLine: true },
+        },
+      },
+      {
+        id: "adaptive_reading.focus_layout_on_scatter",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "attention",
+                condition: TriggerCondition.IN,
+                value: ["scattered", "fragmented"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.INTERACTION,
+          parameters: { focusMode: true, reduceDistractions: true },
+        },
+      },
+    ],
+  },
+  "dyscalculia.step-practice": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.PACING,
+      AdaptationDimension.ASSISTANCE,
+    ],
+    modulePolicies: [
+      {
+        id: "step_practice.smaller_steps_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECOMPOSE,
+          target: AdaptationDimension.TASK,
+          parameters: { stepSize: "small", showOneStep: true },
+        },
+      },
+      {
+        id: "step_practice.reassure_on_anxiety",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { encouragingHints: true },
+        },
+      },
+    ],
+  },
+  "dyscalculia.calm-mode": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.TASK,
+      AdaptationDimension.CONTENT,
+    ],
+    modulePolicies: [
+      {
+        id: "calm_mode.extended_calm_on_stress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "stressLevel",
+                condition: TriggerCondition.IN,
+                value: ["high", "acute"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", longerPauses: true },
+        },
+      },
+      {
+        id: "calm_mode.reduce_pressure_on_distress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.CONTENT,
+          parameters: { lowPressure: true },
+        },
+      },
+    ],
+  },
+  "asd.emotion-decoder": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
+    ],
+    modulePolicies: [
+      {
+        id: "emotion_decoder.extra_hints_on_distress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { showCuesFirst: true, encouragingHints: true },
+        },
+      },
+      {
+        id: "emotion_decoder.simplify_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 35,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.PACING,
+          parameters: { oneScenarioAtATime: true, fewerCues: true },
+        },
+      },
+    ],
+  },
+  "asd.social-scenarios": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.ASSISTANCE,
+    ],
+    modulePolicies: [
+      {
+        id: "social_scenarios.extra_hints_on_distress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 45,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "mood",
+                condition: TriggerCondition.IN,
+                value: ["anxious", "panicked", "overwhelmed"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.ASSISTANCE,
+          parameters: { showCuesFirst: true, encouragingHints: true },
+        },
+      },
+      {
+        id: "social_scenarios.simplify_on_overload",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 40,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "cognitiveLoad",
+                condition: TriggerCondition.IN,
+                value: ["overwhelming", "high"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.SIMPLIFY,
+          target: AdaptationDimension.PACING,
+          parameters: { oneScenarioAtATime: true, fewerCues: true },
+        },
+      },
+      {
+        id: "social_scenarios.slow_pace_on_low_energy",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 30,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "energy",
+                condition: TriggerCondition.IN,
+                value: ["tired", "exhausted"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.DECREASE,
+          target: AdaptationDimension.PACING,
+          parameters: { pace: "slow", extendedThinkTime: true },
+        },
+      },
+    ],
+  },
+};
 
 const rawSupportModules = [
   {
@@ -153,40 +942,45 @@ const rawSupportModules = [
     repetitionLimit: { maxCount: 6, windowHours: 24 },
   },
   {
-    id: FEATURES.ASD_SENSORY,
-    title: "Sensory Regulation",
-    description: "Adjust sensory load and access calming supports.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["sensory_regulation", "low_stimulation"],
-    route: "/asd/sensory",
-    tags: ["sensory_overload", "overwhelm", "stress_reactivity"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["trigger", "before_level", "after_level"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
-    id: FEATURES.ASD_MELTDOWN,
-    title: "Meltdown Prevention",
-    description: "Use a low-stimulation workflow during overload risk.",
-    category: ModuleCategory.SENSORY,
-    interventionTypes: ["overload_support", "meltdown_prevention"],
-    route: "/asd/meltdown",
-    tags: ["panic", "overwhelm", "sensory_overload"],
-    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["risk_level", "steps_completed"],
-    safetyLevel: SafetyLevel.CAUTION,
-  },
-  {
     id: FEATURES.ASD_SOCIAL_SCENARIOS,
+    moduleId: FEATURES.ASD_SOCIAL_SCENARIOS,
     title: "Social Scenario Simulator",
-    description: "Practice real conversations in safe, guided scenarios with gentle feedback.",
+    description: "Practise responding to one realistic social situation at a time, with voice or text and gentle structured feedback.",
     category: ModuleCategory.SPECIALIZED,
     interventionTypes: ["social_scenario_simulation", "social_practice"],
     route: "/asd/social-scenarios",
     tags: ["social_stress", "communication", "practice"],
     disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
-    expectedOutcomeMetrics: ["communication_score", "turns_completed", "scenario_id"],
+    expectedOutcomeMetrics: ["attempts", "average_score", "scenario_id"],
+    developmentDomain: "asd",
+    supportedNeeds: ["social_understanding", "communication_practice", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "submit_response", "next", "read_aloud"],
+    configurableParameters: { category: true, difficulty: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["attempts", "average_score", "scenario_id"],
     safetyLevel: SafetyLevel.CAUTION,
+  },
+  {
+    id: "asd.emotion-decoder",
+    moduleId: "asd.emotion-decoder",
+    title: "Emotion Decoder",
+    description: "Practise reading what someone might be feeling from their voice, face and body, with gentle feedback.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["emotion_recognition", "social_understanding"],
+    route: "/asd/emotion",
+    tags: ["emotion_recognition", "social_cues", "practice"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY],
+    expectedOutcomeMetrics: ["attempts", "accuracy", "hints_used"],
+    developmentDomain: "asd",
+    supportedNeeds: ["emotion_recognition", "social_understanding", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "general"],
+    actions: ["generate", "answer", "next", "read_aloud"],
+    configurableParameters: { difficulty: true, activityType: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
+    outcomeFields: ["attempts", "accuracy", "hints_used"],
   },
   {
     id: "dyslexia.adaptive-reading",
@@ -335,6 +1129,28 @@ const rawSupportModules = [
     actions: ["save_entry", "complete", "abandon"], configurableParameters: { category: true }, launchPolicy: "confirmation_required",
     lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned", "rated"], outcomeFields: ["entries_saved", "rating"], legacyIds: [],
   },
+  {
+    id: FEATURES.COMMUNICATION,
+    moduleId: FEATURES.COMMUNICATION,
+    title: "Conversation Practice",
+    description: "Practice real conversations with an AI partner, using voice or text, with structured feedback and adaptive difficulty.",
+    category: ModuleCategory.SPECIALIZED,
+    interventionTypes: ["communication_simulation", "social_practice"],
+    route: "/communication",
+    tags: ["communication", "social_practice", "conversation"],
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY, DISORDERS.ADHD, DISORDERS.APD],
+    expectedOutcomeMetrics: ["communication_score", "turns_completed", "difficulty"],
+    safetyLevel: SafetyLevel.CAUTION,
+    developmentDomain: "general",
+    supportedNeeds: ["communication_practice", "social_practice", "confidence_building"],
+    potentiallyRelevantDomains: ["asd", "anxiety", "adhd", "apd", "general"],
+    actions: ["start", "submit_reply", "pause", "resume", "complete", "abandon"],
+    configurableParameters: { domain: true, difficulty: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "completed", "abandoned", "rated"],
+    outcomeFields: ["communication_score", "turns_completed", "difficulty"],
+    legacyIds: [],
+  },
 ];
 
 export const SUPPORT_MODULES = rawSupportModules.map((module) =>
@@ -344,6 +1160,7 @@ export const SUPPORT_MODULES = rawSupportModules.map((module) =>
     supportedRoles: ["user"],
     repetitionLimit: { maxCount: 2, windowHours: 24 },
     ...module,
+    ...(moduleAdaptationSets[module.id] ?? {}),
   }),
 );
 
