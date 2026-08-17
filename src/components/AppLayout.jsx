@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
+import AgentChat from "./AgentChat";
 
 // featureKey: null means always visible (Home)
 const USER_NAV = [
@@ -168,6 +169,9 @@ export default function AppLayout({ children }) {
           {children}
         </main>
       </div>
+      
+      {/* Agent Chat Widget (visible for authenticated users) */}
+      {isAuthenticated && role === "user" && <AgentChat />}
     </div>
   );
 }
