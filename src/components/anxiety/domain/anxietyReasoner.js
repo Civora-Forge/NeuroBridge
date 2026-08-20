@@ -2,11 +2,11 @@
  * anxietyReasoner.js — Explainable behavioral pattern reasoning for Anxiety states
  *
  * Responsibilities:
- *   - Evaluates multi-dimensional AnxietyState to identify the dominant behavioral pattern.
+ *   - Evaluates multi-dimensional AnxietyState and Context Evidence to identify behavioral patterns.
  *   - Uses neutral, behavioral reasoning language (not diagnostic clinical claims).
- *   - Supports uncertainty (defaults to GENERAL_ANXIETY when evidence is ambiguous).
- *   - Identifies STABLE_BASELINE when distress is low and non-escalating.
- *   - Identifies SENSORY_OVERWHELM, PHYSIOLOGICAL_ESCALATION, COGNITIVE_WORRY_LOOP, AVOIDANCE_DRIVEN.
+ *   - Identifies STABLE_BASELINE (Level 0) when behavioral deviation and friction are low.
+ *   - Signals when lightweight semantic clarification is helpful (needsClarification).
+ *   - Maps to PHYSIOLOGICAL_ESCALATION, COGNITIVE_WORRY_LOOP, AVOIDANCE_DRIVEN, SENSORY_OVERWHELM, or GENERAL_ANXIETY.
  */
 
 import { AnxietyPatternType } from "./anxietyTypes";
@@ -14,22 +14,24 @@ import { AnxietyPatternType } from "./anxietyTypes";
 /**
  * Reasons over the current AnxietyState and produces structured pattern output
  *
- * @param {object} state Derived AnxietyState
- * @param {object} [context] Optional additional context (e.g. activeTask, environment)
+ * @param {object} state Derived AnxietyState from deriveAnxietyState()
+ * @param {object} [context] Optional additional context
  * @returns {object} ReasoningResult
  */
 export function reasonAnxietyPattern(state, context = {}) {
   if (!state || typeof state !== "object") {
     return {
-      pattern: AnxietyPatternType.GENERAL_ANXIETY,
+      pattern: AnxietyPatternType.STABLE_BASELINE,
       urgency: "low",
+      responseTier: 0,
+      needsClarification: false,
       dominantFactors: [],
-      rationale: "Insufficient state data available. Monitoring for signals.",
-      evidenceSummary: ["No structured state provided"],
+      rationale: "No active friction telemetry or state signals detected. Remaining quiet.",
+      evidenceSummary: ["No signals observed"],
     };
   }
 
-  const severityVal = state.severity?.value ?? 0;
+  const severityVal = state.severity?.value;
   const arousalVal = state.arousal?.value ?? 0;
   const arousalConf = state.arousal?.confidence ?? 0;
   const ruminationVal = state.rumination?.value ?? 0;
@@ -37,140 +39,184 @@ export function reasonAnxietyPattern(state, context = {}) {
   const avoidanceVal = state.avoidance?.value ?? 0;
   const avoidanceConf = state.avoidance?.confidence ?? 0;
   const cognitiveLoadVal = state.cognitiveLoad?.value ?? 0;
-  const escalationVal = state.escalation?.value ?? 0;
+  const behavioralDeviation = state.behavioralDeviation?.value ?? 0;
+  const frictionScore = state.frictionIndex?.value ?? 0;
+  const clarification = state.semanticClarification;
+  const responseTier = state.responseTier ?? 0;
 
-  // 1. Stable Baseline Check (Low severity, non-escalating, minimal distress signals)
-  if (
-    severityVal <= 3 &&
-    escalationVal < 0.35 &&
+  // 1. Stable Baseline (Level 0: Quiet / Do nothing)
+  const isBaseline =
+    clarification == null &&
+    (severityVal == null || severityVal <= 3) &&
+    frictionScore < 0.25 &&
+    behavioralDeviation < 0.35 &&
     arousalVal < 0.45 &&
     ruminationVal < 0.45 &&
-    avoidanceVal < 0.45
-  ) {
+    avoidanceVal < 0.45;
+
+  if (isBaseline) {
     return {
       pattern: AnxietyPatternType.STABLE_BASELINE,
       urgency: "low",
-      dominantFactors: ["severity_baseline", "stable_trend"],
+      responseTier: 0,
+      needsClarification: false,
+      dominantFactors: ["baseline_behavior", "low_friction"],
       rationale:
-        "Current anxiety rating is within a low, stable baseline range with no acute physiological or cognitive escalation.",
+        "Observable interaction signals are within normal baseline ranges with no meaningful behavioral friction. System remains quiet.",
       evidenceSummary: [
-        `Low severity (${severityVal}/10)`,
-        "No active escalation velocity",
-        "Minimal autonomic or cognitive worry signals",
+        "Normal interaction telemetry",
+        "No task-switching churn or hesitation bursts",
+        "Low behavioral deviation",
       ],
     };
   }
 
-  // 2. Physiological Escalation Check (High arousal, rapid escalation, or acute physical signals)
-  // Confidence-weighted check
-  const isHighArousal = arousalVal >= 0.55 && arousalConf >= 0.4;
-  const isRapidEscalation = escalationVal >= 0.65 && severityVal >= 6;
-  const isAcutePanic = severityVal >= 8 && arousalVal >= 0.5;
-
-  if (isHighArousal || isRapidEscalation || isAcutePanic) {
-    const dominantFactors = ["arousal", "severity"];
-    if (escalationVal >= 0.5) dominantFactors.push("escalation");
-
-    let urgency = "high";
-    if (severityVal >= 8 || arousalVal >= 0.8) urgency = "critical";
-
-    const rationale =
-      arousalVal >= 0.7
-        ? "Pronounced physiological activation (such as elevated heart rate, physical tension, or rapid onset) suggests autonomic nervous system escalation."
-        : "Rapid escalation in distress indicates acute physiological arousal that benefits from immediate somatic regulation.";
-
+  // 2. Direct Semantic Clarifications (High confidence from user's 1-tap confirmation)
+  if (clarification === "body") {
     return {
       pattern: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
-      urgency,
-      dominantFactors,
-      rationale,
-      evidenceSummary: [
-        `Arousal estimate: ${Math.round(arousalVal * 100)}%`,
-        `Severity rating: ${severityVal}/10`,
-        ...(state.arousal?.evidence || []),
-        ...(state.escalation?.evidence || []),
-      ],
-    };
-  }
-
-  // 3. Sensory Overwhelm Check (High cognitive load + sensory tags / environment cues, lower rumination)
-  const isSensoryOverwhelm =
-    cognitiveLoadVal >= 0.65 &&
-    (state.rawInput?.selectedTags?.includes("loud_environment") ||
-      state.rawInput?.selectedTags?.includes("sensory_overload") ||
-      context.environment === "loud") &&
-    ruminationVal < 0.6;
-
-  if (isSensoryOverwhelm) {
-    return {
-      pattern: AnxietyPatternType.SENSORY_OVERWHELM,
-      urgency: severityVal >= 7 ? "high" : "moderate",
-      dominantFactors: ["cognitiveLoad", "sensory_overload"],
+      urgency: "high",
+      responseTier: 3,
+      needsClarification: false,
+      dominantFactors: ["arousal", "body_sensation"],
       rationale:
-        "Environmental or sensory input appears to be saturating cognitive processing capacity, creating sensory overwhelm.",
+        "Confirmed physical/body sensations indicate elevated autonomic nervous system arousal. Somatic regulation selected.",
       evidenceSummary: [
-        `High cognitive load (${Math.round(cognitiveLoadVal * 100)}%)`,
-        "Sensory environmental signals present",
-        ...(state.cognitiveLoad?.evidence || []),
+        "User confirmed body/physical tension as hardest factor",
+        ...(state.arousal?.evidence || []),
       ],
     };
   }
 
-  // 4. Cognitive Worry Loop Check (High rumination with reasonable confidence, moderate/low arousal)
-  const isRuminationDominant = ruminationVal >= 0.5 && ruminationConf >= 0.4 && arousalVal < 0.65;
-  if (isRuminationDominant) {
-    const dominantFactors = ["rumination", "cognitiveLoad"];
-    const urgency = severityVal >= 7 ? "high" : "moderate";
-
-    const rationale =
-      "Reported signals indicate repetitive worry loops, catastrophizing, or anticipatory thought patterns without acute physical panic.";
-
+  if (clarification === "thoughts") {
     return {
       pattern: AnxietyPatternType.COGNITIVE_WORRY_LOOP,
-      urgency,
-      dominantFactors,
-      rationale,
+      urgency: "moderate",
+      responseTier: 3,
+      needsClarification: false,
+      dominantFactors: ["rumination", "cognitive_friction"],
+      rationale:
+        "Confirmed repetitive thought patterns indicate cognitive worry loops. Cognitive restructuring selected.",
       evidenceSummary: [
-        `Rumination index: ${Math.round(ruminationVal * 100)}%`,
-        `Cognitive load: ${Math.round(cognitiveLoadVal * 100)}%`,
-        `Arousal remains sub-acute (${Math.round(arousalVal * 100)}%)`,
+        "User confirmed looping thoughts as hardest factor",
         ...(state.rumination?.evidence || []),
       ],
     };
   }
 
-  // 5. Avoidance-Driven Anxiety Check (High avoidance, task paralysis, moderate distress)
-  const isAvoidanceDominant = avoidanceVal >= 0.5 && avoidanceConf >= 0.4 && arousalVal < 0.65;
-  if (isAvoidanceDominant) {
-    const dominantFactors = ["avoidance", "cognitiveLoad"];
-    const urgency = "moderate";
-
-    const rationale =
-      "Distress appears linked to task paralysis, procrastination, or avoidance of an impending responsibility.";
-
+  if (clarification === "getting_started") {
     return {
       pattern: AnxietyPatternType.AVOIDANCE_DRIVEN,
-      urgency,
-      dominantFactors,
-      rationale,
+      urgency: "moderate",
+      responseTier: 3,
+      needsClarification: false,
+      dominantFactors: ["avoidance", "task_initiation_freeze"],
+      rationale:
+        "Confirmed task initiation barrier indicates avoidance paralysis. Behavioral activation selected.",
       evidenceSummary: [
-        `Avoidance score: ${Math.round(avoidanceVal * 100)}%`,
-        `Severity rating: ${severityVal}/10`,
+        "User confirmed getting started as hardest factor",
         ...(state.avoidance?.evidence || []),
       ],
     };
   }
 
-  // 6. Uncertainty Fallback: General Anxiety
+  // 3. Passive Telemetry Inferences
+
+  // Physiological Escalation from Passive Telemetry (High motor churn, task friction, focus instability)
+  const isPhysiological =
+    arousalVal >= 0.55 && arousalConf >= 0.5;
+
+  if (isPhysiological) {
+    return {
+      pattern: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
+      urgency: arousalVal >= 0.75 ? "critical" : "high",
+      responseTier: Math.max(2, responseTier),
+      needsClarification: false,
+      dominantFactors: ["arousal", "task_friction"],
+      rationale:
+        "High task-switching churn combined with focus interruptions suggests elevated physiological or motor restlessness.",
+      evidenceSummary: [
+        `Arousal estimate: ${Math.round(arousalVal * 100)}% (confidence: ${Math.round(arousalConf * 100)}%)`,
+        ...(state.arousal?.evidence || []),
+      ],
+    };
+  }
+
+  // Cognitive Worry Loop from Passive Telemetry (Typing hesitation, correction bursts, repeated navigations)
+  const isCognitiveWorry =
+    ruminationVal >= 0.50 && ruminationConf >= 0.5 && arousalVal < 0.6;
+
+  if (isCognitiveWorry) {
+    return {
+      pattern: AnxietyPatternType.COGNITIVE_WORRY_LOOP,
+      urgency: "moderate",
+      responseTier: Math.max(1, responseTier),
+      needsClarification: false,
+      dominantFactors: ["rumination", "hesitation_bursts"],
+      rationale:
+        "High typing pause duration and correction churn indicate cognitive hesitation or second-guessing loops.",
+      evidenceSummary: [
+        `Rumination index: ${Math.round(ruminationVal * 100)}%`,
+        ...(state.rumination?.evidence || []),
+      ],
+    };
+  }
+
+  // Avoidance-Driven from Passive Telemetry (Extended inactivity on active task)
+  const isAvoidance =
+    avoidanceVal >= 0.50 && avoidanceConf >= 0.5 && arousalVal < 0.6;
+
+  if (isAvoidance) {
+    return {
+      pattern: AnxietyPatternType.AVOIDANCE_DRIVEN,
+      urgency: "moderate",
+      responseTier: Math.max(1, responseTier),
+      needsClarification: false,
+      dominantFactors: ["avoidance", "task_freeze"],
+      rationale:
+        "Extended pause on an active task with behavioral deviation indicates an avoidance or task initiation block.",
+      evidenceSummary: [
+        `Avoidance estimate: ${Math.round(avoidanceVal * 100)}%`,
+        ...(state.avoidance?.evidence || []),
+      ],
+    };
+  }
+
+  // Sensory Overwhelm from Passive Telemetry (Sensory environment + high cognitive load)
+  const isSensory =
+    cognitiveLoadVal >= 0.65 && context.environment === "loud";
+
+  if (isSensory) {
+    return {
+      pattern: AnxietyPatternType.SENSORY_OVERWHELM,
+      urgency: "moderate",
+      responseTier: Math.max(2, responseTier),
+      needsClarification: false,
+      dominantFactors: ["cognitiveLoad", "sensory_environment"],
+      rationale:
+        "Sensory environmental factors combined with cumulative load indicate sensory overwhelm.",
+      evidenceSummary: [
+        `Cognitive load: ${Math.round(cognitiveLoadVal * 100)}%`,
+        ...(state.cognitiveLoad?.evidence || []),
+      ],
+    };
+  }
+
+  // Ambiguous Friction -> Suggest lightweight semantic clarification
+  const needsClarification = frictionScore >= 0.35 && clarification == null;
+
   return {
     pattern: AnxietyPatternType.GENERAL_ANXIETY,
-    urgency: severityVal >= 7 ? "high" : "moderate",
-    dominantFactors: ["severity"],
+    urgency: frictionScore >= 0.6 ? "high" : "moderate",
+    responseTier: Math.max(1, responseTier),
+    needsClarification,
+    dominantFactors: ["behavioral_friction"],
     rationale:
-      "Signals indicate moderate general anxiety without a single dominant physiological, cognitive, or avoidance pattern.",
+      "Telemetry indicates noticeable behavioral friction, but signals are mixed across physiological, cognitive, and task factors.",
     evidenceSummary: [
-      `Severity rating: ${severityVal}/10`,
-      "No single behavioral dimension exceeds dominant threshold",
+      `Behavioral friction score: ${Math.round(frictionScore * 100)}%`,
+      `Behavioral deviation: ${Math.round(behavioralDeviation * 100)}%`,
+      ...(state.activeEvidence?.map((e) => e.description) || []),
     ],
   };
 }

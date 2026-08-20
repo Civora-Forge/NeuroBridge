@@ -1,28 +1,29 @@
 /**
- * anxietyOutcomeModel.js — Structured Intervention Outcome Quality Model
+ * anxietyOutcomeModel.js — Structured Intervention Outcome Quality Model with 1-tap feedback support
  *
  * Responsibilities:
- *   - Captures rich outcome metrics: pre/post severity, delta, completion, duration, and state snapshot.
- *   - Evaluates effectiveness tier (strong_response, moderate_response, no_response, adverse).
- *   - Provides pure, deterministic outcome evaluation.
+ *   - Captures lightweight 1-tap subjective outcome ("better" | "same" | "worse") as well as detailed numeric ratings.
+ *   - Evaluates response tier (strong_response, moderate_response, no_response, adverse).
+ *   - Pure, deterministic outcome evaluation.
  */
 
 /**
- * Evaluates outcome response tier from pre/post ratings and completion status
+ * Maps subjective 1-tap response to numerical delta and effectiveness tier
  *
- * @param {number} delta (pre - post)
- * @param {boolean} completed
- * @param {boolean} abandoned
- * @returns {"strong_response" | "moderate_response" | "no_response" | "adverse"}
+ * @param {"better"|"same"|"worse"} subjectiveOutcome
+ * @returns {{ delta: number, effectiveness: string }}
  */
-export function evaluateEffectiveness(delta, completed, abandoned) {
-  if (delta < 0) return "adverse";
-  if (abandoned || !completed) {
-    return delta >= 2 ? "moderate_response" : "no_response";
+export function evaluateSubjectiveResponse(subjectiveOutcome) {
+  switch (subjectiveOutcome) {
+    case "better":
+      return { delta: 3, effectiveness: "strong_response" };
+    case "same":
+      return { delta: 0, effectiveness: "no_response" };
+    case "worse":
+      return { delta: -2, effectiveness: "adverse" };
+    default:
+      return { delta: 1, effectiveness: "moderate_response" };
   }
-  if (delta >= 3) return "strong_response";
-  if (delta >= 1) return "moderate_response";
-  return "no_response";
 }
 
 /**
@@ -32,8 +33,9 @@ export function evaluateEffectiveness(delta, completed, abandoned) {
  * @param {string} params.userId
  * @param {string} params.interventionId
  * @param {string} params.patternType
- * @param {number} params.preSeverity
- * @param {number} params.postSeverity
+ * @param {"better"|"same"|"worse"|null} [params.subjectiveOutcome] 1-tap outcome feedback
+ * @param {number|null} [params.preSeverity]
+ * @param {number|null} [params.postSeverity]
  * @param {boolean} [params.completed=true]
  * @param {boolean} [params.abandoned=false]
  * @param {number} [params.durationSeconds=0]
@@ -45,32 +47,45 @@ export function createOutcomeRecord({
   userId = "anon",
   interventionId,
   patternType,
-  preSeverity,
-  postSeverity,
+  subjectiveOutcome = null,
+  preSeverity = null,
+  postSeverity = null,
   completed = true,
   abandoned = false,
   durationSeconds = 0,
   stateSnapshot = {},
   timestamp = new Date().toISOString(),
 }) {
-  const pre = Math.max(0, Math.min(10, Number(preSeverity ?? 0)));
-  const post = Math.max(0, Math.min(10, Number(postSeverity ?? pre)));
-  const delta = pre - post;
-  const isCompleted = completed && !abandoned;
-  const isAbandoned = abandoned || !completed;
+  let delta = 0;
+  let effectiveness = "moderate_response";
 
-  const effectiveness = evaluateEffectiveness(delta, isCompleted, isAbandoned);
+  if (subjectiveOutcome) {
+    const sub = evaluateSubjectiveResponse(subjectiveOutcome);
+    delta = sub.delta;
+    effectiveness = sub.effectiveness;
+  } else if (preSeverity != null && postSeverity != null) {
+    delta = Number(preSeverity) - Number(postSeverity);
+    if (delta >= 3) effectiveness = "strong_response";
+    else if (delta >= 1) effectiveness = "moderate_response";
+    else if (delta === 0) effectiveness = "no_response";
+    else effectiveness = "adverse";
+  }
+
+  if (abandoned) {
+    effectiveness = delta > 0 ? "moderate_response" : "no_response";
+  }
 
   return {
     id: `out-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     userId,
     interventionId,
     patternType,
-    preSeverity: pre,
-    postSeverity: post,
+    subjectiveOutcome,
+    preSeverity: preSeverity != null ? Number(preSeverity) : null,
+    postSeverity: postSeverity != null ? Number(postSeverity) : null,
     delta,
-    completed: isCompleted,
-    abandoned: isAbandoned,
+    completed: completed && !abandoned,
+    abandoned: Boolean(abandoned),
     durationSeconds: Math.max(0, Number(durationSeconds ?? 0)),
     stateSnapshot,
     effectiveness,

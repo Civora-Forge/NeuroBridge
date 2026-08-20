@@ -1,49 +1,44 @@
 /**
- * anxietyDemoScenarios.js — Isolated deterministic scenarios using real production engine logic
+ * anxietyDemoScenarios.js — Isolated deterministic test scenarios driving the production adaptive engine
  *
  * Responsibilities:
- *   - Provides deterministic test and demonstration scenarios for evaluator inspection.
- *   - Invocates production state derivation, reasoning, planning, and adaptation functions directly.
- *   - No "if (demoMode)" contamination in production domain logic.
+ *   - Feeds realistic demo ContextSnapshots through the exact production adapter & reasoning pipeline.
+ *   - No hardcoded pattern/intervention assignments.
+ *   - Demonstrates genuine state-specific personalized outcome learning.
  */
 
+import {
+  scenario1_physiologicalSnapshot,
+  scenario2_cognitiveSnapshot,
+  scenario3_avoidanceSnapshot,
+  scenario4_stableBaselineSnapshot,
+} from "./demoContextSnapshots";
+import { adaptContextToAnxietyEvidence } from "../domain/anxietyContextAdapter";
 import { deriveAnxietyState } from "../domain/anxietyStateEngine";
 import { reasonAnxietyPattern } from "../domain/anxietyReasoner";
 import { createEpisode, updateEpisode } from "../domain/anxietyEpisodeEngine";
 import { planInterventions } from "../planning/anxietyPlanner";
 import { createOutcomeRecord } from "../adaptation/anxietyOutcomeModel";
-import { recordOutcome, getPersonalizedModifier, clearUserOutcomes } from "../adaptation/anxietyPersonalization";
+import { recordOutcome, getPersonalizedModifier } from "../adaptation/anxietyPersonalization";
 import { AnxietyPatternType, InterventionId } from "../domain/anxietyTypes";
 
 /**
- * Scenario 1: Acute Physiological Escalation
+ * Scenario 1: Acute Physiological Escalation from Passive Context
  */
-export function runScenario1_PhysiologicalEscalation(userId = "demo_user") {
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const now = new Date().toISOString();
+export function runScenario1_PhysiologicalEscalation(userId = "demo_evaluator") {
+  const snapshot = scenario1_physiologicalSnapshot;
+  const userBaseline = { taskSwitchFrequency: 0.2, correctionRate: 0.1 };
 
-  const history = [
-    { severity: 3, level: 3, loggedAt: tenMinutesAgo },
-  ];
-
-  const input = {
-    severity: 8,
-    selectedTags: ["racing_heart", "tension_shaking"],
-    triggerText: "Sudden racing pulse and tight chest before entering the venue",
-    timestamp: now,
-  };
-
-  // Run production pipeline
-  const state = deriveAnxietyState(input, history);
+  // Run production pipeline from snapshot
+  const state = deriveAnxietyState({ contextSnapshot: snapshot, userBaseline });
   const reasoning = reasonAnxietyPattern(state);
-  const episode = createEpisode(state, input.triggerText, now);
+  const episode = createEpisode(state, "Passive motor restlessness telemetry");
   const plan = planInterventions(state, reasoning, episode, userId);
 
   return {
     scenarioId: "scenario_1_physiological",
-    title: "Scenario 1: Acute Physiological Escalation",
-    input,
-    history,
+    title: "Scenario 1: Physiological Escalation (Passive Churn)",
+    rawSnapshot: snapshot,
     state,
     reasoning,
     episode,
@@ -54,34 +49,22 @@ export function runScenario1_PhysiologicalEscalation(userId = "demo_user") {
 }
 
 /**
- * Scenario 2: Cognitive Worry Loop
+ * Scenario 2: Cognitive Worry Loop from Passive Context
  */
-export function runScenario2_CognitiveWorryLoop(userId = "demo_user") {
-  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-  const now = new Date().toISOString();
+export function runScenario2_CognitiveWorryLoop(userId = "demo_evaluator") {
+  const snapshot = scenario2_cognitiveSnapshot;
+  const userBaseline = { taskSwitchFrequency: 0.2, correctionRate: 0.1 };
 
-  const history = [
-    { severity: 5, level: 5, loggedAt: threeHoursAgo },
-  ];
-
-  const input = {
-    severity: 6,
-    selectedTags: ["worry_loop", "catastrophizing"],
-    triggerText: "What if I fail the exam and everything is ruined and completely hopeless",
-    timestamp: now,
-  };
-
-  // Run production pipeline
-  const state = deriveAnxietyState(input, history);
+  // Run production pipeline from snapshot
+  const state = deriveAnxietyState({ contextSnapshot: snapshot, userBaseline });
   const reasoning = reasonAnxietyPattern(state);
-  const episode = createEpisode(state, input.triggerText, now);
+  const episode = createEpisode(state, "Typing hesitation & navigation churn");
   const plan = planInterventions(state, reasoning, episode, userId);
 
   return {
     scenarioId: "scenario_2_cognitive",
-    title: "Scenario 2: Cognitive Worry Loop",
-    input,
-    history,
+    title: "Scenario 2: Cognitive Worry Loop (Hesitation Bursts)",
+    rawSnapshot: snapshot,
     state,
     reasoning,
     episode,
@@ -92,113 +75,48 @@ export function runScenario2_CognitiveWorryLoop(userId = "demo_user") {
 }
 
 /**
- * Scenario 3: State-Specific Personalized Adaptation
- * Demonstrates that breathing success boosts future physiological episodes but does NOT contaminate cognitive episodes.
+ * Scenario 3: Avoidance & Task Initiation Freeze from Passive Context
  */
-export function runScenario3_PersonalizedAdaptation(userId = "demo_user") {
-  // Step 1: Pre-populate history with successful breathing outcomes for PHYSIOLOGICAL_ESCALATION
-  const simulatedHistoricalOutcomes = [
-    createOutcomeRecord({
-      userId,
-      interventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
-      patternType: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
-      preSeverity: 8,
-      postSeverity: 4,
-      completed: true,
-      durationSeconds: 120,
-    }),
-    createOutcomeRecord({
-      userId,
-      interventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
-      patternType: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
-      preSeverity: 7,
-      postSeverity: 4,
-      completed: true,
-      durationSeconds: 120,
-    }),
-  ];
+export function runScenario3_AvoidanceDriven(userId = "demo_evaluator") {
+  const snapshot = scenario3_avoidanceSnapshot;
+  const userBaseline = { taskSwitchFrequency: 0.2, correctionRate: 0.1 };
 
-  // Test on a new Physiological Escalation episode
-  const physScenario = runScenario1_PhysiologicalEscalation(userId);
-  const physPlanWithLearning = planInterventions(
-    physScenario.state,
-    physScenario.reasoning,
-    physScenario.episode,
-    userId,
-    simulatedHistoricalOutcomes
-  );
-
-  const physBreathingCandidate = physPlanWithLearning.allCandidates.find(
-    (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
-  );
-
-  // Test on a new Cognitive episode
-  const cogScenario = runScenario2_CognitiveWorryLoop(userId);
-  const cogPlanWithLearning = planInterventions(
-    cogScenario.state,
-    cogScenario.reasoning,
-    cogScenario.episode,
-    userId,
-    simulatedHistoricalOutcomes
-  );
-
-  const cogBreathingCandidate = cogPlanWithLearning.allCandidates.find(
-    (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
-  );
+  // Run production pipeline from snapshot
+  const state = deriveAnxietyState({ contextSnapshot: snapshot, userBaseline });
+  const reasoning = reasonAnxietyPattern(state);
+  const episode = createEpisode(state, "Inactivity freeze on active task");
+  const plan = planInterventions(state, reasoning, episode, userId);
 
   return {
-    scenarioId: "scenario_3_adaptation",
-    title: "Scenario 3: State-Specific Personalization",
-    simulatedOutcomes: simulatedHistoricalOutcomes,
-    physiologicalEpisode: {
-      pattern: physScenario.reasoning.pattern,
-      breathingScore: physBreathingCandidate?.score,
-      personalizedBonus: physBreathingCandidate?.personalizedBonus,
-      personalizationNote: physBreathingCandidate?.personalizationNote,
-      topRecommendation: physPlanWithLearning.recommendedIntervention.id,
-    },
-    cognitiveEpisode: {
-      pattern: cogScenario.reasoning.pattern,
-      breathingScore: cogBreathingCandidate?.score,
-      personalizedBonus: cogBreathingCandidate?.personalizedBonus,
-      personalizationNote: cogBreathingCandidate?.personalizationNote,
-      topRecommendation: cogPlanWithLearning.recommendedIntervention.id,
-    },
-    learningConfirmed:
-      (physBreathingCandidate?.personalizedBonus || 0) > 0 &&
-      (cogBreathingCandidate?.personalizedBonus || 0) === 0,
+    scenarioId: "scenario_3_avoidance",
+    title: "Scenario 3: Avoidance / Task Freeze (Inactivity)",
+    rawSnapshot: snapshot,
+    state,
+    reasoning,
+    episode,
+    plan,
+    expectedPattern: AnxietyPatternType.AVOIDANCE_DRIVEN,
+    expectedRecommendation: InterventionId.BEHAVIORAL_MICRO_ACTION,
   };
 }
 
 /**
- * Scenario 4: Stable Baseline (Monitor Only)
+ * Scenario 4: Stable Baseline (Level 0: Quiet / Do Nothing)
  */
-export function runScenario4_MonitorOnly(userId = "demo_user") {
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const now = new Date().toISOString();
+export function runScenario4_MonitorOnly(userId = "demo_evaluator") {
+  const snapshot = scenario4_stableBaselineSnapshot;
+  const userBaseline = { taskSwitchFrequency: 0.2, correctionRate: 0.1 };
 
-  const history = [
-    { severity: 2, level: 2, loggedAt: twoHoursAgo },
-  ];
-
-  const input = {
-    severity: 2,
-    selectedTags: [],
-    triggerText: "Reading calmly at desk",
-    timestamp: now,
-  };
-
-  // Run production pipeline
-  const state = deriveAnxietyState(input, history);
+  // Run production pipeline from snapshot
+  const state = deriveAnxietyState({ contextSnapshot: snapshot, userBaseline });
   const reasoning = reasonAnxietyPattern(state);
-  const episode = createEpisode(state, input.triggerText, now);
+  const episode = createEpisode(state, "Calm baseline telemetry");
   const plan = planInterventions(state, reasoning, episode, userId);
 
   return {
     scenarioId: "scenario_4_monitor",
-    title: "Scenario 4: Stable Baseline (Monitor Only)",
-    input,
-    history,
+    title: "Scenario 4: Stable Baseline (Monitor Only / Level 0)",
+    rawSnapshot: snapshot,
     state,
     reasoning,
     episode,
@@ -209,9 +127,85 @@ export function runScenario4_MonitorOnly(userId = "demo_user") {
   };
 }
 
+/**
+ * Scenario 5: State-Specific Personalized Adaptation Proof
+ * Proves that breathing outcome in physiological state boosts physiological episodes
+ * but produces 0 bonus on cognitive episodes.
+ */
+export function runScenario5_PersonalizedAdaptation(userId = "demo_evaluator") {
+  const simulatedHistoricalOutcomes = [
+    createOutcomeRecord({
+      userId,
+      interventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
+      patternType: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
+      subjectiveOutcome: "better",
+      completed: true,
+      durationSeconds: 60,
+    }),
+    createOutcomeRecord({
+      userId,
+      interventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
+      patternType: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
+      subjectiveOutcome: "better",
+      completed: true,
+      durationSeconds: 60,
+    }),
+  ];
+
+  // 1. Run Physiological Scenario with learned outcomes
+  const phys1 = runScenario1_PhysiologicalEscalation(userId);
+  const physPlanLearned = planInterventions(
+    phys1.state,
+    phys1.reasoning,
+    phys1.episode,
+    userId,
+    simulatedHistoricalOutcomes
+  );
+  const physBreathing = physPlanLearned.allCandidates.find(
+    (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
+  );
+
+  // 2. Run Cognitive Scenario with learned outcomes
+  const cog1 = runScenario2_CognitiveWorryLoop(userId);
+  const cogPlanLearned = planInterventions(
+    cog1.state,
+    cog1.reasoning,
+    cog1.episode,
+    userId,
+    simulatedHistoricalOutcomes
+  );
+  const cogBreathing = cogPlanLearned.allCandidates.find(
+    (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
+  );
+
+  return {
+    scenarioId: "scenario_5_adaptation",
+    title: "Scenario 5: State-Specific Adaptation Proof",
+    simulatedOutcomes: simulatedHistoricalOutcomes,
+    physiologicalEpisode: {
+      pattern: phys1.reasoning.pattern,
+      breathingScore: physBreathing?.score,
+      personalizedBonus: physBreathing?.personalizedBonus,
+      personalizationNote: physBreathing?.personalizationNote,
+      topRecommendation: physPlanLearned.recommendedIntervention.id,
+    },
+    cognitiveEpisode: {
+      pattern: cog1.reasoning.pattern,
+      breathingScore: cogBreathing?.score,
+      personalizedBonus: cogBreathing?.personalizedBonus,
+      personalizationNote: cogBreathing?.personalizationNote,
+      topRecommendation: cogPlanLearned.recommendedIntervention.id,
+    },
+    learningConfirmed:
+      (physBreathing?.personalizedBonus || 0) > 0 &&
+      (cogBreathing?.personalizedBonus || 0) === 0,
+  };
+}
+
 export const DEMO_SCENARIO_RUNNERS = [
   { id: "scenario_1", title: "Scenario 1: Physiological Escalation", run: runScenario1_PhysiologicalEscalation },
   { id: "scenario_2", title: "Scenario 2: Cognitive Worry Loop", run: runScenario2_CognitiveWorryLoop },
-  { id: "scenario_3", title: "Scenario 3: Learned Outcome Adaptation", run: runScenario3_PersonalizedAdaptation },
-  { id: "scenario_4", title: "Scenario 4: Stable Baseline (Monitor Only)", run: runScenario4_MonitorOnly },
+  { id: "scenario_3", title: "Scenario 3: Avoidance & Task Freeze", run: runScenario3_AvoidanceDriven },
+  { id: "scenario_4", title: "Scenario 4: Stable Baseline (Level 0)", run: runScenario4_MonitorOnly },
+  { id: "scenario_5", title: "Scenario 5: State-Specific Personalization", run: runScenario5_PersonalizedAdaptation },
 ];
