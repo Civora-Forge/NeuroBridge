@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
@@ -42,11 +43,13 @@ const TaskBreakdown = ({
   triggerSource = "manual",
   selectionMode = "explicit_request",
 }) => {
+  const location = useLocation();
+  const aiData = location.state || null;
   const { user } = useAuth();
-  const [bigTask, setBigTask] = useState("");
+  const [bigTask, setBigTask] = useState(aiData?.original_task || "");
   const [selectedEmoji, setSelectedEmoji] = useState("book");
   const [selectedVibe, setSelectedVibe] = useState("Important");
-  const [steps, setSteps] = useState([]);
+  const [steps, setSteps] = useState(aiData?.steps || []);
   const [selectedStyle, setSelectedStyle] = useState("Standard");
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [editingId, setEditingId] = useState(null);

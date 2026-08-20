@@ -28,3 +28,13 @@ class AgentMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     conversation = relationship("AgentConversation", back_populates="messages")
+
+class AgentLearning(Base):
+    __tablename__ = "agent_learnings"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    category = Column(String) # e.g., 'focus_preference', 'task_breakdown_success'
+    key = Column(String)
+    value = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

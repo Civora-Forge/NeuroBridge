@@ -4,7 +4,7 @@ from .database import engine, Base
 from .routers import ocd_router, agent_router
 
 # Create database tables (in a real app, use Alembic migrations)
-from .models import ocd_models, agent_models
+from .models import ocd_models, agent_models, adhd_models, anxiety_models, asd_models
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="NeuroBridge API")

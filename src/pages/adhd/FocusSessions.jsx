@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sun, Moon, Coffee, Crosshair, Tag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
@@ -302,12 +303,14 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
 };
 
 const FocusSessions = () => {
+  const location = useLocation();
+  const aiData = location.state || null;
   const { user } = useAuth();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [intent, setIntent] = useState('');
+  const [focusMinutes, setFocusMinutes] = useState(aiData?.duration_minutes || 25);
+  const [secondsLeft, setSecondsLeft] = useState((aiData?.duration_minutes || 25) * 60);
+  const [intent, setIntent] = useState(aiData?.intent || '');
   const [tag, setTag] = useState('');
   const [completedCount, setCompletedCount] = useState(0);
   const [totalFocusedMinutes, setTotalFocusedMinutes] = useState(0);

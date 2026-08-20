@@ -4,8 +4,7 @@ import google.generativeai as genai
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 
-from ..models import ocd_models
-from . import ai_service
+from . import agent_tools
 
 # Configure Gemini
 api_key = os.getenv("GEMINI_API_KEY")
@@ -19,37 +18,37 @@ class AgentOrchestrator:
         self.model = genai.GenerativeModel("gemini-2.5-pro")
         
     def _get_system_prompt(self) -> str:
-        return """
-You are the NeuroBridge Agentic AI Orchestrator, an intelligent support assistant for neurodivergent individuals (ADHD, OCD, ASD, Dyslexia, etc.).
-Your job is to understand the user's intent, provide empathetic but structured support, and trigger the appropriate NeuroBridge tools when needed.
-You have access to several specialized tools. If a tool is relevant, invoke it.
-Always return your response in the following JSON format ONLY:
-{
-    "response": "Your natural language response to the user. Empathetic, concise, clear.",
-    "action": {
+        # Retrieve user learnings/preferences for context
+        learnings = agent_tools.get_user_learnings(self.user_id, self.db)
+        learning_str = json.dumps(learnings) if learnings else "None yet."
+
+        return f"""
+You are the NeuroBridge Agentic AI Orchestrator, an intelligent support assistant for neurodivergent individuals.
+Your job is to understand the user's intent, plan a workflow, execute backend tools, and return the result.
+
+USER PREFERENCES & LEARNINGS:
+{learning_str}
+(Use this context to personalize your recommendations. E.g., if they prefer 15m focus sessions, suggest that).
+
+AVAILABLE TOOLS:
+- 'breakdown_task': Splits a large task. Args: {{ "task": "description" }}
+- 'create_focus_session': Creates a focus session in the database. Args: {{ "intent": "what to focus on", "duration_minutes": 15 }}
+- 'suggest_grounding': Creates an anxiety grounding session. Args: {{ "anxiety_level": 1-10 }}
+
+You must return your response in the following JSON format ONLY:
+{{
+    "response": "Your natural language response to the user. Explain what action you just took.",
+    "action": {{
         "type": "NAVIGATE" | "TOOL_EXECUTION" | "NONE",
-        "path": "route path if NAVIGATE (e.g. /adhd/breakdown, /ocd/exposure-tracker)",
-        "tool_name": "name of the tool if TOOL_EXECUTION",
-        "tool_args": { "arg1": "value1" }
-    }
-}
-If no action is needed, set action to null or type to "NONE".
-
-Available tools you can suggest:
-- 'breakdown_task': If the user is overwhelmed by a task (ADHD/Executive Function). Args: { "task": "description of the task" }. This tool generates a breakdown and suggests navigating to /adhd/breakdown.
-- 'suggest_exposure': If the user needs OCD ERP exposure ideas. Args: { "category": "obsession category" }. This generates ideas and suggests /ocd/exposure-hierarchy.
-- 'grounding_exercise': If the user is having high anxiety. Args: {}. Suggests navigating to /anxiety.
-- 'social_practice': If the user wants to practice social scenarios (ASD). Args: {}. Suggests navigating to /asd/social-scenarios.
-- 'simplify_text': If the user is struggling with reading (Dyslexia). Args: {}. Suggests /dyslexia/adaptive-reading.
-
-Remember: Do NOT diagnose or give medical advice. Keep responses actionable.
+        "tool_name": "name of the tool to execute right now",
+        "tool_args": {{ "arg1": "value" }}
+    }}
+}}
+If you trigger a TOOL_EXECUTION, the backend will execute it and send the resulting data to the frontend so the user can see it immediately.
+If no action is needed, set type to "NONE".
         """
 
     def process_message(self, message: str, context: List[Dict[str, str]] = None) -> Dict[str, Any]:
-        """
-        Process a user message, determine intent, potentially execute a backend tool,
-        and return the response + action payload.
-        """
         if not api_key:
             return {
                 "response": "I'm sorry, my AI backend is not configured properly (API key missing).",
@@ -73,25 +72,34 @@ Remember: Do NOT diagnose or give medical advice. Keep responses actionable.
             response_text = parsed.get("response", "I understand.")
             action = parsed.get("action", None)
             
-            # Execute backend tool if needed before returning to UI
+            # Real Tool Execution on the backend
             if action and action.get("type") == "TOOL_EXECUTION":
                 tool_name = action.get("tool_name")
                 tool_args = action.get("tool_args", {})
                 
                 if tool_name == "breakdown_task":
-                    # In a real scenario we might save to DB here. For now we will 
-                    # just instruct the frontend to navigate to the breakdown tool
-                    # with the task text pre-filled.
+                    result_data = agent_tools.tool_create_task_breakdown(tool_args.get("task", ""), self.user_id, self.db, self.model)
                     action = {
-                        "type": "NAVIGATE",
+                        "type": "NAVIGATE_WITH_DATA",
                         "path": "/adhd/breakdown",
-                        "data": { "initialTask": tool_args.get("task", "") }
+                        "card_type": "TASK_BREAKDOWN",
+                        "data": result_data
                     }
-                elif tool_name == "suggest_exposure":
+                elif tool_name == "create_focus_session":
+                    result_data = agent_tools.tool_create_focus_session(tool_args.get("intent", ""), tool_args.get("duration_minutes", 25), self.user_id, self.db)
                     action = {
-                        "type": "NAVIGATE",
-                        "path": "/ocd/exposure-hierarchy",
-                        "data": { "initialCategory": tool_args.get("category", "") }
+                        "type": "NAVIGATE_WITH_DATA",
+                        "path": "/adhd/focus",
+                        "card_type": "FOCUS_SESSION",
+                        "data": result_data
+                    }
+                elif tool_name == "suggest_grounding":
+                    result_data = agent_tools.tool_suggest_grounding(tool_args.get("anxiety_level", 5), self.user_id, self.db)
+                    action = {
+                        "type": "NAVIGATE_WITH_DATA",
+                        "path": "/anxiety",
+                        "card_type": "GROUNDING_SESSION",
+                        "data": result_data
                     }
             
             return {
