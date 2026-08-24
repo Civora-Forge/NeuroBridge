@@ -78,7 +78,7 @@ export default function AnxietyDissolver() {
             <p className="max-w-lg text-sm leading-6 text-stone-600">There is no right way to do this. Try one small practice at your own pace.</p>
           </header>
 
-          <section className="rounded-2xl border border-[#c9ddcd] bg-white p-5 shadow-sm" aria-labelledby="practice-title">
+          <section className="rounded-2xl border border-stone-200 bg-[#fffdf8] p-5 shadow-sm" aria-labelledby="practice-title">
             <div className="flex items-baseline justify-between gap-4 border-b border-stone-200 pb-4">
               <div>
                 <p className="text-xs font-medium text-stone-500">Practice {activeStep + 1} of {techniques.length}</p>
@@ -102,17 +102,17 @@ export default function AnxietyDissolver() {
 
           {!completed && (
             <section className="space-y-3" aria-label="Practice controls">
-              <button onClick={isRunning ? stopTimer : startTimer} className="w-full rounded-xl bg-[#3f7654] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2f6142] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">
+              <button onClick={isRunning ? stopTimer : startTimer} className="w-full rounded-xl bg-stone-800 px-4 py-3 text-sm font-semibold text-[#fffdf8] transition-colors hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2">
                 {isRunning ? "Pause practice" : durationReached ? `Begin ${technique.title} again` : `Begin ${technique.duration}-minute practice`}
               </button>
-              <button onClick={nextTechnique} className="w-full rounded-xl border border-[#c9ddcd] bg-white px-4 py-3 text-sm font-medium text-stone-700 hover:bg-[#edf7ef] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">
+              <button onClick={nextTechnique} className="w-full rounded-xl border border-stone-300 bg-[#fffdf8] px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2">
                 {activeStep === techniques.length - 1 ? "Finish this practice" : "I am ready for the next practice"}
               </button>
               {durationReached && <p className="text-center text-xs leading-5 text-stone-600">You have reached the suggested time. Continue if it helps, or move on when you are ready.</p>}
             </section>
           )}
 
-          {completed && <p className="rounded-xl border border-[#c9ddcd] bg-[#edf7ef] px-4 py-3 text-sm leading-6 text-stone-700">You have finished this grounding practice. Take a moment to notice what feels different, if anything.</p>}
+          {completed && <p className="rounded-xl border border-[#d8dfd0] bg-[#f4f7f0] px-4 py-3 text-sm leading-6 text-stone-700">You have finished this grounding practice. Take a moment to notice what feels different, if anything.</p>}
 
           <div className="flex items-center justify-between border-t border-stone-200 pt-4 text-xs text-stone-500">
             <span>{completedCount} of {techniques.length} practices marked complete</span>
