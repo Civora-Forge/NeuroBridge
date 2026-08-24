@@ -91,12 +91,12 @@ export default function EvidenceFolder() {
         <p className="mt-2 text-sm leading-6 text-stone-600">Save moments of effort, support, or care that you may want to remember.</p>
       </header>
 
-      <section className="rounded-xl border border-stone-300 bg-[#faf7f0] p-4 shadow-sm">
+      <section className="rounded-xl border border-[#c9ddcd] bg-[#f3faf4] p-4 shadow-sm">
         <label htmlFor="evidence-entry" className="block text-sm font-medium text-stone-800">What would you like to keep?</label>
 
         <textarea
           id="evidence-entry"
-          className="mt-2 w-full resize-none rounded-lg border border-stone-300 bg-[#fffdf8] p-3 text-sm leading-6 text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-200"
+          className="mt-2 w-full resize-none rounded-lg border border-[#c9ddcd] bg-white p-3 text-sm leading-6 text-stone-800 placeholder:text-stone-400 focus:border-[#3f7654] focus:outline-none focus:ring-2 focus:ring-[#dbeee0]"
           rows={3}
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -113,8 +113,8 @@ export default function EvidenceFolder() {
                 onClick={() => setSelectedCategory(key)}
                 className={`mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
                   selectedCategory === key
-                    ? "border-stone-700 bg-stone-700 text-[#fffdf8]"
-                    : "border-stone-300 bg-[#fffdf8] text-stone-700 hover:bg-stone-100"
+                    ? "border-[#3f7654] bg-[#3f7654] text-white"
+                    : "border-[#c9ddcd] bg-white text-stone-700 hover:bg-[#edf7ef]"
                 }`}
               >
                 {cfg.icon}
@@ -126,7 +126,7 @@ export default function EvidenceFolder() {
             type="button"
             onClick={add}
             disabled={!input.trim()}
-            className="mt-4 w-full rounded-lg bg-stone-800 py-2.5 text-sm font-semibold text-[#fffdf8] hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 w-full rounded-lg bg-[#3f7654] py-2.5 text-sm font-semibold text-white hover:bg-[#2f6142] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Log evidence
           </button>
@@ -148,8 +148,8 @@ export default function EvidenceFolder() {
             onClick={() => setFilterCat("all")}
             className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
               filterCat === "all"
-                ? "bg-stone-700 text-[#fffdf8] border-stone-700"
-                : "bg-[#fffdf8] text-stone-700 border-stone-300"
+                ? "bg-[#3f7654] text-white border-[#3f7654]"
+                : "bg-white text-stone-700 border-[#c9ddcd]"
             }`}
           >
             All
@@ -161,8 +161,8 @@ export default function EvidenceFolder() {
               onClick={() => setFilterCat(key)}
               className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
                 filterCat === key
-                ? "bg-stone-700 text-[#fffdf8] border-stone-700"
-                : "bg-[#fffdf8] text-stone-700 border-stone-300"
+                ? "bg-[#3f7654] text-white border-[#3f7654]"
+                : "bg-white text-stone-700 border-[#c9ddcd]"
               }`}
             >
               {cfg.label} ({perCat[key] || 0})
@@ -171,7 +171,7 @@ export default function EvidenceFolder() {
         </div>
 
         <input
-          className="w-full rounded-lg border border-stone-300 bg-[#fffdf8] px-3 py-2 text-xs text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-200 sm:w-52"
+          className="w-full rounded-lg border border-[#c9ddcd] bg-white px-3 py-2 text-xs text-stone-800 placeholder:text-stone-400 focus:border-[#3f7654] focus:outline-none focus:ring-2 focus:ring-[#dbeee0] sm:w-52"
            placeholder="Search entries"
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -181,7 +181,7 @@ export default function EvidenceFolder() {
 
       {/* List */}
         {filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-stone-300 bg-[#faf7f0] px-4 py-10 text-center">
+          <div className="rounded-xl border border-dashed border-[#c9ddcd] bg-[#f3faf4] px-4 py-10 text-center">
             <p className="mx-auto max-w-md text-sm leading-6 text-stone-600">Add an entry when you want to remember something meaningful or helpful.</p>
           </div>
         ) : (
@@ -191,7 +191,7 @@ export default function EvidenceFolder() {
               return (
                 <article
                   key={i.id}
-                  className="rounded-xl border border-stone-300 bg-[#fffdf8] p-4 shadow-sm"
+                  className="rounded-xl border border-[#c9ddcd] bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-1 flex-shrink-0">

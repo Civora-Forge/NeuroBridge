@@ -6,16 +6,16 @@ export const SUPPORT_TOOL_THEMES = {
     focusRing: "#235D98", success: "#2F7A55", warning: "#946200", danger: "#B42318",
   },
   depression_gentle: {
-    background: "#F7F6F2", surface: "#FFFFFF", surfaceStrong: "#E5EBEE",
-    primary: "#526F7E", primaryHover: "#405D6B", accent: "#A96846",
-    text: "#26343B", textMuted: "#64737A", border: "#CCD3D5",
-    focusRing: "#365F73", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F4FAF5", surface: "#FFFFFF", surfaceStrong: "#E1F0E4",
+    primary: "#3F7654", primaryHover: "#2F6142", accent: "#6B8C70",
+    text: "#26372C", textMuted: "#607165", border: "#C9DDCD",
+    focusRing: "#3F7654", success: "#2F7A55", warning: "#946200", danger: "#B42318",
   },
   depression_reflection: {
-    background: "#F6F4F7", surface: "#FFFFFF", surfaceStrong: "#EAE5EC",
-    primary: "#685B77", primaryHover: "#554864", accent: "#7A6652",
-    text: "#302A35", textMuted: "#6C6370", border: "#D3CAD7",
-    focusRing: "#5A4770", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F4FAF5", surface: "#FFFFFF", surfaceStrong: "#E1F0E4",
+    primary: "#3F7654", primaryHover: "#2F6142", accent: "#6B8C70",
+    text: "#26372C", textMuted: "#607165", border: "#C9DDCD",
+    focusRing: "#3F7654", success: "#2F7A55", warning: "#946200", danger: "#B42318",
   },
 };
 
