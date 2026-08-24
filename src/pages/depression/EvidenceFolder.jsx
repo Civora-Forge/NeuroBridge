@@ -86,8 +86,8 @@ export default function EvidenceFolder() {
     <SupportToolLayout>
       <div className="mx-auto max-w-2xl space-y-5 pb-4 text-stone-800">
       <header className="border-b border-stone-300 pb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Evidence journal</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Keep one helpful record</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Evidence Journal</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Review the evidence</h1>
         <p className="mt-2 text-sm leading-6 text-stone-600">Save moments of effort, support, or care that you may want to remember.</p>
       </header>
 
