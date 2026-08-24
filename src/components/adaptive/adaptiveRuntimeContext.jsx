@@ -88,7 +88,11 @@ export function AdaptiveRuntimeProvider({ children }) {
   });
 
   const value = useMemo(
-    () => ({ moduleId, userPreferences, ...engine }),
+    () => ({
+      moduleId,
+      userPreferences,
+      ...engine,
+    }),
     [moduleId, userPreferences, engine],
   );
 

@@ -54,6 +54,7 @@ import { safetyGate } from "./safetyGate.js";
 import { runHysteresisStage } from "./hysteresis.js";
 import { resolveConflicts } from "./conflictResolution.js";
 import { applyUserPreferences } from "./preferences.js";
+import { recommendFocusConfiguration } from "../reasoning/focusConfiguration.js";
 
 const DEFAULT_SAFETY_RESULT = {
   level: SafetyLevel.STANDARD,
@@ -360,9 +361,13 @@ export function decide(input = {}, options = {}) {
       : undefined,
   );
   const { triggered } = evaluatePolicies(rules, policyState);
+  const focusRecommendation = recommendFocusConfiguration(normalized.role4Signals?.supportEvidence);
+  const learnedFocusEntry = context?.moduleId === "support.focus_session" && focusRecommendation
+    ? [{ ruleId: "role4.focus_configuration", version: 1, scope: "user", tier: 9, priority: 0, confidence: focusRecommendation.confidence, action: { type: "MODIFY", target: "PACING", parameters: { focusConfiguration: focusRecommendation } }, matchedTriggers: [], reversal: "auto" }]
+    : [];
 
   // Hard module boundary: restricted dimensions are never adapted.
-  const restricted = applyRestrictedDimensions(triggered, context);
+  const restricted = applyRestrictedDimensions([...triggered, ...learnedFocusEntry], context);
 
   // ── 4 CONFLICT (D4) — per-target, highest-precedence candidate wins ──
   const conflict = resolveConflicts(restricted.kept);

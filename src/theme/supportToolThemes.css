@@ -16,6 +16,13 @@
   gap: 20px;
 }
 
+/* Focus uses a wider, compact workspace so the timer and planning tools stay together. */
+[data-support-theme="adhd_focus"] .support-tool-layout.focus-session-layout {
+  width: min(100%, 1360px);
+  padding: clamp(16px, 2vw, 28px);
+  gap: 12px;
+}
+
 [data-support-theme]:not([data-support-theme="neutral"]) .support-tool-layout-status {
   display: flex;
   flex-wrap: wrap;

@@ -1,4 +1,5 @@
 import { getInterventionHistory } from "@/support/lifecycle/interventionLifecycle";
+import { getRole4Repository } from "@/support/persistence/role4Repository";
 import { saveReflection } from "@/support/persistence/role4Store";
 import { getModuleReflectionRule } from "./reflectionRegistry";
 import { buildGenericInsights, calculateReflectionConfidence } from "./reflectionRules";
@@ -50,14 +51,10 @@ function hasAggregateModuleMetrics(moduleId, metrics) {
  * Converts one persisted terminal intervention into a versioned, user-scoped reflection.
  * It performs no adaptation, memory writes, ranking, or recommendation.
  */
-export function reflectIntervention(intervention) {
+function buildReflection(intervention, history) {
   if (!intervention?.id || !intervention?.moduleId || !intervention?.userId) {
     throw new Error("Reflection requires an intervention id, moduleId, and userId");
   }
-
-  const history = getInterventionHistory(intervention.userId).find(
-    (entry) => entry.intervention.id === intervention.id,
-  );
   const persistedIntervention = history?.intervention ?? intervention;
   const { outcomeSummary, metrics, timestamp } = aggregateOutcome(history, persistedIntervention);
   if (!REFLECTABLE_STATUSES.has(outcomeSummary.completionStatus)) {
@@ -103,4 +100,29 @@ export function reflectIntervention(intervention) {
     followUpSuggestions: [],
   };
   return saveReflection(persistedIntervention.userId, reflection);
+}
+
+export function reflectIntervention(intervention) {
+  const history = getInterventionHistory(intervention.userId).find(
+    (entry) => entry.intervention.id === intervention.id,
+  );
+  return buildReflection(intervention, history);
+}
+
+/** Uses the Focus repository's normalized records while keeping reflection storage domain-local. */
+export async function reflectFocusIntervention(intervention, { repository: suppliedRepository } = {}) {
+  if (intervention?.moduleId !== "support.focus_session") {
+    throw new Error("Repository reflection is only available for Focus Sessions");
+  }
+  const repository = suppliedRepository || await getRole4Repository(intervention.userId);
+  const [persistedIntervention, lifecycleEvents, outcomes] = await Promise.all([
+    repository.getIntervention(intervention.userId, intervention.id),
+    repository.listLifecycleEvents(intervention.userId, intervention.id),
+    repository.listOutcomes(intervention.userId, intervention.id),
+  ]);
+  return buildReflection(intervention, persistedIntervention ? {
+    intervention: persistedIntervention,
+    lifecycleEvents,
+    outcomes,
+  } : null);
 }

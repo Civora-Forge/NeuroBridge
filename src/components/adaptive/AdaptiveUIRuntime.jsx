@@ -190,7 +190,6 @@ export default function AdaptiveUIRuntime({ children }) {
     [runtime.plan],
   );
   const [override, setOverride] = useState(null);
-
   // A genuinely different future decision lifts the user's manual revert so
   // the engine can adapt again. An identical decision keeps the revert, and a
   // fresh decision that matches the reverted (normal) state changes nothing.

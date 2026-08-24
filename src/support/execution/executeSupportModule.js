@@ -14,6 +14,7 @@ import {
   TriggerSource,
 } from "./executionTypes";
 import { DEFERRED_MODULE_IDS, getModuleExecutor } from "./moduleExecutors";
+import { startFocusSessionIntervention, transitionFocusSessionIntervention } from "@/support/lifecycle/focusSessionLifecycle";
 
 function now() {
   return new Date().toISOString();
@@ -49,6 +50,7 @@ function createResult(request, lifecycle, overrides = {}) {
     lifecycle,
     error: null,
     reasonCodes: [],
+    launch: null,
     ...overrides,
   });
 }
@@ -127,6 +129,36 @@ export async function executeSupportModule(request) {
   const interventionId = makeInterventionId();
   lifecycle = appendState(lifecycle, ExecutionStatus.STARTING);
 
+  if (module.id === "support.focus_session") {
+    try {
+      await startFocusSessionIntervention({
+        userId: executionRequest.userId,
+        interventionId,
+        parameters: {
+          ...executionRequest.configuration,
+          execution: { contextSnapshotId: executionRequest.contextSnapshotId, triggerSource: executionRequest.triggerSource, selectionMode: executionRequest.selectionMode, metadata: executionRequest.metadata, startTimestamp: now() },
+        },
+      });
+      const launchResult = await moduleExecutor({
+        interventionId,
+        moduleId: module.id,
+        userId: executionRequest.userId,
+        planId: executionRequest.metadata.planId ?? null,
+        contextSnapshotId: executionRequest.contextSnapshotId,
+        configuration: executionRequest.configuration,
+      });
+      return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.RUNNING), {
+        ok: launchResult.ok,
+        status: ExecutionStatus.RUNNING,
+        interventionId,
+        launch: launchResult.launch ?? null,
+        reasonCodes: ["execution_started"],
+      });
+    } catch (error) {
+      return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.FAILED, "persistence_failed"), { status: ExecutionStatus.FAILED, interventionId, error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
+    }
+  }
+
   const delivered = deliverIntervention({
     userId: executionRequest.userId,
     module,
@@ -169,6 +201,8 @@ export async function executeSupportModule(request) {
       interventionId,
       moduleId: module.id,
       userId: executionRequest.userId,
+      planId: executionRequest.metadata.planId ?? null,
+      contextSnapshotId: executionRequest.contextSnapshotId,
       configuration: executionRequest.configuration,
     });
     lifecycle = appendState(lifecycle, ExecutionStatus.RUNNING);

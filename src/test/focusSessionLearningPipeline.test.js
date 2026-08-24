@@ -4,18 +4,22 @@ import { reflectIntervention } from '@/support/reflection';
 import { deriveMemoryFromReflections, listUserMemories, setLearningEnabled } from '@/support/memory';
 import { getPersonalizationHints } from '@/support/personalization';
 import { getSupportEvidence } from '@/support/evidence';
+import { getSupportEvidenceAsync } from '@/support/evidence';
 import { validateReflection, validateSupportEvidenceResponse } from '@/support/schemas/supportSchemas';
+import { getFocusSessionHistory } from '@/support/lifecycle/focusSessionLifecycle';
+import { buildModuleContext } from '@/support/framework/moduleContextAdapter';
+import { decide } from '@backend/adaptive/engine/adaptiveEngine';
 
 const USER_ID = 'focus-pipeline-user';
 const MODULE_ID = 'support.focus_session';
 
-async function session(index, { status = 'completed', minutes = 15, ratio = 1, pauses = 0, natural = true, rating } = {}) {
+async function session(index, { status = 'completed', minutes = 15, ratio = 1, pauses = 0, natural = true, rating, feedback } = {}) {
   const started = await executeSupportModule({ userId: USER_ID, moduleId: MODULE_ID, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { plannedDurationMinutes: minutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, metadata: { idempotencyKey: `focus-${index}` } });
   const outcome = { completionStatus: status === 'completed' ? 'completed' : 'partially_completed', durationMs: Math.round(minutes * 60000 * ratio), metrics: { plannedDurationMinutes: minutes, actualDurationMs: Math.round(minutes * 60000 * ratio), pauseCount: pauses, resumeCount: pauses, completionRatio: ratio, interruptions: 0, completedNaturally: natural, breakStarted: false, breakCompleted: false }, finalConfiguration: { plannedDurationMinutes: minutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false } };
   const terminal = status === 'abandoned'
     ? await abandonSupportModule({ userId: USER_ID, interventionId: started.interventionId, moduleId: MODULE_ID, outcome })
     : await completeSupportModule({ userId: USER_ID, interventionId: started.interventionId, moduleId: MODULE_ID, outcome });
-  if (rating) await rateSupportModule({ userId: USER_ID, interventionId: started.interventionId, moduleId: MODULE_ID, outcome: { userRating: rating } });
+  if (rating) await rateSupportModule({ userId: USER_ID, interventionId: started.interventionId, moduleId: MODULE_ID, metadata: { storeFeedback: true }, outcome: { userRating: rating, userFeedback: feedback } });
   return reflectIntervention(terminal.intervention);
 }
 
@@ -82,5 +86,36 @@ describe('Focus Session learning pipeline', () => {
     const first = getSupportEvidence(USER_ID, [MODULE_ID]);
     expect(getSupportEvidence('other-focus-user', [MODULE_ID]).modules[0].evidenceCount).toBe(0);
     expect(getSupportEvidence(USER_ID, [MODULE_ID])).toEqual(first);
+  });
+
+  it('uses repository-backed Focus outcomes, ratings, and reflections for the next Role 2 duration recommendation', async () => {
+    await session(1, { rating: 5, feedback: 'Helpful' });
+    await session(2, { rating: 4 });
+    await session(3, { rating: 5 });
+
+    const history = await getFocusSessionHistory(USER_ID);
+    expect(history).toHaveLength(3);
+    expect(history.every((entry) => entry.outcomes)).toBe(true);
+    expect(history.find((entry) => entry.outcomes.some((outcome) => outcome.rating === 5))?.outcomes).toHaveLength(1);
+    expect(history.flatMap((entry) => entry.outcomes).find((outcome) => outcome.userFeedback === 'Helpful')?.interventionId).toBeTruthy();
+
+    const evidence = await getSupportEvidenceAsync(USER_ID, [MODULE_ID]);
+    expect(evidence.modules[0].preferredConfiguration).toMatchObject({
+      values: { plannedDurationMinutes: 15, breakDurationMinutes: 5 },
+      advisory: true,
+    });
+    expect(listUserMemories(USER_ID, { moduleId: MODULE_ID })).not.toEqual([]);
+
+    const decision = decide({
+      contextSnapshot: {},
+      moduleContext: buildModuleContext(MODULE_ID),
+      role4Signals: { supportEvidence: evidence },
+    });
+    expect(decision.plan.actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        target: 'PACING',
+        parameters: { focusConfiguration: expect.objectContaining({ plannedDurationMinutes: 15 }) },
+      }),
+    ]));
   });
 });

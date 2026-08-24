@@ -44,6 +44,20 @@ export const ExecutionLifecycleEventSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const FocusSessionLaunchSchema = z.object({
+  route: z.literal("/adhd/focus"),
+  state: z.object({
+    interventionId: idSchema,
+    moduleId: z.literal("support.focus_session"),
+    planId: idSchema.nullable(),
+    contextSnapshotId: idSchema.nullable(),
+    configuration: z.object({
+      plannedDurationMinutes: z.number().int().positive(),
+      breakDurationMinutes: z.number().int().nonnegative(),
+    }),
+  }),
+});
+
 export const ExecutionResultSchema = z.object({
   ok: z.boolean(),
   status: z.nativeEnum(ExecutionStatus),
@@ -57,6 +71,7 @@ export const ExecutionResultSchema = z.object({
   lifecycle: z.array(ExecutionLifecycleEventSchema),
   error: z.string().nullable(),
   reasonCodes: z.array(z.string()),
+  launch: FocusSessionLaunchSchema.nullable().default(null),
 });
 
 export const LifecycleAction = Object.freeze({
@@ -104,5 +119,5 @@ export const LifecycleCommandRequestSchema = z.object({
  * @typedef {z.infer<typeof ExecutionResultSchema>} ExecutionResult
  * @typedef {z.infer<typeof ExecutionLifecycleEventSchema>} LifecycleEvent
  * @typedef {import("@/support/schemas/supportSchemas").InterventionSchema} InterventionRecord
- * @typedef {(input: { interventionId: string, moduleId: string, userId: string, configuration: Record<string, unknown> }) => Promise<{ ok: boolean, status: string }>} ModuleExecutor
+ * @typedef {(input: { interventionId: string, moduleId: string, userId: string, planId: string|null, contextSnapshotId: string|null, configuration: Record<string, unknown> }) => Promise<{ ok: boolean, status: string, launch?: object }>} ModuleExecutor
  */

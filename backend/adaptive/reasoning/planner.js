@@ -28,6 +28,8 @@
  */
 
 import {
+  AdaptationActionType,
+  AdaptationDimension,
   PolicyScope,
   validateAdaptationAction,
   validateAdaptationPlan,

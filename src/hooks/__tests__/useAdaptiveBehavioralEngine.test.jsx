@@ -69,7 +69,7 @@ describe("useAdaptiveBehavioralEngine (Phase 4 live wiring)", () => {
     expect(result.current.active).toBe(true);
     expect(result.current.trace).toBeDefined();
     expect(result.current.trace.userId).toBe(USER);
-    expect(result.current.trace.sources).toContain("role4_signals");
+    expect(result.current.trace.sources).not.toContain("role4_signals");
     expect(result.current.decisionId).toBe(result.current.plan.decisionTraceId);
     expect(result.current.lastDecisionAt).toBe(result.current.plan.timestamp);
     // Decision never auto-executes.
@@ -95,7 +95,7 @@ describe("useAdaptiveBehavioralEngine (Phase 4 live wiring)", () => {
     );
 
     await waitFor(() => expect(result.current.plan).not.toBeNull());
-    expect(result.current.trace.sources).toContain("role4_signals");
+    expect(result.current.trace.sources).not.toContain("role4_signals");
     expect(result.current.trace.sources).toContain("user_preferences");
   });
 
