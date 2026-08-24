@@ -17,8 +17,6 @@ import {
   TASK_BREAKDOWN_STYLES,
 } from "@/support/modules/taskBreakdown/taskBreakdownTypes";
 
-const taskEmojis = ["book", "laptop", "calendar", "note", "target"];
-
 const vibes = TASK_BREAKDOWN_PRIORITIES.map((label) => ({ label }));
 
 const placeholders = [
@@ -47,8 +45,8 @@ const TaskBreakdown = ({
   const aiData = location.state || null;
   const { user } = useAuth();
   const [bigTask, setBigTask] = useState(aiData?.original_task || "");
-  const [selectedEmoji, setSelectedEmoji] = useState("book");
   const [selectedVibe, setSelectedVibe] = useState("Important");
+  const [planningOpen, setPlanningOpen] = useState(false);
   const [steps, setSteps] = useState(aiData?.steps || []);
   const [selectedStyle, setSelectedStyle] = useState("Standard");
   const [completedSteps, setCompletedSteps] = useState(new Set());
@@ -124,6 +122,7 @@ const TaskBreakdown = ({
     setStepEdits(0);
     setStepReorders(0);
     setRequestedStepCount(0);
+    setPlanningOpen(false);
     setTimerUsed(false);
     setSessionStartedAt(null);
     sessionKeyRef.current = null;
@@ -228,112 +227,122 @@ const TaskBreakdown = ({
     <SupportToolLayout>
       <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
         {/* Header */}
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-blue-100 pb-5">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-emerald-100 pb-5">
           <div>
-            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-blue-700">Clear the runway</p>
-            <h2 className="flex items-center gap-2 text-3xl font-black tracking-tight text-slate-950">
-              <span className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-lime-300 px-1 text-xs font-bold text-slate-950 shadow-[3px_3px_0_#1d4ed8]">{selectedEmoji}</span>
-              <span>Task breakdown</span>
-            </h2>
+            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-800">Clear the runway</p>
+            <h2 className="text-3xl font-black tracking-tight text-emerald-950">Task breakdown</h2>
             <p className="mt-1 text-sm text-slate-600">
               Turn one vague task into a short, clear sequence of steps.
             </p>
           </div>
           {steps.length > 0 && (
-            <div className="rounded-full border-2 border-blue-700 bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow-[3px_3px_0_#bef264]">
+            <div className="rounded-full border-2 border-emerald-900 bg-emerald-900 px-3 py-1.5 text-xs font-bold text-amber-50 shadow-[3px_3px_0_#d97706]">
               Progress: {progress}%
             </div>
           )}
         </header>
 
-        {/* Task input card */}
-        <section className="mb-6 space-y-4 rounded-3xl border-2 border-blue-200 bg-white p-4 shadow-[5px_5px_0_#d9f99d] sm:p-5">
-          {/* Emoji + style row */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex gap-2">
-              {taskEmojis.map((e) => (
+        {!steps.length && (
+          <section className="mb-6 rounded-3xl border-2 border-emerald-200 bg-amber-50 p-4 shadow-[5px_5px_0_#d97706] sm:p-5">
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">Step 1: Name the task</p>
+                <p className="mt-1 text-sm text-slate-600">You do not need to solve it yet. Just tell me what is on your mind.</p>
+              </div>
+              <textarea
+                className="w-full resize-none rounded-2xl border-2 border-emerald-200 bg-white px-3 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-800 focus:ring-4 focus:ring-emerald-100"
+                rows={2}
+                placeholder={placeholders[placeholderIdx]}
+                value={bigTask}
+                onChange={(e) => {
+                  setBigTask(e.target.value);
+                  if (!e.target.value.trim()) setPlanningOpen(false);
+                }}
+              />
+
+              {!bigTask.trim() ? (
                 <button
-                  key={e}
-                  onClick={() => setSelectedEmoji(e)}
-                  className={`h-9 w-9 rounded-lg text-lg flex items-center justify-center ${
-                    selectedEmoji === e
-                    ? 'bg-blue-700 text-white shadow-[2px_2px_0_#bef264]'
-                       : 'border border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
+                  onClick={generateBreakdown}
+                  disabled
+                  className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {e}
+                  Break into steps
                 </button>
-              ))}
-            </div>
-
-            <div className="flex gap-2 text-xs">
-              {TASK_BREAKDOWN_STYLES.map((style) => (
+              ) : !planningOpen ? (
                 <button
-                  key={style}
-                  onClick={async () => {
-                    setSelectedStyle(style);
-                    if (steps.length && bigTask.trim()) {
-                      if (!(await discardActiveBreakdown())) return;
-                      const generated = generateTaskBreakdown(bigTask, { selectedStyle: style, priority: selectedVibe });
-                      setSteps(generated);
-                      setCompletedSteps(new Set());
-                      setRequestedStepCount(generated.length);
-                      completionSentRef.current = false;
-                      lifecycle.reset();
-                    }
-                  }}
-                  className={`rounded-full border px-3 py-1 ${
-                    selectedStyle === style
-                      ? 'border-blue-700 bg-blue-700 text-white'
-                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
+                  type="button"
+                  onClick={() => setPlanningOpen(true)}
+                  className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] transition hover:bg-emerald-950 focus:ring-4 focus:ring-emerald-200"
                 >
-                  {style}
+                  Continue
                 </button>
-              ))}
+              ) : (
+                <div className="mt-5 border-t-2 border-emerald-100 pt-4">
+                  <div className="mb-3">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">Step 2: Make it fit you</p>
+                    <p className="mt-1 text-sm text-slate-600">Optional choices for the kind of plan you need today.</p>
+                  </div>
+                  <div className="space-y-4 text-xs">
+                    <div>
+                      <p className="mb-2 font-bold text-emerald-950">Priority</p>
+                      <div className="flex flex-wrap gap-2">
+                        {vibes.map((v) => (
+                          <button
+                            key={v.label}
+                            onClick={() => setSelectedVibe(v.label)}
+                            className={`rounded-full border px-3 py-1.5 ${
+                              selectedVibe === v.label
+                                ? 'border-emerald-900 bg-emerald-900 text-amber-50'
+                                : 'border-emerald-200 bg-white text-slate-700 hover:border-emerald-600 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {v.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-2 font-bold text-emerald-950">Planning style</p>
+                      <div className="flex flex-wrap gap-2">
+                        {TASK_BREAKDOWN_STYLES.map((style) => (
+                          <button
+                            key={style}
+                            onClick={() => setSelectedStyle(style)}
+                            className={`rounded-full border px-3 py-1.5 ${
+                              selectedStyle === style
+                                ? 'border-amber-700 bg-amber-100 text-amber-950'
+                                : 'border-emerald-200 bg-white text-slate-700 hover:border-emerald-600 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {style}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPlanningOpen(false)}
+                      className="mr-3 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={generateBreakdown}
+                      className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] transition hover:bg-emerald-950 focus:ring-4 focus:ring-emerald-200"
+                    >
+                      Break into steps
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Task textarea */}
-          <textarea
-            className="w-full resize-none rounded-2xl border-2 border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-            rows={2}
-            placeholder={placeholders[placeholderIdx]}
-            value={bigTask}
-            onChange={(e) => setBigTask(e.target.value)}
-          />
-
-          {/* Vibe + CTA */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex flex-wrap gap-2">
-              {vibes.map((v) => (
-                <button
-                  key={v.label}
-                  onClick={() => setSelectedVibe(v.label)}
-                  className={`rounded-full border px-3 py-1 flex items-center gap-1 ${
-                    selectedVibe === v.label
-                      ? 'border-lime-400 bg-lime-300 text-slate-950'
-                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-lime-400 hover:bg-lime-50'
-                  }`}
-                >
-                  <span>{v.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={generateBreakdown}
-              className="rounded-xl bg-blue-700 px-5 py-2.5 text-xs font-black text-white shadow-[3px_3px_0_#bef264] transition hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
-            >
-              Break into steps
-            </button>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* When no steps yet */}
         {!steps.length && (
-          <div className="rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-5 py-10 text-center text-sm text-slate-600">
-            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-blue-700">One thing at a time</span>
+          <div className="rounded-3xl border-2 border-dashed border-emerald-200 bg-amber-50 px-5 py-10 text-center text-sm text-slate-600">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-emerald-800">One thing at a time</span>
             Describe one task that feels heavy. You will get a short, concrete checklist.
           </div>
         )}
@@ -342,14 +351,14 @@ const TaskBreakdown = ({
         {steps.length > 0 && (
           <section className="space-y-4">
             {/* Progress */}
-            <div className="space-y-2 rounded-2xl border-2 border-blue-100 bg-blue-50/60 p-4 text-xs">
+            <div className="space-y-2 rounded-2xl border-2 border-emerald-100 bg-amber-50 p-4 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-black uppercase tracking-[0.14em] text-blue-800">Progress</span>
-                <span className="rounded-md bg-lime-300 px-2 py-1 font-mono font-black text-slate-950">{progress}%</span>
+                <span className="font-black uppercase tracking-[0.14em] text-emerald-800">Progress</span>
+                <span className="rounded-md bg-amber-200 px-2 py-1 font-mono font-black text-amber-950">{progress}%</span>
               </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-blue-100">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-emerald-100">
                 <div
-                  className="h-full rounded-full bg-blue-700 transition-all"
+                  className="h-full rounded-full bg-emerald-800 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -361,7 +370,7 @@ const TaskBreakdown = ({
               <button
                 onClick={startBreakdown}
                 disabled={!user?.id || lifecycle.hasStarted || completedSteps.size >= steps.length}
-                className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-black text-white shadow-[3px_3px_0_#bef264] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-xl bg-emerald-900 px-4 py-3 text-sm font-black text-amber-50 shadow-[3px_3px_0_#d97706] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {lifecycle.hasStarted ? "Breakdown started" : "Start this breakdown"}
               </button>
@@ -371,7 +380,7 @@ const TaskBreakdown = ({
                 className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
                   completedSteps.size >= steps.length
                     ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-                     : 'border-blue-700 text-blue-700 hover:bg-blue-50'
+                      : 'border-emerald-800 text-emerald-800 hover:bg-emerald-50'
                 }`}
               >
                 Focus on the next step
@@ -385,7 +394,7 @@ const TaskBreakdown = ({
               </button>
 
               {timerActive && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-lime-400 bg-lime-50 px-4 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm">
                   <span className="font-mono font-black text-slate-900">{timerDisplay}</span>
                   <button
                     onClick={() => setTimerActive(false)}
@@ -406,8 +415,8 @@ const TaskBreakdown = ({
                     key={step.id}
                     className={`rounded-xl border px-3 py-3 text-sm transition ${
                       done
-                        ? 'border-lime-400 bg-lime-50 opacity-80'
-                         : 'border-slate-200 bg-white hover:border-blue-400 hover:shadow-[3px_3px_0_#dbeafe]'
+                        ? 'border-emerald-300 bg-emerald-50 opacity-80'
+                          : 'border-slate-200 bg-white hover:border-emerald-400 hover:shadow-[3px_3px_0_#d1fae5]'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -417,7 +426,7 @@ const TaskBreakdown = ({
                         aria-label={`Mark step ${i + 1} ${done ? "incomplete" : "complete"}`}
                         className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center text-[10px] disabled:cursor-not-allowed ${
                           done
-                             ? 'border-lime-400 bg-lime-400 text-slate-950'
+                              ? 'border-emerald-700 bg-emerald-700 text-amber-50'
                             : 'border-slate-300 bg-white'
                         }`}
                       >
@@ -428,7 +437,7 @@ const TaskBreakdown = ({
                         {editingId === step.id ? (
                           <input
                             autoFocus
-                            className="w-full rounded-md border-2 border-blue-300 px-2 py-1 text-xs focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                            className="w-full rounded-md border-2 border-emerald-300 px-2 py-1 text-xs focus:border-emerald-800 focus:ring-2 focus:ring-emerald-100"
                             value={step.text}
                             onChange={(e) => updateStepText(step.id, e.target.value)}
                             onBlur={() => setEditingId(null)}
@@ -449,7 +458,7 @@ const TaskBreakdown = ({
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                         <span className="rounded-md bg-blue-50 px-2 py-1 font-mono font-semibold text-blue-800">
+                          <span className="rounded-md bg-amber-50 px-2 py-1 font-mono font-semibold text-emerald-800">
                           {step.time}m
                         </span>
                         <button
