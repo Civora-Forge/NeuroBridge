@@ -174,28 +174,28 @@ const AnimatedBackground = ({ activeLayers }) => {
   const hasNeural = activeLayers.some((id) => String(id).startsWith('binaural'));
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden transition-colors duration-[2000ms]">
+    <div className="fixed inset-0 -z-10 overflow-hidden transition-colors duration-500">
       <div
         className={`absolute inset-0 transition-all duration-[3000ms] ${
           activeLayers.length === 0
-            ? 'bg-gradient-to-br from-background via-background to-background'
+            ? 'bg-[#fffaf1]'
             : hasNeural
-            ? 'bg-gradient-to-br from-violet-950/40 via-background to-indigo-950/30'
+            ? 'bg-gradient-to-br from-[#edf7fb] via-[#fffaf1] to-[#e8f1f8]'
             : hasFire
-            ? 'bg-gradient-to-br from-orange-950/30 via-background to-amber-950/20'
+            ? 'bg-gradient-to-br from-[#fbf0e5] via-[#fffaf1] to-[#f5e7d4]'
             : hasThunder
-            ? 'bg-gradient-to-br from-slate-900/50 via-background to-purple-950/30'
+            ? 'bg-gradient-to-br from-[#eef3f5] via-[#fffaf1] to-[#e6edf4]'
             : hasNature
-            ? 'bg-gradient-to-br from-cyan-950/30 via-background to-emerald-950/20'
-            : 'bg-gradient-to-br from-background via-background to-background'
+            ? 'bg-gradient-to-br from-[#edf7f4] via-[#fffaf1] to-[#e5f3f8]'
+            : 'bg-[#fffaf1]'
         }`}
       />
       {activeLayers.length > 0 && (
         <>
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-[0.07] blur-3xl animate-[drift_20s_ease-in-out_infinite] bg-primary" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full opacity-[0.05] blur-3xl animate-[drift_25s_ease-in-out_infinite_reverse] bg-accent" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-[0.07] blur-3xl bg-[#7bbbd2]" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full opacity-[0.05] blur-3xl bg-[#285943]" />
           {hasNeural && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.04] blur-3xl animate-[pulse-slow_4s_ease-in-out_infinite] bg-violet-500" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-[0.04] blur-3xl bg-[#7bbbd2]" />
           )}
         </>
       )}
@@ -217,20 +217,20 @@ const SoundCard = ({ sound, isActive, volume, error, onToggle, onVolumeChange })
     onClick={onToggle}
     className={`group relative w-full text-left rounded-2xl p-4 transition-all duration-300 border overflow-hidden ${
       isActive
-        ? 'border-primary/30 shadow-lg shadow-primary/5 scale-[1.02]'
+        ? 'border-[#7bbbd2] bg-[#edf7fb] shadow-md'
         : error
         ? 'border-red-300 bg-red-50 hover:border-red-400'
-        : 'border-border/50 hover:border-border hover:shadow-md hover:scale-[1.01]'
+        : 'border-[#e7d7bf] bg-[#fffdf7] hover:border-[#aacfe0] hover:shadow-sm'
     }`}
   >
     <div
       className={`absolute inset-0 bg-gradient-to-br ${sound.color} transition-opacity duration-500 ${
-        isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+        isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-40'
       }`}
     />
     <div
       className={`absolute inset-0 transition-opacity duration-500 ${
-        isActive ? 'bg-card/60 backdrop-blur-sm' : 'bg-card/80'
+        isActive ? 'bg-[#fffdf7]/60 backdrop-blur-sm' : 'bg-[#fffdf7]/90'
       }`}
     />
     <div className="relative z-10">
@@ -275,7 +275,7 @@ const SoundCard = ({ sound, isActive, volume, error, onToggle, onVolumeChange })
             max={100}
             value={Math.round(volume * 100)}
             onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
-            className="flex-1 h-1 accent-primary cursor-pointer"
+            className="flex-1 h-1 accent-[#285943] cursor-pointer"
           />
           <span className="text-[10px] text-muted-foreground w-4">🔊</span>
         </div>
@@ -291,8 +291,8 @@ const PresetPill = ({ preset, isActive, onClick }) => (
     onClick={onClick}
     className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap ${
       isActive
-        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105'
-        : 'bg-secondary/80 text-secondary-foreground hover:bg-secondary hover:scale-[1.02]'
+        ? 'bg-[#285943] text-white shadow-md shadow-[#285943]/20'
+        : 'bg-[#f1e5d4] text-stone-700 hover:bg-[#e7d7bf]'
     }`}
   >
     {preset.emoji} {preset.label}
@@ -312,14 +312,14 @@ const TimerDisplay = ({
   const ss = (secondsLeft % 60).toString().padStart(2, '0');
 
   return (
-    <div className="glass-card rounded-2xl p-5 space-y-3">
+    <div className="rounded-2xl border border-[#e7d7bf] bg-[#fffdf7]/95 p-5 space-y-3 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Session Timer
         </p>
         {isTimerRunning && timerMinutes > 0 && (
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-[pulse-slow_2s_ease-in-out_infinite]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#285943]" />
             <span className="text-xs text-muted-foreground">Active</span>
           </div>
         )}
@@ -331,8 +331,8 @@ const TimerDisplay = ({
             onClick={() => onSelectTimer(opt.minutes)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               timerMinutes === opt.minutes
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                ? 'bg-[#285943] text-white shadow-sm'
+                : 'bg-[#f1e5d4] text-stone-700 hover:bg-[#e7d7bf]'
             }`}
           >
             {opt.label}
@@ -349,7 +349,7 @@ const TimerDisplay = ({
             className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
               isTimerRunning
                 ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                : 'bg-primary text-primary-foreground hover:opacity-90'
+                : 'bg-[#285943] text-white hover:bg-[#1d4332]'
             }`}
           >
             {isTimerRunning ? '⏸ Pause' : '▶ Start'}
@@ -368,7 +368,7 @@ const MasterControls = ({
   activeCount,
   onStopAll,
 }) => (
-  <div className="glass-card rounded-2xl p-4 space-y-3">
+  <div className="rounded-2xl border border-[#e7d7bf] bg-[#fffdf7]/95 p-4 space-y-3 shadow-sm">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-foreground">Master</span>
@@ -395,7 +395,7 @@ const MasterControls = ({
         max={100}
         value={Math.round(masterVolume * 100)}
         onChange={(e) => onMasterVolumeChange(Number(e.target.value) / 100)}
-        className="flex-1 h-1.5 accent-primary cursor-pointer"
+        className="flex-1 h-1.5 accent-[#285943] cursor-pointer"
       />
       <span className="text-xs text-muted-foreground">🔊</span>
       <span className="text-xs font-semibold timer-font text-muted-foreground w-8 text-right">
@@ -476,19 +476,19 @@ const Soundscapes = () => {
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe,_transparent_38%),radial-gradient(circle_at_top_right,_#d9f99d,_transparent_30%),#f8fafc] relative overflow-hidden">
+    <div className="min-h-screen bg-[#fffaf1] relative overflow-hidden">
         <AnimatedBackground activeLayers={activeSoundIds} />
         <SupportToolLayout
           className="relative z-10 max-w-4xl"
           title="Soundscapes"
           description="Build a bright, distraction-light audio mix for your next focus block."
-          status={<Link to="/adhd" className="font-semibold text-blue-700 hover:text-blue-900">Back to Focus and Planning</Link>}
+          status={<Link to="/adhd" className="font-semibold text-[#285943] hover:text-[#1d4332]">Back to Focus and Planning</Link>}
           notice="Audio starts only after you select a layer. If a file cannot play, the affected layer stays visible with a clear error."
         >
-          <div className="rounded-3xl border-2 border-blue-500 bg-slate-950 p-5 shadow-[0_18px_50px_rgba(37,99,235,0.25)] sm:p-7">
+          <div className="rounded-3xl border border-[#b7d8e5] bg-[#f1f9fc] p-5 shadow-[0_18px_50px_rgba(63,128,151,0.15)] sm:p-7">
             <div className="mb-5 flex items-center justify-between gap-4">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-300">Focus audio lab</p>
-              <span className="rounded-full bg-blue-500 px-3 py-1 text-xs font-bold text-white">{layers.length} live layers</span>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#3f8097]">Focus audio lab</p>
+              <span className="rounded-full bg-[#285943] px-3 py-1 text-xs font-bold text-white">{layers.length} live layers</span>
             </div>
             {Object.keys(playbackErrors).length > 0 && (
               <div role="alert" className="mb-5 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -498,7 +498,7 @@ const Soundscapes = () => {
 
           {/* Quick Presets */}
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-center text-lime-200">
+            <p className="text-xs font-medium uppercase tracking-wider text-center text-[#3f8097]">
               Quick Mixes
             </p>
             <div className="flex gap-2 justify-center flex-wrap">
@@ -519,8 +519,8 @@ const Soundscapes = () => {
               onClick={() => setActiveCategory('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeCategory === 'all'
-                  ? 'bg-lime-300 text-slate-950'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                   ? 'bg-[#285943] text-white'
+                   : 'bg-white text-stone-700 hover:bg-[#e5f3f8]'
               }`}
             >
               All
@@ -531,8 +531,8 @@ const Soundscapes = () => {
                 onClick={() => setActiveCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeCategory === cat.id
-                    ? 'bg-lime-300 text-slate-950'
-                    : 'bg-white/10 text-white hover:bg-white/20'
+                   ? 'bg-[#285943] text-white'
+                   : 'bg-white text-stone-700 hover:bg-[#e5f3f8]'
                 }`}
               >
                 {cat.emoji} {cat.label}
@@ -578,7 +578,7 @@ const Soundscapes = () => {
           {/* Headphones hint */}
           {layers.length > 0 &&
             layers.some((l) => String(l.id).startsWith('binaural')) && (
-              <div className="text-center animate-slide-up">
+              <div className="text-center">
                 <p className="text-xs text-muted-foreground/70 italic">
                   🎧 Binaural beats work best with stereo headphones.
                 </p>

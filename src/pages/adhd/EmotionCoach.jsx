@@ -193,9 +193,9 @@ const EmotionCoach = () => {
     <SupportToolLayout>
       {/* Header Section */}
       <div className="space-y-2 text-center md:text-left">
-        <div className="mb-2 inline-flex rounded-full bg-lime-300 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950">Name it. Then nudge it.</div>
-        <h2 className="text-3xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 text-blue-700">
-          <Compass className="text-blue-600 h-8 w-8" />
+        <div className="mb-2 inline-flex rounded-full bg-[#ead9e9] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#583554]">Name it. Then nudge it.</div>
+        <h2 className="text-3xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 text-stone-900">
+          <Compass className="text-[#79506f] h-8 w-8" />
            Mood Check-in
         </h2>
         <p className="text-muted-foreground text-sm max-w-xl mx-auto md:mx-0">
@@ -213,8 +213,8 @@ const EmotionCoach = () => {
             onClick={() => setSelectedMood(m.id)}
             className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${
               selectedMood === m.id
-                ? `border-blue-500 bg-blue-50 shadow-lg ring-2 ring-lime-300`
-                : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                ? `border-[#79506f] bg-[#faf2f8] shadow-md ring-2 ring-[#ead9e9]`
+                : 'border-[#e7d7bf] bg-[#fffdf7] hover:border-[#b58aab] hover:bg-[#faf2f8]'
             }`}
           >
             <div className={`p-3 rounded-xl bg-gradient-to-br ${m.color}`}>
@@ -230,7 +230,7 @@ const EmotionCoach = () => {
             {selectedMood === m.id && (
               <motion.div
                 layoutId="active-indicator"
-                className="absolute -bottom-1 w-8 h-1 bg-lime-400 rounded-full"
+                className="absolute -bottom-1 w-8 h-1 bg-[#79506f] rounded-full"
               />
             )}
           </motion.button>
@@ -248,7 +248,7 @@ const EmotionCoach = () => {
             className="space-y-4"
           >
             <div className="flex items-center gap-2 px-1">
-              <Sparkles className="h-4 w-4 text-lime-600" />
+              <Sparkles className="h-4 w-4 text-[#79506f]" />
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                  Support Prompts
               </h3>
@@ -258,10 +258,10 @@ const EmotionCoach = () => {
               {suggestions.map((s, idx) => (
                 <Card
                   key={idx}
-                  className="group overflow-hidden border border-blue-100 bg-white shadow-md hover:border-blue-300 hover:shadow-xl transition-all duration-300 rounded-2xl"
+                  className="group overflow-hidden border border-[#e7d7bf] bg-[#fffdf7] shadow-sm hover:border-[#b58aab] hover:shadow-md transition-colors rounded-2xl"
                 >
                   <div className="p-5 flex gap-4">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-[#ead9e9] flex items-center justify-center text-[#79506f] group-hover:bg-[#79506f] group-hover:text-white transition-colors">
                       <s.icon className="h-5 w-5" />
                     </div>
                     <div className="space-y-1">
@@ -279,7 +279,7 @@ const EmotionCoach = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-32 flex items-center justify-center border-2 border-dashed border-blue-200 rounded-3xl text-muted-foreground text-sm font-medium italic bg-blue-50/50"
+            className="h-32 flex items-center justify-center border-2 border-dashed border-[#d9bdd3] rounded-3xl text-muted-foreground text-sm font-medium italic bg-[#faf2f8]"
           >
             Select your current state to see support prompts.
           </motion.div>
@@ -287,7 +287,7 @@ const EmotionCoach = () => {
       </AnimatePresence>
 
       {/* Pattern Spotter */}
-      <Card className="border-2 border-blue-100 bg-gradient-to-br from-white via-blue-50/70 to-lime-50 overflow-hidden shadow-xl rounded-3xl">
+      <Card className="border border-[#e7d7bf] bg-gradient-to-br from-[#fffdf7] via-[#faf2f8] to-[#f5eee2] overflow-hidden shadow-md rounded-3xl">
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
@@ -296,7 +296,7 @@ const EmotionCoach = () => {
             </h3>
             <Badge
               variant="outline"
-               className="text-[10px] font-bold border-lime-400 text-lime-900 bg-lime-100"
+               className="text-[10px] font-bold border-[#d9bdd3] text-[#583554] bg-[#ead9e9]"
             >
                Quick check-in
             </Badge>
@@ -307,7 +307,7 @@ const EmotionCoach = () => {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Context: Slept 4h, noise outside, high caffeine..."
-              className="min-h-[80px] rounded-2xl border-2 border-blue-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all resize-none p-4 text-sm"
+              className="min-h-[80px] rounded-2xl border border-[#e7d7bf] focus:border-[#285943] focus:ring-2 focus:ring-[#dceadf] bg-[#fffdf7] transition-colors resize-none p-4 text-sm"
             />
             <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 px-1">
               <div className="flex items-center gap-1">
@@ -318,7 +318,7 @@ const EmotionCoach = () => {
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <Button
                 size="sm"
-                className="h-8 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-700"
+                className="h-8 rounded-lg bg-[#285943] px-3 text-xs font-bold text-white hover:bg-[#1d4332]"
                 type="button"
                 onClick={handleSavePattern}
               >
@@ -350,14 +350,14 @@ const EmotionCoach = () => {
 
           {/* Recent patterns (local history) */}
           {patterns.length > 0 && (
-            <div className="pt-3 border-t border-blue-100 mt-1 space-y-2">
+             <div className="pt-3 border-t border-[#e7d7bf] mt-1 space-y-2">
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <BarChart2 className="h-3 w-3" />
                   <span>Recent entries</span>
                 </span>
                 {latestPattern && (
-                  <span className="flex items-center gap-1 text-blue-700">
+                  <span className="flex items-center gap-1 text-[#79506f]">
                     <Brain className="h-3 w-3" />
                     <span>{latestPattern.moodLabel}</span>
                   </span>

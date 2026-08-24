@@ -7,6 +7,34 @@
   color: var(--tool-text);
 }
 
+.adhd-display-controls {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 2;
+  color: var(--tool-text-muted);
+  font-size: 0.75rem;
+}
+
+.adhd-display-controls summary { cursor: pointer; font-weight: 600; }
+.adhd-display-controls > div { display: flex; gap: 6px; margin-top: 6px; padding: 8px; border: 1px solid var(--tool-border); border-radius: 10px; background: var(--tool-surface); box-shadow: 0 6px 18px rgb(39 52 43 / 0.12); }
+.adhd-display-controls button { border: 1px solid var(--tool-border); border-radius: 999px; padding: 5px 8px; background: transparent; color: var(--tool-text-muted); }
+.adhd-display-controls button[aria-pressed="true"] { border-color: var(--tool-primary); background: var(--tool-primary); color: #fff; }
+
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-page { background: #FCFAF5 !important; }
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-card,
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-completion { box-shadow: none; }
+[data-support-theme="adhd_focus"][data-adhd-soft-colors="true"] .support-tool-page { filter: saturate(0.68); }
+
+html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support-tool-page *,
+html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support-tool-page *::before,
+html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support-tool-page *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
 /* Opt-in shell for support tools. It intentionally does not affect the app layout. */
 [data-support-theme]:not([data-support-theme="neutral"]) .support-tool-layout {
   width: min(100%, 960px);
