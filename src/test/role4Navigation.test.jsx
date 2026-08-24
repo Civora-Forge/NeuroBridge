@@ -35,6 +35,7 @@ vi.mock("@/context/ContextProvider", () => ({
     processUserMessage: async () => ({}),
     refreshContext: async () => ({}),
   }),
+  useContextStateOptional: () => null,
   resolveModuleFromPath: () => "dashboard",
 }));
 
