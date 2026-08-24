@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Shield, Star, TrendingUp, Award, Heart } from "lucide-react";
+import { Shield, Star, TrendingUp, Award, Heart } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
@@ -78,131 +77,79 @@ export default function EvidenceFolder() {
     return matchesText && matchesCat;
   });
 
-  const total = items.length;
   const perCat = Object.keys(evidenceCategories).reduce((acc, key) => {
     acc[key] = items.filter(i => i.category === key).length;
     return acc;
   }, {});
-  const mostUsedCat = Object.entries(perCat).sort((a, b) => b[1] - a[1])[0]?.[0];
-
   return (
     <SupportToolThemeProvider theme="depression_reflection">
     <SupportToolLayout>
-      {/* Header */}
-      <motion.div
-        className="text-center space-y-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-7 py-3 rounded-3xl font-bold shadow-2xl">
-          <Brain className="w-5 h-5" />
-           Evidence Journal
-        </div>
-        <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-           Review the evidence
-        </h1>
-        <p className="text-gray-600 max-w-xl mx-auto text-sm md:text-base">
-           Keep a private record of moments, effort, and support that matter to you.
-        </p>
-      </motion.div>
+      <div className="mx-auto max-w-2xl space-y-5 pb-4 text-stone-800">
+      <header className="border-b border-stone-300 pb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Evidence journal</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Keep one helpful record</h1>
+        <p className="mt-2 text-sm leading-6 text-stone-600">Save moments of effort, support, or care that you may want to remember.</p>
+      </header>
 
-      {/* Stats strip */}
-      <motion.div
-        className="grid md:grid-cols-3 gap-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/60">
-          <div className="text-xs font-semibold text-gray-500 mb-1">Total evidence</div>
-          <div className="text-3xl font-black text-[hsl(142_72%_36%)]">{total}</div>
-        </div>
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 shadow-lg border border-emerald-100">
-          <div className="text-xs font-semibold text-emerald-700 mb-1">Strongest area</div>
-          <div className="text-sm font-bold text-emerald-900">
-            {mostUsedCat ? evidenceCategories[mostUsedCat].label : "Start logging"}
-          </div>
-        </div>
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/60">
-           <div className="text-xs font-semibold text-gray-500 mb-1">Starred entries</div>
-          <div className="text-3xl font-black text-yellow-500">
-            {items.filter(i => i.starred).length}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Input + category */}
-      <motion.div
-        className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-2xl border border-[hsl(142_72%_36%)]/15 space-y-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-gray-500">
-            Log one tiny piece of evidence that your brain is underestimating you.
-          </span>
-        </div>
+      <section className="rounded-xl border border-stone-300 bg-[#faf7f0] p-4 shadow-sm">
+        <label htmlFor="evidence-entry" className="block text-sm font-medium text-stone-800">What would you like to keep?</label>
 
         <textarea
-          className="w-full fieldTextarea resize-none rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-sm md:text-base focus:border-[hsl(142_72%_36%)] focus:ring-4 focus:ring-[hsl(142_72%_36%)]/15 transition-all"
+          id="evidence-entry"
+          className="mt-2 w-full resize-none rounded-lg border border-stone-300 bg-[#fffdf8] p-3 text-sm leading-6 text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-200"
           rows={3}
           value={input}
           onChange={e => setInput(e.target.value)}
            placeholder="I attended class even though it felt difficult."
         />
 
-        <div className="grid md:grid-cols-[2fr,1fr] gap-3 items-center">
+        <div className="mt-3">
+          <p className="text-xs font-medium text-stone-600">Choose the closest category</p>
           <div className="flex flex-wrap gap-2">
             {Object.entries(evidenceCategories).map(([key, cfg]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setSelectedCategory(key)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-semibold transition-all ${
+                className={`mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
                   selectedCategory === key
-                    ? "bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white border-[hsl(142_72%_36%)] shadow-lg"
-                    : "bg-white/80 text-gray-700 border-gray-200 hover:border-[hsl(142_72%_36%)]/40"
+                    ? "border-stone-700 bg-stone-700 text-[#fffdf8]"
+                    : "border-stone-300 bg-[#fffdf8] text-stone-700 hover:bg-stone-100"
                 }`}
               >
                 {cfg.icon}
                 <span>{cfg.label}</span>
               </button>
             ))}
-          </div>
-
-          <motion.button
+          </div></div>
+          <button
             type="button"
             onClick={add}
             disabled={!input.trim()}
-            className="primaryButton w-full bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white rounded-2xl py-3 text-sm md:text-base font-bold shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={input.trim() ? { y: -2, scale: 1.01 } : {}}
-            whileTap={input.trim() ? { scale: 0.97 } : {}}
+            className="mt-4 w-full rounded-lg bg-stone-800 py-2.5 text-sm font-semibold text-[#fffdf8] hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Log evidence
-          </motion.button>
-        </div>
+          </button>
 
-        <p className="text-[11px] text-gray-500">
-           Tip: Add an entry whenever it feels useful. Small details count.
+        <p className="mt-3 text-xs leading-5 text-stone-500">
+           Small details count. Add an entry only when it feels useful.
         </p>
         {!user?.id && <p className="text-[11px] text-gray-500">Entries are local and temporary. Sign in to retain them in this browser under your account.</p>}
-        <div className="flex gap-3"><button type="button" onClick={completeSession} disabled={!savedCount || sessionComplete} className="secondaryButton px-4 py-2 text-xs disabled:opacity-50">Complete journal session</button><button type="button" onClick={discardSession} className="text-xs text-gray-500">Discard session</button>{items.length > 0 && <button type="button" onClick={clearAll} className="text-xs text-red-500">Clear all saved entries</button>}</div>
-        {sessionComplete && !rated && <div className="text-xs text-gray-600">How helpful was this journal session? {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={async () => { if (user?.id) { const result = await lifecycle.rate({ rating: value }); if (!result.ok) return; } setRated(true); }} className="ml-2 px-2 py-1 border rounded">{value}</button>)}</div>}
-      </motion.div>
+        <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={completeSession} disabled={!savedCount || sessionComplete} className="text-xs font-medium text-stone-700 underline underline-offset-4 disabled:opacity-50">{sessionComplete ? 'Journal session complete' : 'Complete journal session'}</button><button type="button" onClick={discardSession} className="text-xs text-stone-500 underline underline-offset-4">Discard session</button>{items.length > 0 && <button type="button" onClick={clearAll} className="text-xs text-stone-500 underline underline-offset-4">Clear all saved entries</button>}</div>
+        {sessionComplete && !rated && <div className="mt-3 text-xs text-stone-600">How helpful was this journal session? {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={async () => { if (user?.id) { const result = await lifecycle.rate({ rating: value }); if (!result.ok) return; } setRated(true); }} className="ml-2 rounded border border-stone-300 px-2 py-1 hover:bg-stone-100">{value}</button>)}</div>}
+      </section>
 
       {/* Filters */}
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center gap-3 justify-between"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
+      <section className="border-t border-stone-300 pt-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setFilterCat("all")}
             className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
               filterCat === "all"
-                ? "bg-[hsl(142_72%_36%)] text-white border-[hsl(142_72%_36%)]"
-                : "bg-white/80 text-gray-700 border-gray-200"
+                ? "bg-stone-700 text-[#fffdf8] border-stone-700"
+                : "bg-[#fffdf8] text-stone-700 border-stone-300"
             }`}
           >
             All
@@ -214,8 +161,8 @@ export default function EvidenceFolder() {
               onClick={() => setFilterCat(key)}
               className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
                 filterCat === key
-                  ? "bg-[hsl(142_72%_36%)] text-white border-[hsl(142_72%_36%)]"
-                  : "bg-white/80 text-gray-700 border-gray-200"
+                ? "bg-stone-700 text-[#fffdf8] border-stone-700"
+                : "bg-[#fffdf8] text-stone-700 border-stone-300"
               }`}
             >
               {cfg.label} ({perCat[key] || 0})
@@ -224,93 +171,76 @@ export default function EvidenceFolder() {
         </div>
 
         <input
-          className="fieldInput w-full md:w-64 bg-white/90 border-2 border-gray-200 rounded-2xl px-3 py-2 text-xs md:text-sm focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20"
+          className="w-full rounded-lg border border-stone-300 bg-[#fffdf8] px-3 py-2 text-xs text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-200 sm:w-52"
            placeholder="Search entries"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-      </motion.div>
+        </div>
+      </section>
 
       {/* List */}
-      <AnimatePresence>
         {filtered.length === 0 ? (
-          <motion.div
-            key="empty"
-            className="text-center py-16 bg-white/70 rounded-3xl border border-dashed border-[hsl(142_72%_36%)]/30"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-[hsl(142_72%_36%)]/10 to-[hsl(142_66%_42%)]/10 flex items-center justify-center">
-              <Shield className="w-10 h-10 text-[hsl(142_72%_36%)]" />
-            </div>
-            <p className="text-sm text-gray-600 max-w-md mx-auto">
-               Add an entry when you want to remember something meaningful or helpful.
-            </p>
-          </motion.div>
+          <div className="rounded-xl border border-dashed border-stone-300 bg-[#faf7f0] px-4 py-10 text-center">
+            <p className="mx-auto max-w-md text-sm leading-6 text-stone-600">Add an entry when you want to remember something meaningful or helpful.</p>
+          </div>
         ) : (
-          <motion.div
-            key="list"
-            className="space-y-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
+          <div className="space-y-2">
             {filtered.map((i) => {
               const cfg = evidenceCategories[i.category];
               return (
-                <motion.div
+                <article
                   key={i.id}
-                  className="group bg-white/95 backdrop-blur-sm rounded-3xl p-4 md:p-5 shadow-lg border border-white/70 hover:border-[hsl(142_72%_36%)]/35 hover:-translate-y-0.5 transition-all"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
+                  className="rounded-xl border border-stone-300 bg-[#fffdf8] p-4 shadow-sm"
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-1 flex-shrink-0">
-                      <div className="w-8 h-8 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)]/15 to-[hsl(142_66%_42%)]/10 flex items-center justify-center text-[hsl(142_72%_36%)]">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-stone-600">
                         {cfg?.icon}
                       </div>
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                           {cfg?.label}
                         </span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-stone-400">
                            {new Date(i.createdAt).toLocaleDateString()} |{" "}
                           {new Date(i.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      <p className="text-sm md:text-base text-gray-800 leading-relaxed">
+                      <p className="text-sm leading-6 text-stone-800">
                          {i.content}
                       </p>
                     </div>
-                    <div className="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex shrink-0 flex-col items-center gap-1">
                       <button
                         type="button"
                         onClick={() => toggleStar(i.id)}
-                        className="p-1 rounded-xl hover:bg-yellow-50"
+                        className="rounded p-1 hover:bg-stone-100"
                       >
                         <Star
                           className={`w-4 h-4 ${
-                            i.starred ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                            i.starred ? "fill-stone-600 text-stone-600" : "text-stone-300"
                           }`}
                         />
                       </button>
                       <button
                         type="button"
                         onClick={() => remove(i.id)}
-                        className="text-[11px] text-red-400 hover:text-red-500"
+                        className="text-[11px] text-stone-500 underline underline-offset-2 hover:text-stone-800"
                       >
                         delete
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </article>
               );
             })}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      <details className="border-t border-stone-300 pt-4 text-xs leading-5 text-stone-600"><summary className="cursor-pointer font-medium text-stone-700">Need urgent support?</summary><p className="mt-2">If you may act on thoughts of harming yourself or someone else, contact local emergency services now. If possible, also reach out to someone you trust and stay with them.</p></details>
+      </div>
     </SupportToolLayout>
     </SupportToolThemeProvider>
   );

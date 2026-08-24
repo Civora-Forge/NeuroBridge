@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
@@ -170,30 +169,20 @@ export default function CognitiveReframer() {
   return (
     <SupportToolThemeProvider theme="depression_reflection">
     <SupportToolLayout>
-      
-      {/* Header */}
-      <motion.div 
-        className="text-center mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-8 py-4 rounded-3xl font-bold text-xl shadow-2xl mb-6">
-          Cognitive Reframing
-        </div>
-        <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent tracking-tight">
-          Review a Thought
-        </h1>
-        <p className="text-lg text-gray-600 mt-2 font-medium max-w-md mx-auto">
-           Use structured questions to consider a more balanced perspective. This tool does not diagnose thoughts.
-        </p>
-      </motion.div>
-      {safetyBlocked && <p className="text-sm text-center text-gray-600">This entry cannot be processed here. Consider reaching out to local emergency services or a trusted support person if you are in immediate danger.</p>}
+      <div className="mx-auto max-w-2xl space-y-5 pb-4 text-stone-800">
+      <header className="border-b border-stone-300 pb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Cognitive reframing</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Review one thought</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">Use a few questions to make room for a more balanced view. This tool does not diagnose thoughts.</p>
+      </header>
+      {safetyBlocked && <p className="rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-sm leading-5 text-stone-700">This entry cannot be processed here. If you are in immediate danger, contact local emergency services or a trusted support person.</p>}
 
-      {/* Input */}
-      <motion.div className="relative" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+      <section className="rounded-xl border border-stone-300 bg-[#faf7f0] p-4 shadow-sm">
+        <label htmlFor="thought" className="block text-sm font-medium text-stone-800">What thought would you like to review?</label>
         <textarea
+          id="thought"
           ref={textareaRef}
-          className="w-full fieldTextarea resize-none p-8 rounded-3xl bg-white/80 backdrop-blur-sm border-2 border-[hsl(142_72%_36%)]/20 focus:border-[hsl(142_72%_36%)]/40 focus:ring-4 focus:ring-[hsl(142_72%_36%)]/10 transition-all duration-300 text-lg placeholder-gray-500 min-h-[120px] shadow-xl hover:shadow-2xl"
+          className="mt-2 min-h-[120px] w-full resize-none rounded-lg border border-stone-300 bg-[#fffdf8] p-3 text-base leading-6 text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-200"
           value={thought}
           onChange={(e) => {
             setThought(e.target.value);
@@ -202,127 +191,56 @@ export default function CognitiveReframer() {
           placeholder="I'm such a failure... I'll never succeed... Everyone hates me..."
           rows={3}
         />
-        <motion.button
+        <button
+          type="button"
           onClick={analyzeThought}
-          className="absolute bottom-4 right-4 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-8 py-3 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border border-[hsl(142_72%_36%)]/50"
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.98 }}
+          className="mt-3 w-full rounded-lg bg-stone-800 px-4 py-2.5 text-sm font-semibold text-[#fffdf8] hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2 sm:w-auto"
         >
-           Review thought
-        </motion.button>
-      </motion.div>
+          Review thought
+        </button>
+      </section>
 
-      {/* Analysis Results */}
-      <AnimatePresence>
-        {showReframe && analysis && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: 20 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="space-y-6"
-          >
-            {/* Detected Distortion */}
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-3xl p-8 backdrop-blur-sm shadow-2xl"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl flex items-center justify-center shadow-xl">
-                  <span className="text-2xl">Review</span>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-gray-900">{analysis.original}</h3>
-                  <p className="text-gray-700 font-medium mt-1">Structured reflection prompt</p>
-                </div>
-              </div>
-              <p className="text-lg text-gray-700 leading-relaxed">{analysis.explanation}</p>
-            </motion.div>
-
-            {/* Evidence Questions */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-[hsl(142_72%_36%)]/20"
-            >
-              <h4 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <span className="w-10 h-10 bg-[hsl(142_72%_36%)] text-white rounded-xl flex items-center justify-center font-bold shadow-lg">?</span>
-                 Review the evidence
-              </h4>
-              <div className="space-y-4">
+      {showReframe && analysis ? (
+          <section className="space-y-4 rounded-xl border border-stone-300 bg-[#fffdf8] p-4 shadow-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">A pattern to consider</p>
+              <h2 className="mt-1 text-lg font-semibold text-stone-900">{analysis.original}</h2>
+              <p className="mt-2 text-sm leading-6 text-stone-600">{analysis.explanation}</p>
+            </div>
+            <div className="border-t border-stone-200 pt-4">
+              <h3 className="text-sm font-semibold text-stone-800">Consider these questions</h3>
+              <ol className="mt-2 space-y-2 text-sm leading-6 text-stone-700">
                 {analysis.questions.map((question, idx) => (
-                  <motion.div
-                    key={idx}
-                    className="flex items-start gap-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl border-l-4 border-blue-400 hover:shadow-md transition-all"
-                    whileHover={{ x: 4 }}
-                  >
-                    <span className="text-blue-600 font-bold mt-1">Q{idx + 1}</span>
-                    <p className="text-gray-800 leading-relaxed">{question}</p>
-                  </motion.div>
+                  <li key={idx} className="flex gap-3"><span className="font-medium text-stone-500">{idx + 1}.</span><span>{question}</span></li>
                 ))}
-              </div>
-            </motion.div>
-
-            {/* Healthy Reframe */}
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-8 backdrop-blur-sm shadow-2xl text-center"
-            >
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
-                 <span className="text-3xl">Done</span>
-              </div>
-               <h3 className="text-2xl font-black text-emerald-800 mb-4">Balanced Perspective</h3>
-              <blockquote className="text-xl font-semibold text-gray-800 italic bg-white/60 px-6 py-4 rounded-2xl shadow-inner">
-                "{analysis.reframe}"
-              </blockquote>
-            </motion.div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 pt-4">
-              <motion.button
-                onClick={clearAnalysis}
-                className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-4 px-8 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300"
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                 New thought
-              </motion.button>
-              <motion.button onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 px-8 rounded-2xl font-bold">Confirm exercise complete</motion.button>
-              <motion.button
+              </ol>
+            </div>
+            <div className="border-t border-stone-200 pt-4">
+              <h3 className="text-sm font-semibold text-stone-800">A balanced perspective</h3>
+              <p className="mt-2 rounded-lg border-l-2 border-stone-400 bg-[#f4efe5] px-3 py-3 text-sm leading-6 text-stone-800">{analysis.reframe}</p>
+            </div>
+            <div className="border-t border-stone-200 pt-4">
+              <button type="button" onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="w-full rounded-lg bg-stone-800 px-4 py-2.5 text-sm font-semibold text-[#fffdf8] hover:bg-stone-700 disabled:opacity-50" disabled={complete}> {complete ? 'Exercise complete' : 'Confirm exercise complete'} </button>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={clearAnalysis} className="text-sm font-medium text-stone-700 underline underline-offset-4 hover:text-stone-900">New thought</button>
+                <button
+                  type="button"
                 onClick={async () => {
                   const content = buildReframingClipboardPayload({ label: analysis.original, reframe: analysis.reframe, originalThought: thought, includeOriginalThought, safety: assessSupportInput({ userId: user?.id, moduleId: COGNITIVE_REFRAMING_MODULE_ID, action: 'copy', inputType: 'free_text', text: thought }) });
                   if (!content) return;
                   try { await navigator.clipboard.writeText(content); } catch { return; }
                 }}
-                className="px-8 py-4 bg-white/90 hover:bg-white text-gray-800 backdrop-blur-sm rounded-2xl font-bold shadow-xl border border-gray-200 hover:border-[hsl(142_72%_36%)]/30 hover:shadow-2xl hover:scale-105 transition-all duration-300"
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
+                className="text-sm font-medium text-stone-700 underline underline-offset-4 hover:text-stone-900"
               >
-                 Copy perspective
-              </motion.button>
+                  Copy perspective
+                </button>
+                <label className="flex items-center gap-2 text-xs text-stone-600"><input type="checkbox" checked={includeOriginalThought} onChange={(event) => setIncludeOriginalThought(event.target.checked)} /> Include original thought</label>
+              </div>
             </div>
-            <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={includeOriginalThought} onChange={(event) => setIncludeOriginalThought(event.target.checked)} /> Include original thought</label>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {!showReframe && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-12 text-gray-500"
-        >
-          <div className="w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)]/10 to-[hsl(142_66%_42%)]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-             <span className="text-3xl">Review</span>
-          </div>
-          <p className="text-lg font-medium">Write a thought above to explore structured reflection prompts.</p>
-        </motion.div>
-      )}
+          </section>
+      ) : <p className="px-1 text-sm leading-6 text-stone-500">Write a thought above when you are ready. You only need to work with one thought at a time.</p>}
+      <details className="border-t border-stone-300 pt-4 text-xs leading-5 text-stone-600"><summary className="cursor-pointer font-medium text-stone-700">Need urgent support?</summary><p className="mt-2">If you may act on thoughts of harming yourself or someone else, contact local emergency services now. If possible, also reach out to someone you trust and stay with them.</p></details>
+      </div>
     </SupportToolLayout>
     </SupportToolThemeProvider>
   );

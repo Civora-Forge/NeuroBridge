@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useRef, useState } from "react";
-import { Share2, Info } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildSocialConnectionOutcome } from '@/support/modules/socialConnection/socialConnectionService';
@@ -22,154 +20,78 @@ export default function SocialBroadcaster() {
   const start = async () => { if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return false; startedAtRef.current = Date.now(); } return true; };
 
   const codes = {
-    Red: {
-      label: "Red: No social energy",
-      message:
-        "Status: RED\n\nI am low on energy and may not be able to talk or respond right now. It is not about you. I will reply when I can.",
-      explain: "You may need to rest without giving a detailed explanation.",
-      suggestion: "Set an auto-response, silence notifications, choose one person you might update later."
-    },
-    Yellow: {
-      label: "Yellow: Limited energy",
-      message:
-        "Status: YELLOW\n\nMy replies may be slow and short today. I still care. There is no need to fix anything.",
-      explain: "You may be able to talk a little while keeping expectations low.",
-      suggestion: "Reply with short check-ins, avoid big emotional conversations, schedule longer chats for another day."
-    },
-    Green: {
-      label: "Green: Available",
-      message:
-        "Status: GREEN\n\nI can chat and respond today. Feel free to message or call. If I get tired, I will let you know.",
-      explain: "Relatively steady energy. You can engage more, with permission to still set limits.",
-      suggestion: "Use this time for light connection, planning, or asking for support you have been postponing."
-    }
-  };
-
-  const palette = {
-    Red: {
-      bg: "from-rose-500/90 to-red-500/90",
-      chip: "bg-rose-100 text-rose-800 border border-rose-200"
-    },
-    Yellow: {
-      bg: "from-amber-400/90 to-orange-400/90",
-      chip: "bg-amber-100 text-amber-800 border border-amber-200"
-    },
-    Green: {
-      bg: "from-[hsl(142_72%_36%)]/90 to-[hsl(142_66%_42%)]/90",
-      chip: "bg-emerald-100 text-emerald-800 border border-emerald-200"
-    }
+    Red: { label: "Red: no social energy", message: "Status: RED\n\nI am low on energy and may not be able to talk or respond right now. It is not about you. I will reply when I can.", explain: "You may need to rest without giving a detailed explanation.", suggestion: "Set an auto-response, silence notifications, or choose one person to update later." },
+    Yellow: { label: "Yellow: limited energy", message: "Status: YELLOW\n\nMy replies may be slow and short today. I still care. There is no need to fix anything.", explain: "You may be able to talk a little while keeping expectations low.", suggestion: "Keep check-ins short, avoid big conversations, or schedule a longer chat for another day." },
+    Green: { label: "Green: available", message: "Status: GREEN\n\nI can chat and respond today. Feel free to message or call. If I get tired, I will let you know.", explain: "You have relatively steady energy, with permission to still set limits.", suggestion: "Use this time for light connection, planning, or asking for support you have been postponing." }
   };
 
   const handleCopy = async () => {
     if (!await start()) return;
-    try {
-      await navigator.clipboard.writeText(codes[status].message);
-    } catch {
-      return;
-    }
-    setCopied(true);
-    setPrepared(true);
+    try { await navigator.clipboard.writeText(codes[status].message); } catch { return; }
+    setCopied(true); setPrepared(true);
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_prepared', completedUnits: 1, totalUnits: 2, progressRatio: 0.5 });
     setTimeout(() => setCopied(false), 1500);
   };
   const confirmReady = async () => { if (!prepared || complete || !await start()) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildSocialConnectionOutcome({ configuration, prepared: true, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); };
   const reset = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_discard', {}, buildSocialConnectionOutcome({ configuration, prepared, startedAt: startedAtRef.current })); lifecycle.reset(); setPrepared(false); setComplete(false); setCopied(false); };
 
-  const shortBubble = {
-    Red: "Low power: resting. Responses may be very slow.",
-    Yellow: "Slow replies today. Please do not take it personally.",
-    Green: "Available to chat, with breaks if I get tired."
-  };
-
   return (
     <SupportToolThemeProvider theme="depression_gentle">
-    <SupportToolLayout>
-      {/* Header */}
-      <motion.div
-        className="space-y-2 text-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-4 py-2 rounded-2xl text-xs font-semibold shadow-lg">
-           Social Connection
-        </div>
-        <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-          Share your energy status
-        </h1>
-        <p className="text-xs md:text-sm text-gray-600 max-w-md mx-auto">
-           Choose a status and copy a short message for friends, family, or work chats.
-        </p>
-      </motion.div>
+      <SupportToolLayout>
+        <main className="mx-auto w-full max-w-xl space-y-5 px-1 py-3 text-stone-800">
+          <header className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">A small connection step</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Share your capacity simply</h1>
+            <p className="max-w-lg text-sm leading-6 text-stone-600">Choose what fits today. You do not need to explain more than you want to.</p>
+          </header>
 
-      {/* Mode chips */}
-      <div className="grid grid-cols-3 gap-2">
-        {["Red", "Yellow", "Green"].map((m) => (
-          <button
-            key={m}
-            className={`chip text-xs md:text-sm px-3 py-2 rounded-2xl font-semibold flex flex-col items-center justify-center gap-1 transition-all ${
-              status === m
-                ? `chipActive bg-gradient-to-r ${palette[m].bg} text-white shadow-lg border-none`
-                : `${palette[m].chip} hover:shadow-md`
-            }`}
-            onClick={async () => { if (!await start()) return; setStatus(m); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }}
-          >
-            <span>{m}</span>
-          </button>
-        ))}
-      </div>
+          <fieldset className="rounded-2xl border border-stone-200 bg-[#fffdf8] p-4 shadow-sm">
+            <legend className="px-1 text-sm font-medium text-stone-700">How available do you feel?</legend>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {["Red", "Yellow", "Green"].map((option) => (
+                <button key={option} onClick={async () => { if (!await start()) return; setStatus(option); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }} className={`rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2 ${status === option ? 'border-stone-700 bg-stone-800 text-[#fffdf8]' : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'}`} aria-pressed={status === option}>{option}</button>
+              ))}
+            </div>
+          </fieldset>
 
-      {/* Status card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={status}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          className="logCard rounded-3xl bg-white/95 border border-[hsl(142_72%_36%)]/10 shadow-xl p-5 space-y-3"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <span>{codes[status].label}</span>
+          <section className="rounded-2xl border border-stone-200 bg-[#fffdf8] p-5 shadow-sm" aria-labelledby="status-title">
+            <p className="text-xs font-medium text-stone-500">Your selected status</p>
+            <h2 id="status-title" className="mt-1 text-lg font-semibold text-stone-900">{codes[status].label}</h2>
+            <p className="mt-3 text-sm leading-6 text-stone-600">{codes[status].explain}</p>
+            <p className="mt-3 border-l-2 border-[#d9cdbb] pl-3 text-sm leading-6 text-stone-600">{codes[status].suggestion}</p>
+          </section>
+
+          <section aria-labelledby="message-title">
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <h2 id="message-title" className="text-sm font-medium text-stone-700">Message to copy</h2>
+              <span className="text-xs text-stone-500">Edit after pasting if you wish</span>
+            </div>
+            <pre className="whitespace-pre-wrap rounded-xl border border-stone-200 bg-[#f7f2e9] p-4 font-sans text-sm leading-6 text-stone-700">{codes[status].message}</pre>
+          </section>
+
+          {!complete && (prepared ? (
+            <section className="space-y-3">
+              <button onClick={confirmReady} className="w-full rounded-xl bg-stone-800 px-4 py-3 text-sm font-semibold text-[#fffdf8] transition-colors hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2">I have my message ready</button>
+              <p className="text-center text-xs text-stone-600">{copied ? "Copied. " : ""}Send it only if and when it feels right.</p>
+            </section>
+          ) : (
+            <button onClick={handleCopy} className="w-full rounded-xl bg-stone-800 px-4 py-3 text-sm font-semibold text-[#fffdf8] transition-colors hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2">{copied ? "Copied" : "Copy this message"}</button>
+          ))}
+
+          {complete && <p className="rounded-xl border border-[#d8dfd0] bg-[#f4f7f0] px-4 py-3 text-sm leading-6 text-stone-700">Your connection plan is ready. You can take the next step whenever you choose.</p>}
+          <div className="space-y-2 text-center">
+            <button onClick={reset} className="text-xs text-stone-500 underline underline-offset-2 hover:text-stone-800">Discard and start again</button>
+            {!user?.id && <p className="text-xs leading-5 text-stone-500">You can prepare this locally. Sign in to save structured progress.</p>}
           </div>
 
-          <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-2xl p-3">
-            {shortBubble[status]}
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-gray-500">
-            <Info className="w-3 h-3" />
-            <span>{codes[status].explain}</span>
-          </div>
-
-          <div className="text-[11px] text-gray-600 bg-[hsl(142_72%_36%)]/5 border border-[hsl(142_72%_36%)]/20 rounded-2xl p-3">
-            <span className="font-semibold text-[hsl(142_72%_36%)] mr-1">Suggestion:</span>
-            {codes[status].suggestion}
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Preview of copied text */}
-      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-[11px] text-gray-700 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-        {codes[status].message}
-      </div>
-
-      {/* Copy button */}
-      <motion.button
-        className="secondaryButton w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[hsl(142_72%_36%)]/5 to-[hsl(142_66%_42%)]/5 border border-[hsl(142_72%_36%)]/40 rounded-2xl py-3 text-xs md:text-sm font-semibold text-[hsl(142_72%_36%)] hover:bg-white hover:shadow-xl"
-        onClick={handleCopy}
-        whileHover={{ y: -2, scale: 1.01 }}
-        whileTap={{ scale: 0.97 }}
-      >
-        <Share2 size={16} />
-        {copied ? "Copied!" : "Copy status message"}
-      </motion.button>
-      <button disabled={!prepared || complete} onClick={confirmReady} className="secondaryButton w-full rounded-2xl py-3 text-xs font-semibold disabled:opacity-50">Confirm connection plan is ready</button>
-      <button onClick={reset} className="w-full text-xs text-gray-500">Discard and restart</button>
-      {!user?.id && <p className="text-[11px] text-gray-500 text-center">You can prepare this locally. Sign in to save structured progress.</p>}
-
-      <p className="text-[11px] text-gray-500 text-center">
-         You can use these messages without adding a detailed explanation.
-      </p>
-    </SupportToolLayout>
+          <footer className="border-t border-stone-200 pt-4">
+            <details className="text-xs leading-5 text-stone-600">
+              <summary className="cursor-pointer font-medium text-stone-700">Need urgent support?</summary>
+              <p className="mt-2">If you may be in immediate danger or unable to stay safe, contact local emergency services or a local crisis support service now. If possible, reach out to someone you trust and stay with them.</p>
+            </details>
+          </footer>
+        </main>
+      </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 }

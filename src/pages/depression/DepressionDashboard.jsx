@@ -7,55 +7,64 @@ import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
 
 export const DEPRESSION_LANDING_TOOLS = [
-  { moduleId: "support.gentle_activity", feature: FEATURES.DEPRESSION_MVH, to: "/depression/mvh", icon: Zap, title: "Gentle Activity", desc: "Try a short sequence of low-energy actions." },
-  { moduleId: "support.grounding", feature: FEATURES.DEPRESSION_ANXIETY_DISSOLVER, to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "Use a timed technique to steady your attention." },
-  { moduleId: "support.social_connection", feature: FEATURES.DEPRESSION_SOCIAL, to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Prepare a low-pressure message for someone you trust." },
-  { moduleId: "support.cognitive_reframing", feature: FEATURES.DEPRESSION_REALITY, to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Use structured questions to review a difficult thought." },
-  { moduleId: "support.evidence_journal", feature: FEATURES.DEPRESSION, to: "/depression/evidence", icon: Sparkles, title: "Evidence Journal", desc: "Keep a private record of moments and support that matter to you." },
+  { moduleId: "support.gentle_activity", feature: FEATURES.DEPRESSION_MVH, to: "/depression/mvh", icon: Zap, title: "Gentle Activity", desc: "Try one very small action. You can stop whenever you need to." },
+  { moduleId: "support.grounding", feature: FEATURES.DEPRESSION_ANXIETY_DISSOLVER, to: "/depression/anxietydissolver", icon: Eye, title: "Grounding", desc: "A brief way to return your attention to the present." },
+  { moduleId: "support.social_connection", feature: FEATURES.DEPRESSION_SOCIAL, to: "/depression/social", icon: MessageCircle, title: "Social Connection", desc: "Put together a low-pressure message for someone you trust." },
+  { moduleId: "support.cognitive_reframing", feature: FEATURES.DEPRESSION_REALITY, to: "/depression/reality", icon: Brain, title: "Cognitive Reframing", desc: "Look at one difficult thought with a little more room around it." },
+  { moduleId: "support.evidence_journal", feature: FEATURES.DEPRESSION, to: "/depression/evidence", icon: Sparkles, title: "Evidence Journal", desc: "Keep a private note of moments and support that matter." },
 ];
+
+function ToolLink({ tool, primary = false }) {
+  const Icon = tool.icon;
+
+  return (
+    <Link
+      to={tool.to}
+      className={primary
+        ? "block rounded-2xl border border-[#cfc2aa] bg-[#fffdf7] p-5 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#786747] focus:ring-offset-2 sm:p-6"
+        : "flex items-start gap-3 rounded-xl border border-[#ded5c4] bg-[#fffdf9] p-4 text-left focus:outline-none focus:ring-2 focus:ring-[#786747] focus:ring-offset-2"}
+    >
+      <span className={primary ? "mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#eee4d0] text-[#665638]" : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f1e9da] text-[#6b5b3d]"}>
+        <Icon className={primary ? "h-5 w-5" : "h-4 w-4"} aria-hidden="true" />
+      </span>
+      <span className={primary ? "block" : "block min-w-0"}>
+        <span className={primary ? "block text-lg font-semibold text-[#302b22]" : "block text-sm font-semibold text-[#302b22]"}>{tool.title}</span>
+        <span className={primary ? "mt-1 block max-w-lg text-sm leading-6 text-[#625b4d]" : "mt-1 block text-xs leading-5 text-[#655e51]"}>{tool.desc}</span>
+        {primary && <span className="mt-4 inline-block text-sm font-medium text-[#5e4f34]">Start with this</span>}
+      </span>
+    </Link>
+  );
+}
 
 export default function DepressionDashboard() {
   const { hasFeature } = useAuth();
   const availableTools = DEPRESSION_LANDING_TOOLS.filter((tool) => hasFeature(tool.feature));
+  const [gentleActivity, ...otherTools] = availableTools;
 
   return (
-    <div className="min-h-screen p-8 bg-gradient-to-br from-green-50 via-white to-teal-50">
-      <div className="text-center mb-16 max-w-2xl mx-auto">
-        <div className="w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_60%_45%)] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
-          <Brain className="w-12 h-12 text-white drop-shadow-lg"/>
-        </div>
-        <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-[hsl(142_72%_32%)] bg-clip-text text-transparent mb-4 leading-tight">
-          Daily Momentum
-        </h1>
-        <p className="text-xl text-gray-600 font-medium tracking-wide">
-          Low-energy support tools for small, manageable next steps.
-        </p>
-      </div>
+    <main className="min-h-screen bg-[#f5f0e6] px-4 py-8 text-[#302b22] sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-3xl">
+        <header className="max-w-xl">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#766b57]">A quiet place to begin</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Daily Momentum</h1>
+          <p className="mt-3 text-sm leading-6 text-[#625b4d] sm:text-base">You do not need to solve everything today. Choose one small kind next step.</p>
+        </header>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        {availableTools.map(({ moduleId, to, icon: Icon, title, desc }) => (
-          <Link
-            key={moduleId}
-            to={to}
-            className="group relative card bg-white/80 backdrop-blur-sm p-8 rounded-3xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 border border-white/50 hover:border-[hsl(142_72%_36%)]/20 hover:bg-white/100 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[hsl(142_72%_36%)]/5 to-[hsl(142_60%_45%)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative mb-6 p-4 bg-gradient-to-r from-[hsl(142_72%_36%)]/10 to-[hsl(142_60%_45%)]/10 rounded-2xl group-hover:scale-110 transition-transform duration-300">
-              <Icon className="w-12 h-12" />
+        <section className="mt-8" aria-label="Start here">
+          {gentleActivity && <ToolLink tool={gentleActivity} primary />}
+        </section>
+
+        {otherTools.length > 0 && (
+          <section className="mt-7" aria-label="Other support tools">
+            <h2 className="text-sm font-medium text-[#4e473a]">Other ways to get support</h2>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {otherTools.map((tool) => <ToolLink key={tool.moduleId} tool={tool} />)}
             </div>
-            <h3 className="relative font-black text-xl text-gray-900 mb-3 group-hover:text-[hsl(142_72%_36%)] transition-colors duration-300">
-              {title}
-            </h3>
-            <p className="relative text-sm text-gray-600 leading-relaxed tracking-wide">
-              {desc}
-            </p>
-            <div className="absolute -bottom-4 right-6 w-24 h-24 bg-gradient-to-r from-[hsl(142_72%_36%)]/20 to-[hsl(142_60%_45%)]/20 rounded-full blur-xl -z-10 group-hover:scale-110 transition-transform duration-500"></div>
-          </Link>
-        ))}
+          </section>
+        )}
+
+        <p className="mt-8 max-w-xl text-xs leading-5 text-[#766f61]">Private journaling and free-text release tools are unavailable until their privacy and safety protections are complete.</p>
       </div>
-      <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-gray-500">
-        Private journaling and free-text release tools are unavailable until their privacy and safety protections are complete.
-      </p>
-    </div>
+    </main>
   );
 }
