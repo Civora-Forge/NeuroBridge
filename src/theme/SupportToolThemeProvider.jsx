@@ -38,6 +38,11 @@ export default function SupportToolThemeProvider({ theme, override, children }) 
       return next;
     });
   };
+  const activePreferences = [
+    adhdPreferences.lowStimulation && "Quiet mode",
+    adhdPreferences.softColors && "Softer colors",
+    adhdPreferences.reducedMotion && "Reduce motion",
+  ].filter(Boolean);
 
   useEffect(() => {
     if (resolvedTheme !== "adhd_focus") return undefined;
@@ -50,6 +55,7 @@ export default function SupportToolThemeProvider({ theme, override, children }) 
       data-support-theme={resolvedTheme ?? "neutral"}
       data-adhd-low-stimulation={resolvedTheme === "adhd_focus" && adhdPreferences.lowStimulation ? "true" : "false"}
       data-adhd-soft-colors={resolvedTheme === "adhd_focus" && adhdPreferences.softColors ? "true" : "false"}
+      data-adhd-reduced-motion={resolvedTheme === "adhd_focus" && adhdPreferences.reducedMotion ? "true" : "false"}
       className="support-tool-theme"
       style={style}
     >
@@ -61,6 +67,7 @@ export default function SupportToolThemeProvider({ theme, override, children }) 
             <button type="button" aria-pressed={adhdPreferences.softColors} onClick={() => updateAdhdPreference("softColors")}>Softer colors</button>
             <button type="button" aria-pressed={adhdPreferences.reducedMotion} onClick={() => updateAdhdPreference("reducedMotion")}>Reduce motion</button>
           </div>
+          <p className="adhd-display-status" aria-live="polite">{activePreferences.length ? `${activePreferences.join(" + ")} active` : "Standard display"}</p>
         </details>
       )}
       {children}

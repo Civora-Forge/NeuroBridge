@@ -12,7 +12,6 @@ vi.mock("@/context/AuthContext", () => ({
 
 async function generate(task = "Prepare confidential presentation") {
   fireEvent.change(screen.getByRole("textbox"), { target: { value: task } });
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Break into steps" }));
   await screen.findByRole("button", { name: "Start this breakdown" });
 }
