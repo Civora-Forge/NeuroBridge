@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import TaskBreakdown from "@/pages/adhd/TaskBreakdown";
 import { getInterventionHistory } from "@/support/lifecycle/interventionLifecycle";
 
@@ -24,7 +25,7 @@ describe("TaskBreakdown lifecycle integration", () => {
   afterEach(cleanup);
 
   it("does not persist generation and starts only after the explicit start action", async () => {
-    render(<TaskBreakdown />);
+    render(<MemoryRouter><TaskBreakdown /></MemoryRouter>);
     await generate();
 
     expect(getInterventionHistory(auth.user.id)).toEqual([]);
@@ -37,7 +38,7 @@ describe("TaskBreakdown lifecycle integration", () => {
   });
 
   it("starts on the first checked step and completes only after every step", async () => {
-    render(<TaskBreakdown />);
+    render(<MemoryRouter><TaskBreakdown /></MemoryRouter>);
     await generate();
 
     const steps = Array.from({ length: 5 }, (_, index) =>
@@ -60,7 +61,7 @@ describe("TaskBreakdown lifecycle integration", () => {
 
   it("keeps unauthenticated checklists local and explains the limitation", async () => {
     auth.user = null;
-    render(<TaskBreakdown />);
+    render(<MemoryRouter><TaskBreakdown /></MemoryRouter>);
     await generate();
     fireEvent.click(screen.getByRole("button", { name: "Mark step 1 complete" }));
 

@@ -7,8 +7,10 @@ import { useAuth } from '@/context/AuthContext';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import { useInterventionLifecycle } from '@/support/execution';
-import { buildFocusSessionOutcome, completionRatio } from '@/support/modules/focusSession/focusSessionService';
+import { buildFocusSessionOutcome, completionRatio, validateFocusSessionConfiguration } from '@/support/modules/focusSession/focusSessionService';
 import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
+import { getSupportEvidenceAsync } from '@/support/evidence';
+import { recommendFocusConfiguration } from '@backend/adaptive/reasoning/focusConfiguration';
 
 const PRESETS = [
   { label: '15 min Sprint', minutes: 15, emoji: 'Quick' },
@@ -74,7 +76,7 @@ const CircularProgress = ({ progress, children }) => {
         <defs>
           <linearGradient id="focusRing" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="hsl(142 72% 36%)" />
-            <stop offset="100%" stopColor="#2563eb" />
+            <stop offset="100%" stopColor="hsl(142 42% 26%)" />
           </linearGradient>
         </defs>
         <circle
@@ -114,7 +116,7 @@ const ModeSelector = ({ mode, setMode, setFocusMinutes, setSecondsLeft }) => {
   };
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-2xl bg-white/70 border border-white/80 px-1 py-1 shadow-sm">
+    <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
       {MODES.map((m) => {
         const Icon = m.icon;
         const active = mode === m.id;
@@ -124,8 +126,8 @@ const ModeSelector = ({ mode, setMode, setFocusMinutes, setSecondsLeft }) => {
             onClick={() => handleModeChange(m.id)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-all ${
               active
-                ? 'bg-[hsl(142_72%_36%)] text-white shadow-md'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-[hsl(142_72%_36%)] text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
             }`}
           >
             <Icon size={14} />
@@ -149,7 +151,7 @@ const PresetSelector = ({ selected, onSelect }) => (
           <button
             key={p.minutes}
             onClick={() => onSelect(p.minutes)}
-            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all ${
+              className={`min-w-[104px] px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
               isSelected
                 ? 'border-[hsl(142_72%_36%)] bg-[hsl(142_72%_36%)]/10 text-[hsl(142_72%_32%)] shadow-sm'
                 : 'border-slate-200 bg-white hover:border-[hsl(142_72%_36%)]/60 hover:bg-[hsl(142_72%_36%)]/5'
@@ -164,7 +166,12 @@ const PresetSelector = ({ selected, onSelect }) => (
 );
 
 const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
-  <div className="w-full space-y-3">
+  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Session details</p>
+      <p className="mt-1 text-xs text-slate-500">Name the one thing this block is for.</p>
+    </div>
+    <div className="w-full space-y-2">
     <div className="relative">
       <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[hsl(142_72%_36%)]/70">
         <Crosshair size={18} />
@@ -175,7 +182,7 @@ const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
         value={intent}
         onChange={(e) => setIntent(e.target.value)}
         disabled={isActive}
-        className="w-full h-11 rounded-2xl bg-white/80 border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none pl-11 pr-4 focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20 disabled:opacity-60"
+        className="w-full h-11 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none pl-11 pr-4 focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20 disabled:opacity-60"
       />
     </div>
 
@@ -189,10 +196,11 @@ const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
         value={tag}
         onChange={(e) => setTag(e.target.value)}
         disabled={isActive}
-        className="w-full h-11 rounded-2xl bg-white/80 border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none pl-11 pr-4 focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20 disabled:opacity-60"
+        className="w-full h-11 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none pl-11 pr-4 focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20 disabled:opacity-60"
       />
     </div>
-  </div>
+    </div>
+  </section>
 );
 
 const MicroGoals = ({ goals, setGoals }) => {
@@ -205,12 +213,12 @@ const MicroGoals = ({ goals, setGoals }) => {
   const completedCount = goals.filter((g) => g.done).length;
 
   return (
-    <div className="bg-white/80 backdrop-blur-md border border-white/70 rounded-3xl p-6 shadow-lg space-y-4">
+  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
           Micro-goals
         </p>
-        <span className="px-3 py-1 rounded-2xl text-[11px] font-semibold bg-[hsl(142_72%_36%)]/8 text-[hsl(142_72%_32%)] border border-[hsl(142_72%_36%)]/40">
+        <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[hsl(142_72%_36%)]/8 text-[hsl(142_72%_32%)] border border-[hsl(142_72%_36%)]/30">
           {completedCount}/{goals.length}
         </span>
       </div>
@@ -221,8 +229,8 @@ const MicroGoals = ({ goals, setGoals }) => {
               onClick={() => toggleGoal(idx)}
               className={`w-5 h-5 rounded-xl border flex items-center justify-center transition-all ${
                 g.done
-                  ? 'bg-[hsl(142_72%_36%)] border-[hsl(142_72%_32%)]'
-                  : 'border-slate-300 bg-white hover:border-[hsl(142_72%_36%)]/60'
+                    ? 'bg-[hsl(142_72%_36%)] border-[hsl(142_72%_32%)]'
+                    : 'border-slate-300 bg-white hover:border-[hsl(142_72%_36%)]/60'
               }`}
             >
               {g.done && <span className="w-2.5 h-2.5 rounded-[6px] bg-white" />}
@@ -238,7 +246,7 @@ const MicroGoals = ({ goals, setGoals }) => {
 };
 
 const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
-  <div className="bg-white/80 backdrop-blur-md border border-white/70 rounded-3xl p-6 shadow-lg space-y-2">
+  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-1 shadow-sm">
     <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
       Today
     </p>
@@ -248,13 +256,13 @@ const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
     <p className="text-xs text-slate-600">
       Streak{' '}
       <span className="font-semibold text-[hsl(142_72%_36%)]">{streak}</span> days | Week{' '}
-      <span className="font-semibold text-blue-500">{weeklyMinutes}</span> min
+      <span className="font-semibold text-[hsl(142_72%_36%)]">{weeklyMinutes}</span> min
     </p>
   </div>
 );
 
 const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
-  <div className="bg-white/90 backdrop-blur-md border border-[hsl(142_72%_36%)]/30 rounded-3xl p-5 shadow-lg space-y-3">
+  <div className="rounded-2xl border border-[hsl(142_72%_36%)]/25 bg-[hsl(142_72%_36%)]/5 p-4 space-y-3">
     <p className="text-sm font-semibold text-slate-900">Block complete</p>
     <p className="text-xs text-slate-600">
       You protected {focusMinutes} minutes.
@@ -263,18 +271,29 @@ const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
     <div className="flex flex-wrap gap-2">
       <button
         onClick={onStartBreak}
-        className="px-4 py-2 rounded-2xl text-xs font-semibold bg-[hsl(142_72%_36%)] text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition-all"
+          className="px-4 py-2 rounded-xl text-xs font-semibold bg-[hsl(142_72%_36%)] text-white shadow-sm transition-colors hover:bg-[hsl(142_72%_32%)]"
       >
         Take 5-min break
       </button>
       <button
         onClick={onSkip}
-        className="px-4 py-2 rounded-2xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+          className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
       >
         Start next block
       </button>
     </div>
   </div>
+);
+
+const FocusCues = () => (
+  <section className="rounded-2xl border border-[hsl(142_40%_82%)] bg-[hsl(142_45%_96%)] p-4 shadow-sm">
+    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(142_52%_28%)]">A simple plan</p>
+    <ol className="mt-3 space-y-2 text-sm text-slate-700">
+      <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[hsl(142_45%_88%)] text-[11px] font-semibold text-[hsl(142_52%_28%)]">1</span><span>Choose one small, specific outcome.</span></li>
+      <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[hsl(142_45%_88%)] text-[11px] font-semibold text-[hsl(142_52%_28%)]">2</span><span>Work until the timer asks you to stop.</span></li>
+      <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[hsl(142_45%_88%)] text-[11px] font-semibold text-[hsl(142_52%_28%)]">3</span><span>End the block without deciding the next thing yet.</span></li>
+    </ol>
+  </section>
 );
 
 const BreakMode = ({ secondsLeft, tip, onEnd }) => {
@@ -284,8 +303,8 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
   const s = (secondsLeft % 60).toString().padStart(2, '0');
 
   return (
-    <div className="bg-white/90 backdrop-blur-md border border-blue-200 rounded-3xl p-5 shadow-lg space-y-2">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-blue-500 font-semibold">
+    <div className="bg-white/90 backdrop-blur-md border border-[hsl(142_40%_82%)] rounded-3xl p-4 shadow-lg space-y-2">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-[hsl(142_52%_34%)] font-semibold">
         Break
       </p>
       <div className="text-3xl font-semibold text-slate-900">
@@ -294,7 +313,7 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
       <p className="text-xs text-slate-600">{tip}</p>
       <button
         onClick={onEnd}
-        className="mt-1 px-4 py-2 rounded-2xl text-xs font-semibold bg-blue-500 text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition-all"
+        className="mt-1 px-4 py-2 rounded-2xl text-xs font-semibold bg-[hsl(142_72%_36%)] text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition-all"
       >
         Back to focus
       </button>
@@ -305,16 +324,24 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
 const FocusSessions = () => {
   const location = useLocation();
   const aiData = location.state || null;
+  const navigationConfiguration = aiData?.configuration;
+  const initialConfiguration = validateFocusSessionConfiguration(
+    navigationConfiguration,
+  );
+  const initialFocusMinutes = navigationConfiguration?.plannedDurationMinutes ?? aiData?.duration_minutes ?? 25;
+  const initialBreakMinutes = navigationConfiguration?.breakDurationMinutes ?? 5;
   const { user } = useAuth();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
-  const [focusMinutes, setFocusMinutes] = useState(aiData?.duration_minutes || 25);
-  const [secondsLeft, setSecondsLeft] = useState((aiData?.duration_minutes || 25) * 60);
+  const [focusMinutes, setFocusMinutes] = useState(initialFocusMinutes);
+  const [secondsLeft, setSecondsLeft] = useState(initialFocusMinutes * 60);
   const [intent, setIntent] = useState(aiData?.intent || '');
   const [tag, setTag] = useState('');
   const [completedCount, setCompletedCount] = useState(0);
   const [totalFocusedMinutes, setTotalFocusedMinutes] = useState(0);
-  const [breakSecondsLeft, setBreakSecondsLeft] = useState(5 * 60);
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(initialBreakMinutes * 60);
+  const [durationRecommendation, setDurationRecommendation] = useState(null);
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [breakTip, setBreakTip] = useState('');
   const [microGoals, setMicroGoals] = useState([
     { label: 'Open the thing', done: false },
@@ -334,11 +361,12 @@ const FocusSessions = () => {
   const lifecycle = useInterventionLifecycle({
     userId: user?.id ?? null,
     moduleId: FOCUS_SESSION_MODULE_ID,
-    planId: null,
-    contextSnapshotId: null,
-    triggerSource: 'manual',
-    selectionMode: 'explicit_request',
-    configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false },
+    planId: aiData?.planId ?? null,
+    contextSnapshotId: aiData?.contextSnapshotId ?? null,
+    triggerSource: aiData?.interventionId ? 'system' : 'manual',
+    selectionMode: aiData?.interventionId ? 'adaptive_ranking' : 'explicit_request',
+    configuration: { ...initialConfiguration, plannedDurationMinutes: focusMinutes },
+    existingInterventionId: aiData?.interventionId ?? null,
   });
 
   const { streak, weeklyMinutes } = streakState;
@@ -358,7 +386,7 @@ const FocusSessions = () => {
           setPhase('celebration');
           if (!completedRef.current && user?.id) {
             completedRef.current = true;
-            lifecycle.complete(buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: 0, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current, completedNaturally: true }));
+            void lifecycle.complete(buildFocusSessionOutcome({ configuration: { ...initialConfiguration, plannedDurationMinutes: focusMinutes }, secondsRemaining: 0, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current, completedNaturally: true }));
           }
           setCompletedCount((c) => c + 1);
           if (mode === 'focus') {
@@ -411,10 +439,18 @@ const FocusSessions = () => {
     return () => clearInterval(interval);
   }, [phase]);
 
-  const selectPreset = useCallback((m) => {
+  const selectPreset = useCallback(async (m) => {
     setFocusMinutes(m);
     setSecondsLeft(m * 60);
-  }, []);
+    if (m !== focusMinutes) setRecommendationDismissed(false);
+    if (m !== 25 || !user?.id) {
+      setDurationRecommendation(null);
+      return;
+    }
+    const evidence = await getSupportEvidenceAsync(user.id, [FOCUS_SESSION_MODULE_ID]);
+    const recommendation = recommendFocusConfiguration(evidence);
+    setDurationRecommendation(recommendation?.plannedDurationMinutes === 15 ? recommendation : null);
+  }, [focusMinutes, user?.id]);
 
   const startSession = async () => {
     setSecondsLeft(focusMinutes * 60);
@@ -428,7 +464,7 @@ const FocusSessions = () => {
     milestonesRef.current = new Set();
     completedRef.current = false;
     startedAtRef.current = Date.now();
-    if (user?.id) {
+    if (user?.id && !lifecycle.hasStarted) {
       const started = await lifecycle.start();
       if (!started.ok) return;
     }
@@ -449,22 +485,28 @@ const FocusSessions = () => {
 
   const resetToSetup = async () => {
     if (user?.id && (phase === 'running' || phase === 'paused') && !lifecycle.isTerminal && !completedRef.current) {
-      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) }, buildFocusSessionOutcome({ configuration: { plannedDurationMinutes: focusMinutes, breakDurationMinutes: 5, breakEnabled: true, soundEnabled: false }, secondsRemaining: secondsLeft, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current }));
+      await lifecycle.abandon('user_reset', { completionRatio: completionRatio(focusMinutes * 60, secondsLeft) }, buildFocusSessionOutcome({ configuration: { ...initialConfiguration, plannedDurationMinutes: focusMinutes }, secondsRemaining: secondsLeft, pauseCount: pauseCountRef.current, resumeCount: resumeCountRef.current }));
     }
     setPhase('setup');
     setSecondsLeft(focusMinutes * 60);
-    setBreakSecondsLeft(5 * 60);
+    setBreakSecondsLeft(initialBreakMinutes * 60);
     lifecycle.reset();
   };
 
   const startBreak = () => {
-    setBreakSecondsLeft(5 * 60);
+    setBreakSecondsLeft(initialBreakMinutes * 60);
     setBreakTip(BREAK_TIPS[Math.floor(Math.random() * BREAK_TIPS.length)]);
     setPhase('break');
   };
 
   const skipToNext = () => {
     resetToSetup();
+  };
+
+  const useRecommendedDuration = () => {
+    setFocusMinutes(durationRecommendation.plannedDurationMinutes);
+    setSecondsLeft(durationRecommendation.plannedDurationMinutes * 60);
+    setDurationRecommendation(null);
   };
 
   const totalSeconds = focusMinutes * 60;
@@ -487,128 +529,74 @@ const FocusSessions = () => {
 
   return (
     <SupportToolThemeProvider theme="adhd_focus">
-    <SupportToolLayout>
-      <div className="max-w-4xl mx-auto space-y-10">
-        <header className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] shadow-xl mb-2">
-            <span className="text-2xl">Focus</span>
+    <SupportToolLayout className="focus-session-layout">
+      <div className="mx-auto w-full max-w-[1320px] space-y-3">
+        <header className="flex flex-col gap-1 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Focus Session</h1>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-[hsl(142_72%_36%)] via-[hsl(142_66%_42%)] to-blue-600 bg-clip-text text-transparent">
-            Focus Session
-          </h1>
-          <p className="text-sm md:text-base text-gray-600 max-w-xl mx-auto">
-            One calm block at a time, in the same light, minimal style as your Neurobridge hub.
-          </p>
+          <p className="max-w-sm text-sm text-slate-500 sm:text-right">Choose one block, make it count, then stop without overthinking it.</p>
         </header>
 
-        <main className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-8">
-          {/* left */}
-          <section className="bg-white/80 backdrop-blur-md border border-white/70 rounded-3xl p-7 shadow-xl flex flex-col gap-6">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
-                Current block
-              </p>
-              <ModeSelector
-                mode={mode}
-                setMode={setMode}
-                setFocusMinutes={setFocusMinutes}
-                setSecondsLeft={setSecondsLeft}
-              />
+        <main className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.9fr)]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current block</p>
+                <p className="mt-1 text-sm font-medium text-slate-800">{mode === 'focus' ? 'A single task, at a steady pace.' : 'Step away briefly and reset.'}</p>
+              </div>
+              <ModeSelector mode={mode} setMode={setMode} setFocusMinutes={setFocusMinutes} setSecondsLeft={setSecondsLeft} />
             </div>
 
-            <TaskInput
-              intent={intent}
-              setIntent={setIntent}
-              tag={tag}
-              setTag={setTag}
-              isActive={isActive}
-            />
-
-            <div className="flex flex-col gap-6">
-              <div className="flex justify-center">
-                <CircularProgress progress={progress}>
-                  <div className="text-3xl font-semibold tracking-[0.18em] text-slate-900">
-                    {minutes}:{seconds}
-                  </div>
-                  <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {phase === 'running'
-                      ? mode === 'focus'
-                        ? 'Focus'
-                        : 'Break'
-                      : phase === 'paused'
-                      ? 'Paused'
-                      : 'Ready'}
-                  </div>
-                  {tag && (
-                    <div className="mt-3 px-3 py-1 rounded-full border border-slate-200 bg-white text-[11px] text-slate-700">
-                      #{tag}
+            <div className="my-4 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)] to-[hsl(142_42%_26%)] p-[1px]">
+              <div className="rounded-2xl bg-[hsl(142_40%_97%)] px-4 py-5 sm:py-6">
+                <div className="flex justify-center">
+                  <CircularProgress progress={progress}>
+                    <div className="text-3xl font-semibold tracking-[0.12em] text-slate-900 sm:text-4xl">{minutes}:{seconds}</div>
+                    <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(142_72%_32%)]">
+                      {phase === 'running' ? (mode === 'focus' ? 'Focusing' : 'On break') : phase === 'paused' ? 'Paused' : 'Ready'}
                     </div>
-                  )}
-                </CircularProgress>
-              </div>
-
-              <div className="space-y-4">
-                <PresetSelector selected={focusMinutes} onSelect={selectPreset} />
-
-                <div className="flex gap-3">
-                  {phase === 'setup' ? (
-                    <button
-                      onClick={startSession}
-                      className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition-all"
-                    >
-                      Start {mode === 'focus' ? 'focus block' : 'break'}
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={togglePause}
-                        className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-[hsl(142_72%_36%)] text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition-all"
-                      >
-                        {phase === 'running' ? 'Pause' : 'Resume'}
-                      </button>
-                      <button
-                        onClick={resetToSetup}
-                        className="px-4 py-3 rounded-2xl text-sm font-semibold bg-white text-slate-800 border border-slate-200 hover:bg-slate-50"
-                      >
-                        Reset
-                      </button>
-                    </>
-                  )}
+                    {tag && <div className="mt-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-600">#{tag}</div>}
+                  </CircularProgress>
                 </div>
               </div>
+            </div>
 
-              {phase === 'celebration' && (
-                <CelebrationBanner
-                  onStartBreak={startBreak}
-                  onSkip={skipToNext}
-                  intent={intent}
-                  focusMinutes={focusMinutes}
-                />
-              )}
-              {!user?.id && (
-                <p role="alert" className="text-xs text-amber-700">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>
+            <div className="space-y-3">
+              <PresetSelector selected={focusMinutes} onSelect={selectPreset} />
+              {durationRecommendation && !recommendationDismissed && phase === 'setup' && (
+                <div className="rounded-2xl border border-[hsl(142_72%_36%)]/30 bg-[hsl(142_72%_36%)]/5 p-4">
+                  <p className="text-sm font-semibold text-slate-900">15 min may work better</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">Your recent Focus Sessions have gone better at 15 minutes.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={useRecommendedDuration} className="rounded-xl bg-[hsl(142_72%_36%)] px-3 py-2 text-xs font-semibold text-white">Use 15 min</button>
+                    <button type="button" onClick={() => setRecommendationDismissed(true)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Keep 25 min</button>
+                  </div>
+                </div>
               )}
 
-              {phase === 'break' && (
-                <BreakMode
-                  secondsLeft={breakSecondsLeft}
-                  tip={breakTip}
-                  onEnd={resetToSetup}
-                />
-              )}
+              <div className="flex gap-2">
+                {phase === 'setup' ? (
+                  <button onClick={startSession} className="flex-1 rounded-xl bg-[hsl(142_72%_36%)] py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[hsl(142_72%_32%)]">Start</button>
+                ) : (
+                  <>
+                    <button onClick={togglePause} className="flex-1 rounded-xl bg-[hsl(142_72%_36%)] py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[hsl(142_72%_32%)]">{phase === 'running' ? 'Pause' : 'Resume'}</button>
+                    <button onClick={resetToSetup} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">End</button>
+                  </>
+                )}
+              </div>
             </div>
           </section>
 
-          {/* right */}
-          <section className="space-y-5">
+          <aside className="space-y-3">
+            <TaskInput intent={intent} setIntent={setIntent} tag={tag} setTag={setTag} isActive={isActive} />
             <MicroGoals goals={microGoals} setGoals={setMicroGoals} />
-            <StatsRow
-              sessions={completedCount}
-              totalMinutes={totalFocusedMinutes}
-              streak={streak}
-              weeklyMinutes={weeklyMinutes}
-            />
-          </section>
+            <StatsRow sessions={completedCount} totalMinutes={totalFocusedMinutes} streak={streak} weeklyMinutes={weeklyMinutes} />
+            <FocusCues />
+            {phase === 'celebration' && <CelebrationBanner onStartBreak={startBreak} onSkip={skipToNext} intent={intent} focusMinutes={focusMinutes} />}
+            {phase === 'break' && <BreakMode secondsLeft={breakSecondsLeft} tip={breakTip} onEnd={resetToSetup} />}
+            {!user?.id && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>}
+          </aside>
         </main>
       </div>
     </SupportToolLayout>

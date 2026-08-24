@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getInterventionHistory } from "@/support/lifecycle/interventionLifecycle";
 import { executeSupportModule } from "@/support/execution";
+import { getFocusSessionHistory } from "@/support/lifecycle/focusSessionLifecycle";
 
 const USER_ID = "execution-user";
 
@@ -62,6 +63,31 @@ describe("shared support execution", () => {
       selectionMode: "explicit_request",
     });
     expect(history[0].lifecycleEvents.map((event) => event.toStatus)).toEqual(["started", "shown"]);
+  });
+
+  it("returns a Focus launch handoff with provenance and configuration", async () => {
+    const result = await executeSupportModule(validRequest({
+      moduleId: "support.focus_session",
+      contextSnapshotId: "context-focus",
+      configuration: { plannedDurationMinutes: 15, breakDurationMinutes: 7 },
+      metadata: { planId: "plan-focus" },
+    }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      moduleId: "support.focus_session",
+      launch: {
+        route: "/adhd/focus",
+        state: {
+          interventionId: result.interventionId,
+          moduleId: "support.focus_session",
+          planId: "plan-focus",
+          contextSnapshotId: "context-focus",
+          configuration: { plannedDurationMinutes: 15, breakDurationMinutes: 7 },
+        },
+      },
+    });
+    expect(await getFocusSessionHistory(USER_ID)).toHaveLength(1);
   });
 
   it("starts every currently available canonical executor without disorder input", async () => {

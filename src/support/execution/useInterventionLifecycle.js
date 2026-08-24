@@ -51,12 +51,17 @@ export function useInterventionLifecycle({
   triggerSource = "manual",
   selectionMode = "explicit_request",
   configuration = {},
+  existingInterventionId = null,
 } = {}) {
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState(() => existingInterventionId ? {
+    ...initialState(),
+    interventionId: existingInterventionId,
+    status: "running",
+  } : initialState());
   const operationRef = useRef(false);
   const terminalRef = useRef(false);
   const activeUserRef = useRef(userId);
-  const interventionIdRef = useRef(null);
+  const interventionIdRef = useRef(existingInterventionId);
 
   useEffect(() => {
     if (activeUserRef.current !== userId) {
@@ -67,6 +72,12 @@ export function useInterventionLifecycle({
       setState(initialState());
     }
   }, [userId]);
+
+  useEffect(() => {
+    if (!existingInterventionId || interventionIdRef.current) return;
+    interventionIdRef.current = existingInterventionId;
+    setState((current) => ({ ...current, interventionId: existingInterventionId, status: "running" }));
+  }, [existingInterventionId]);
 
   const applyResult = useCallback((result) => {
     const status = result.intervention?.status ?? result.status;

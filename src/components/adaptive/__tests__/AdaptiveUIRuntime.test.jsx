@@ -318,4 +318,5 @@ describe("AdaptiveUIRuntime", () => {
     );
     expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("overwhelm");
   });
+
 });
