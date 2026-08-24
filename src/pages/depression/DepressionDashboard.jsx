@@ -21,16 +21,16 @@ function ToolLink({ tool, primary = false }) {
     <Link
       to={tool.to}
       className={primary
-        ? "block rounded-2xl border border-[#cfc2aa] bg-[#fffdf7] p-5 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#786747] focus:ring-offset-2 sm:p-6"
-        : "flex items-start gap-3 rounded-xl border border-[#ded5c4] bg-[#fffdf9] p-4 text-left focus:outline-none focus:ring-2 focus:ring-[#786747] focus:ring-offset-2"}
+        ? "block rounded-2xl border border-[#bbd8c1] bg-white p-5 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2 sm:p-6"
+        : "flex items-start gap-3 rounded-xl border border-[#d5e8d8] bg-white p-4 text-left focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2"}
     >
-      <span className={primary ? "mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#eee4d0] text-[#665638]" : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f1e9da] text-[#6b5b3d]"}>
+      <span className={primary ? "mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[#e1f0e4] text-[#3f7654]" : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#edf7ef] text-[#4e7657]"}>
         <Icon className={primary ? "h-5 w-5" : "h-4 w-4"} aria-hidden="true" />
       </span>
       <span className={primary ? "block" : "block min-w-0"}>
-        <span className={primary ? "block text-lg font-semibold text-[#302b22]" : "block text-sm font-semibold text-[#302b22]"}>{tool.title}</span>
-        <span className={primary ? "mt-1 block max-w-lg text-sm leading-6 text-[#625b4d]" : "mt-1 block text-xs leading-5 text-[#655e51]"}>{tool.desc}</span>
-        {primary && <span className="mt-4 inline-block text-sm font-medium text-[#5e4f34]">Start with this</span>}
+        <span className={primary ? "block text-lg font-semibold text-[#26372c]" : "block text-sm font-semibold text-[#26372c]"}>{tool.title}</span>
+        <span className={primary ? "mt-1 block max-w-lg text-sm leading-6 text-[#526556]" : "mt-1 block text-xs leading-5 text-[#526556]"}>{tool.desc}</span>
+        {primary && <span className="mt-4 inline-block text-sm font-medium text-[#3f7654]">Start with this</span>}
       </span>
     </Link>
   );
@@ -42,12 +42,12 @@ export default function DepressionDashboard() {
   const [gentleActivity, ...otherTools] = availableTools;
 
   return (
-    <main className="min-h-screen bg-[#f5f0e6] px-4 py-8 text-[#302b22] sm:px-6 sm:py-12">
+    <main className="min-h-screen bg-[#f4faf5] px-4 py-8 text-[#26372c] sm:px-6 sm:py-12">
       <div className="mx-auto max-w-3xl">
         <header className="max-w-xl">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#766b57]">A quiet place to begin</p>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#5f7865]">A quiet place to begin</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Daily Momentum</h1>
-          <p className="mt-3 text-sm leading-6 text-[#625b4d] sm:text-base">You do not need to solve everything today. Choose one small kind next step.</p>
+          <p className="mt-3 text-sm leading-6 text-[#526556] sm:text-base">You do not need to solve everything today. Choose one small kind next step.</p>
         </header>
 
         <section className="mt-8" aria-label="Start here">
@@ -56,7 +56,7 @@ export default function DepressionDashboard() {
 
         {otherTools.length > 0 && (
           <section className="mt-7" aria-label="Other support tools">
-            <h2 className="text-sm font-medium text-[#4e473a]">Other ways to get support</h2>
+            <h2 className="text-sm font-medium text-[#365b40]">Other ways to get support</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {otherTools.map((tool) => <ToolLink key={tool.moduleId} tool={tool} />)}
             </div>
