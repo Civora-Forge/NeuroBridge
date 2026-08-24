@@ -261,8 +261,8 @@ const VisualTimeline = () => {
     const isActive = nowMinutes >= startM && nowMinutes < endM;
 
     return (
-      <div className={`flex gap-3 rounded-2xl border bg-[#fffdf7] px-3 py-3 shadow-sm sm:px-4 ${block.done ? 'border-[#c9a45a]' : isActive ? 'border-[#b8872e] ring-2 ring-[#f5e6bd]' : 'border-[#e7d7bf]'}`}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fbf1d9] text-xs font-black text-[#8a6117]">
+      <div className={`flex gap-3 rounded-2xl border bg-[#FFFDF8] px-3 py-3 shadow-sm sm:px-4 ${block.done ? 'border-[#4B8DB3]' : isActive ? 'border-[#173F57] ring-2 ring-[#DDECF4]' : 'border-[#4B8DB3]'}`}>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DDECF4] text-xs font-black text-[#173F57]">
           <span aria-hidden>
             {block.icon || 'Task'}
           </span>
@@ -286,7 +286,7 @@ const VisualTimeline = () => {
             </div>
             <div className="flex flex-col items-end gap-1 text-[11px] text-slate-500">
               {isActive && (
-                  <span className="font-bold text-[#8a6117]">
+                  <span className="font-bold text-[#173F57]">
                     LIVE | {minutesToCountdown(endM - nowMinutes)}
                 </span>
               )}
@@ -298,8 +298,8 @@ const VisualTimeline = () => {
             <div
               className={`h-full rounded-full ${
                 block.done
-                  ? 'bg-lime-500'
-                  : 'bg-[#c39234]'
+                  ? 'bg-[#4B8DB3]'
+                  : 'bg-[#4B8DB3]'
               }`}
               style={{ width: `${progressed}%` }}
             />
@@ -309,7 +309,7 @@ const VisualTimeline = () => {
             {!block.done && (
               <button
                 onClick={() => toggleDone(block.id)}
-                className="rounded-full border border-lime-300 bg-lime-50 px-2 py-1 font-bold text-lime-800 hover:bg-lime-100"
+                className="rounded-full border border-[#4B8DB3] bg-[#DDECF4] px-2 py-1 font-bold text-[#173F57] hover:bg-[#C8E0ED]"
               >
                 Mark done
               </button>
@@ -317,14 +317,14 @@ const VisualTimeline = () => {
             {!block.started ? (
               <button
                 onClick={() => startBlock(block.id)}
-                className="rounded-full bg-[#285943] px-2 py-1 font-bold text-white hover:bg-[#1d4332]"
+                className="rounded-full bg-[#4B8DB3] px-2 py-1 font-bold text-[#FFFDF8] hover:bg-[#397A9E]"
               >
                 Start
               </button>
             ) : (
               <button
                 onClick={() => stopBlock(block.id)}
-                className="rounded-full border border-[#a8d5ce] px-2 py-1 font-bold text-[#285943] hover:bg-[#edf6ee]"
+                className="rounded-full border border-[#4B8DB3] px-2 py-1 font-bold text-[#173F57] hover:bg-[#DDECF4]"
               >
                 Stop
               </button>
@@ -363,10 +363,10 @@ const VisualTimeline = () => {
     return (
       <form
         onSubmit={submit}
-        className="flex flex-col gap-2 rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] p-3 shadow-sm text-sm sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 rounded-2xl border border-[#4B8DB3] bg-[#FFFDF8] p-3 shadow-sm text-sm sm:flex-row sm:items-center"
       >
         <input
-          className="flex-1 rounded-xl border border-[#e7d7bf] bg-[#fffaf1] px-3 py-2 text-sm focus:border-[#285943] focus:outline-none"
+          className="flex-1 rounded-xl border border-[#4B8DB3] bg-[#FFFDF8] px-3 py-2 text-sm focus:border-[#173F57] focus:outline-none"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Add block: Email 20m"
@@ -385,7 +385,7 @@ const VisualTimeline = () => {
             value={end}
             onChange={(e) => setEnd(e.target.value)}
           />
-          <button className="rounded-xl bg-[#285943] px-3 py-2 text-xs font-bold text-white hover:bg-[#1d4332]">
+          <button className="rounded-xl bg-[#4B8DB3] px-3 py-2 text-xs font-bold text-[#FFFDF8] hover:bg-[#397A9E]">
             Add
           </button>
         </div>
@@ -399,7 +399,7 @@ const VisualTimeline = () => {
         <button
           key={name}
           onClick={() => addRoutine(name)}
-          className="rounded-full border border-[#dcc28a] bg-[#fffdf7] px-3 py-1 font-bold text-[#8a6117] hover:bg-[#fbf1d9]"
+          className="rounded-full border border-[#4B8DB3] bg-[#FFFDF8] px-3 py-1 font-bold text-[#173F57] hover:bg-[#DDECF4]"
         >
           + {name}
         </button>
@@ -427,7 +427,7 @@ const VisualTimeline = () => {
           />
           <button
             onClick={add}
-            className="rounded-lg bg-[#285943] px-3 py-2 text-xs font-medium text-white hover:bg-[#1d4332]"
+            className="rounded-lg bg-[#4B8DB3] px-3 py-2 text-xs font-medium text-[#FFFDF8] hover:bg-[#397A9E]"
           >
             Add
           </button>
@@ -475,16 +475,16 @@ const VisualTimeline = () => {
   return (
     <SupportToolThemeProvider theme="adhd_focus">
     <SupportToolLayout>
-      <main className="mx-auto max-w-4xl bg-[#fffaf1] px-4 py-6 sm:py-8">
+      <main className="mx-auto max-w-4xl bg-[#F8F4EC] px-4 py-6 sm:py-8">
         {banner && (
-          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <div className="mb-4 rounded-md border border-[#4B8DB3] bg-[#DDECF4] px-3 py-2 text-xs text-[#173F57]">
             {banner}
           </div>
         )}
 
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="mb-2 inline-flex rounded-full bg-[#f0d694] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#5f4310]">Time made visible</div>
+            <div className="mb-2 inline-flex rounded-full bg-[#DDECF4] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#173F57]">Time made visible</div>
             <h1 className="text-3xl font-black tracking-tight text-stone-900 sm:text-4xl">
               Visual timeline
             </h1>
@@ -493,15 +493,15 @@ const VisualTimeline = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="rounded-full border border-[#dcc28a] bg-[#fbf1d9] px-3 py-1 font-mono font-bold text-[#8a6117]">
+            <div className="rounded-full border border-[#4B8DB3] bg-[#DDECF4] px-3 py-1 font-mono font-bold text-[#173F57]">
               Now: {minutesToTime(nowMinutes)}
             </div>
-            <div className="flex rounded-full border border-[#e7d7bf] bg-[#fffdf7] p-1">
+             <div className="flex rounded-full border border-[#4B8DB3] bg-[#FFFDF8] p-1">
               <button
                 onClick={() => setView('day')}
                 className={`rounded-full px-3 py-1 ${
                   view === 'day'
-                     ? 'bg-[#285943] text-white shadow-sm'
+                     ? 'bg-[#4B8DB3] text-[#FFFDF8] shadow-sm'
                     : 'text-slate-700'
                 }`}
               >
@@ -511,7 +511,7 @@ const VisualTimeline = () => {
                 onClick={() => setView('week')}
                 className={`rounded-full px-3 py-1 ${
                   view === 'week'
-                     ? 'bg-[#285943] text-white shadow-sm'
+                     ? 'bg-[#4B8DB3] text-[#FFFDF8] shadow-sm'
                     : 'text-slate-700'
                 }`}
               >
@@ -552,13 +552,13 @@ const VisualTimeline = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-               <div className="rounded-2xl border border-[#e7d7bf] bg-[#fff7e8] p-4">
+               <div className="rounded-2xl border border-[#4B8DB3] bg-[#FFFDF8] p-4">
                 <h3 className="mb-2 text-sm font-medium text-slate-900">
                   Brain dump
                 </h3>
                 <BrainDump />
               </div>
-               <div className="rounded-2xl border border-[#dcc28a] bg-[#fbf1d9] p-4 text-sm">
+               <div className="rounded-2xl border border-[#4B8DB3] bg-[#DDECF4] p-4 text-sm">
                 <h3 className="mb-2 text-sm font-medium text-slate-900">
                   Today
                 </h3>
@@ -585,7 +585,7 @@ const VisualTimeline = () => {
                     key={d.key}
                     className={`flex-1 rounded-lg px-2 py-2 text-left ${
                       isToday
-                         ? 'bg-[#285943] text-white'
+                         ? 'bg-[#4B8DB3] text-[#FFFDF8]'
                         : 'text-slate-500'
                     }`}
                   >

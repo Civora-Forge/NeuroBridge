@@ -227,30 +227,30 @@ const TaskBreakdown = ({
     <SupportToolLayout>
       <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
         {/* Header */}
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-emerald-100 pb-5">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-[#FFE2DE] pb-5">
           <div>
-            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-800">Clear the runway</p>
-            <h2 className="text-3xl font-black tracking-tight text-emerald-950">Task breakdown</h2>
+            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-[#7A2E27]">Clear the runway</p>
+            <h2 className="text-3xl font-black tracking-tight text-[#7A2E27]">Task breakdown</h2>
             <p className="mt-1 text-sm text-slate-600">
               Turn one vague task into a short, clear sequence of steps.
             </p>
           </div>
           {steps.length > 0 && (
-            <div className="rounded-full border-2 border-emerald-900 bg-emerald-900 px-3 py-1.5 text-xs font-bold text-amber-50 shadow-[3px_3px_0_#d97706]">
+            <div className="rounded-full border-2 border-[#7A2E27] bg-[#FF6F61] px-3 py-1.5 text-xs font-bold text-[#7A2E27] shadow-[3px_3px_0_#FFE2DE]">
               Progress: {progress}%
             </div>
           )}
         </header>
 
         {!steps.length && (
-          <section className="mb-6 rounded-3xl border-2 border-emerald-200 bg-amber-50 p-4 shadow-[5px_5px_0_#d97706] sm:p-5">
+          <section className="mb-6 rounded-3xl border-2 border-[#FF6F61] bg-[#FFFDF8] p-4 shadow-[5px_5px_0_#FFE2DE] sm:p-5">
             <div className="space-y-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">Step 1: Name the task</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7A2E27]">Step 1: Name the task</p>
                 <p className="mt-1 text-sm text-slate-600">You do not need to solve it yet. Just tell me what is on your mind.</p>
               </div>
               <textarea
-                className="w-full resize-none rounded-2xl border-2 border-emerald-200 bg-white px-3 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-800 focus:ring-4 focus:ring-emerald-100"
+                className="w-full resize-none rounded-2xl border-2 border-[#FF6F61] bg-[#FFFDF8] px-3 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#7A2E27] focus:ring-4 focus:ring-[#FFE2DE]"
                 rows={2}
                 placeholder={placeholders[placeholderIdx]}
                 value={bigTask}
@@ -264,7 +264,7 @@ const TaskBreakdown = ({
                 <button
                   onClick={generateBreakdown}
                   disabled
-                  className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-[#FF6F61] px-5 py-2.5 text-xs font-black text-[#7A2E27] shadow-[3px_3px_0_#FFE2DE] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Break into steps
                 </button>
@@ -272,19 +272,19 @@ const TaskBreakdown = ({
                 <button
                   type="button"
                   onClick={() => setPlanningOpen(true)}
-                  className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] transition hover:bg-emerald-950 focus:ring-4 focus:ring-emerald-200"
+                  className="rounded-xl bg-[#FF6F61] px-5 py-2.5 text-xs font-black text-[#7A2E27] shadow-[3px_3px_0_#FFE2DE] transition hover:bg-[#E45E53] focus:ring-4 focus:ring-[#FFE2DE]"
                 >
                   Continue
                 </button>
               ) : (
-                <div className="mt-5 border-t-2 border-emerald-100 pt-4">
+                <div className="mt-5 border-t-2 border-[#FFE2DE] pt-4">
                   <div className="mb-3">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">Step 2: Make it fit you</p>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7A2E27]">Step 2: Make it fit you</p>
                     <p className="mt-1 text-sm text-slate-600">Optional choices for the kind of plan you need today.</p>
                   </div>
                   <div className="space-y-4 text-xs">
                     <div>
-                      <p className="mb-2 font-bold text-emerald-950">Priority</p>
+                        <p className="mb-2 font-bold text-[#7A2E27]">Priority</p>
                       <div className="flex flex-wrap gap-2">
                         {vibes.map((v) => (
                           <button
@@ -292,8 +292,8 @@ const TaskBreakdown = ({
                             onClick={() => setSelectedVibe(v.label)}
                             className={`rounded-full border px-3 py-1.5 ${
                               selectedVibe === v.label
-                                ? 'border-emerald-900 bg-emerald-900 text-amber-50'
-                                : 'border-emerald-200 bg-white text-slate-700 hover:border-emerald-600 hover:bg-emerald-50'
+                                ? 'border-[#7A2E27] bg-[#FF6F61] text-[#7A2E27]'
+                                : 'border-[#FF6F61] bg-[#FFFDF8] text-slate-700 hover:border-[#7A2E27] hover:bg-[#FFE2DE]'
                             }`}
                           >
                             {v.label}
@@ -302,7 +302,7 @@ const TaskBreakdown = ({
                       </div>
                     </div>
                     <div>
-                      <p className="mb-2 font-bold text-emerald-950">Planning style</p>
+                        <p className="mb-2 font-bold text-[#7A2E27]">Planning style</p>
                       <div className="flex flex-wrap gap-2">
                         {TASK_BREAKDOWN_STYLES.map((style) => (
                           <button
@@ -310,8 +310,8 @@ const TaskBreakdown = ({
                             onClick={() => setSelectedStyle(style)}
                             className={`rounded-full border px-3 py-1.5 ${
                               selectedStyle === style
-                                ? 'border-amber-700 bg-amber-100 text-amber-950'
-                                : 'border-emerald-200 bg-white text-slate-700 hover:border-emerald-600 hover:bg-emerald-50'
+                                ? 'border-[#7A2E27] bg-[#FFE2DE] text-[#7A2E27]'
+                                : 'border-[#FF6F61] bg-[#FFFDF8] text-slate-700 hover:border-[#7A2E27] hover:bg-[#FFE2DE]'
                             }`}
                           >
                             {style}
@@ -322,13 +322,13 @@ const TaskBreakdown = ({
                     <button
                       type="button"
                       onClick={() => setPlanningOpen(false)}
-                      className="mr-3 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50"
+                      className="mr-3 rounded-xl border border-[#FF6F61] bg-[#FFFDF8] px-4 py-2.5 text-xs font-bold text-[#7A2E27] hover:bg-[#FFE2DE]"
                     >
                       Back
                     </button>
                     <button
                       onClick={generateBreakdown}
-                      className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-black text-amber-50 shadow-[3px_3px_0_#d97706] transition hover:bg-emerald-950 focus:ring-4 focus:ring-emerald-200"
+                    className="rounded-xl bg-[#FF6F61] px-5 py-2.5 text-xs font-black text-[#7A2E27] shadow-[3px_3px_0_#FFE2DE] transition hover:bg-[#E45E53] focus:ring-4 focus:ring-[#FFE2DE]"
                     >
                       Break into steps
                     </button>
@@ -341,8 +341,8 @@ const TaskBreakdown = ({
 
         {/* When no steps yet */}
         {!steps.length && (
-          <div className="rounded-3xl border-2 border-dashed border-emerald-200 bg-amber-50 px-5 py-10 text-center text-sm text-slate-600">
-            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-emerald-800">One thing at a time</span>
+          <div className="rounded-3xl border-2 border-dashed border-[#FF6F61] bg-[#FFFDF8] px-5 py-10 text-center text-sm text-slate-600">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-[#7A2E27]">One thing at a time</span>
             Describe one task that feels heavy. You will get a short, concrete checklist.
           </div>
         )}
@@ -351,14 +351,14 @@ const TaskBreakdown = ({
         {steps.length > 0 && (
           <section className="space-y-4">
             {/* Progress */}
-            <div className="space-y-2 rounded-2xl border-2 border-emerald-100 bg-amber-50 p-4 text-xs">
+            <div className="space-y-2 rounded-2xl border-2 border-[#FFE2DE] bg-[#FFFDF8] p-4 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-black uppercase tracking-[0.14em] text-emerald-800">Progress</span>
-                <span className="rounded-md bg-amber-200 px-2 py-1 font-mono font-black text-amber-950">{progress}%</span>
+                <span className="font-black uppercase tracking-[0.14em] text-[#7A2E27]">Progress</span>
+                <span className="rounded-md bg-[#FFE2DE] px-2 py-1 font-mono font-black text-[#7A2E27]">{progress}%</span>
               </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-emerald-100">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-[#FFE2DE]">
                 <div
-                  className="h-full rounded-full bg-emerald-800 transition-all"
+                  className="h-full rounded-full bg-[#FF6F61] transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -370,7 +370,7 @@ const TaskBreakdown = ({
               <button
                 onClick={startBreakdown}
                 disabled={!user?.id || lifecycle.hasStarted || completedSteps.size >= steps.length}
-                className="flex-1 rounded-xl bg-emerald-900 px-4 py-3 text-sm font-black text-amber-50 shadow-[3px_3px_0_#d97706] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-xl bg-[#FF6F61] px-4 py-3 text-sm font-black text-[#7A2E27] shadow-[3px_3px_0_#FFE2DE] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {lifecycle.hasStarted ? "Breakdown started" : "Start this breakdown"}
               </button>
@@ -380,7 +380,7 @@ const TaskBreakdown = ({
                 className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
                   completedSteps.size >= steps.length
                     ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-                      : 'border-emerald-800 text-emerald-800 hover:bg-emerald-50'
+                      : 'border-[#7A2E27] text-[#7A2E27] hover:bg-[#FFE2DE]'
                 }`}
               >
                 Focus on the next step
@@ -394,7 +394,7 @@ const TaskBreakdown = ({
               </button>
 
               {timerActive && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+                 <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-[#FF6F61] bg-[#FFFDF8] px-4 py-3 text-sm">
                   <span className="font-mono font-black text-slate-900">{timerDisplay}</span>
                   <button
                     onClick={() => setTimerActive(false)}
@@ -415,8 +415,8 @@ const TaskBreakdown = ({
                     key={step.id}
                     className={`rounded-xl border px-3 py-3 text-sm transition ${
                       done
-                        ? 'border-emerald-300 bg-emerald-50 opacity-80'
-                          : 'border-slate-200 bg-white hover:border-emerald-400 hover:shadow-[3px_3px_0_#d1fae5]'
+                        ? 'border-[#FF6F61] bg-[#FFE2DE] opacity-80'
+                           : 'border-slate-200 bg-[#FFFDF8] hover:border-[#FF6F61] hover:shadow-[3px_3px_0_#FFE2DE]'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -426,8 +426,8 @@ const TaskBreakdown = ({
                         aria-label={`Mark step ${i + 1} ${done ? "incomplete" : "complete"}`}
                         className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center text-[10px] disabled:cursor-not-allowed ${
                           done
-                              ? 'border-emerald-700 bg-emerald-700 text-amber-50'
-                            : 'border-slate-300 bg-white'
+                              ? 'border-[#7A2E27] bg-[#FF6F61] text-[#7A2E27]'
+                            : 'border-slate-300 bg-[#FFFDF8]'
                         }`}
                       >
                         {done ? "Done" : ""}
@@ -437,7 +437,7 @@ const TaskBreakdown = ({
                         {editingId === step.id ? (
                           <input
                             autoFocus
-                            className="w-full rounded-md border-2 border-emerald-300 px-2 py-1 text-xs focus:border-emerald-800 focus:ring-2 focus:ring-emerald-100"
+                            className="w-full rounded-md border-2 border-[#FF6F61] px-2 py-1 text-xs focus:border-[#7A2E27] focus:ring-2 focus:ring-[#FFE2DE]"
                             value={step.text}
                             onChange={(e) => updateStepText(step.id, e.target.value)}
                             onBlur={() => setEditingId(null)}
@@ -458,7 +458,7 @@ const TaskBreakdown = ({
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                          <span className="rounded-md bg-amber-50 px-2 py-1 font-mono font-semibold text-emerald-800">
+                          <span className="rounded-md bg-[#FFE2DE] px-2 py-1 font-mono font-semibold text-[#7A2E27]">
                           {step.time}m
                         </span>
                         <button
@@ -486,7 +486,7 @@ const TaskBreakdown = ({
               Tip: Keep steps small enough that you would not procrastinate on them.
             </p>
             {!user?.id && (
-              <p role="alert" className="text-xs text-amber-700">
+              <p role="alert" className="text-xs text-[#7A2E27]">
                 Sign in to save this breakdown's progress and outcome. You can still use the checklist locally.
               </p>
             )}

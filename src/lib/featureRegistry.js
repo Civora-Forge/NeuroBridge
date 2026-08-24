@@ -47,7 +47,6 @@ export const FEATURES = /** @type {const} */ ({
   ADHD_EMOTION:   "adhd.emotion-coach",
   ADHD_TIMELINE:  "adhd.visual-timeline",
   ADHD_BREAKDOWN: "adhd.task-breakdown",
-  ADHD_SOUNDS:    "adhd.soundscapes",
   ADHD_DOUBLING:  "adhd.body-doubling",
 
   // ── Dyslexia sub-features ───────────────────
@@ -190,10 +189,6 @@ export const FEATURE_REGISTRY = {
     label: "Task Breakdown",
     disorders: [DISORDERS.ADHD],
   },
-  [FEATURES.ADHD_SOUNDS]: {
-    label: "Focus Soundscapes",
-    disorders: [DISORDERS.ADHD],
-  },
   [FEATURES.ADHD_DOUBLING]: {
     label: "Accountability Session",
     disorders: [DISORDERS.ADHD],
@@ -266,7 +261,6 @@ const SUPPORT_MODULE_FEATURE_ALIASES = {
   "support.visual_timeline": [FEATURES.ADHD, FEATURES.ADHD_TIMELINE],
   "support.mood_checkin": [FEATURES.ADHD, FEATURES.ADHD_EMOTION],
   "support.accountability_session": [FEATURES.ADHD, FEATURES.ADHD_DOUBLING],
-  "support.soundscapes": [FEATURES.ADHD, FEATURES.ADHD_SOUNDS],
   "support.gentle_activity": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_MVH],
   "support.grounding": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_ANXIETY_DISSOLVER],
   "support.social_connection": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_SOCIAL],

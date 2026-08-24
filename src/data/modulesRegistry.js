@@ -62,14 +62,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/adhd/doubling",
     tags: ["task_start", "focus", "planning"],
   },
-  [FEATURES.ADHD_SOUNDS]: {
-    id: FEATURES.ADHD_SOUNDS,
-    title: "Soundscapes",
-    description: "Layer ambient sounds for a focused, timed session.",
-    icon: "Headphones",
-    launchRoute: "/adhd/soundscapes",
-    tags: ["focus", "distraction", "stress"],
-  },
   "support.task_breakdown": {
     id: "support.task_breakdown",
     title: "Task Breakdown",
@@ -109,14 +101,6 @@ export const MODULES_REGISTRY = {
     icon: "Activity",
     launchRoute: "/adhd/doubling",
     tags: ["task_start", "focus", "planning"],
-  },
-  "support.soundscapes": {
-    id: "support.soundscapes",
-    title: "Soundscapes",
-    description: "Layer ambient sounds for a focused, timed session.",
-    icon: "Headphones",
-    launchRoute: "/adhd/soundscapes",
-    tags: ["focus", "distraction", "stress"],
   },
   "support.gentle_activity": {
     id: "support.gentle_activity",
@@ -357,7 +341,6 @@ export const CHALLENGE_MODULE_MAP = {
     "support.visual_timeline",
     "support.mood_checkin",
     "support.accountability_session",
-    "support.soundscapes",
   ],
   anxiety: ["support.mood_checkin", FEATURES.COMMUNICATION],
   depression: [

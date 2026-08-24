@@ -73,17 +73,11 @@ const CircularProgress = ({ progress, children }) => {
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} className="absolute -rotate-90 transform">
-        <defs>
-          <linearGradient id="focusRing" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#b65d43" />
-            <stop offset="100%" stopColor="#7f3f2c" />
-          </linearGradient>
-        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(120, 113, 93, 0.22)"
+          stroke="#D8E6CE"
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -91,7 +85,7 @@ const CircularProgress = ({ progress, children }) => {
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="url(#focusRing)"
+          stroke="#6D9F46"
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
@@ -116,7 +110,7 @@ const ModeSelector = ({ mode, setMode, setFocusMinutes, setSecondsLeft }) => {
   };
 
   return (
-    <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[#e7d7bf] bg-[#fffdf7] p-1">
+    <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[#6D9F46] bg-[#FFFDF8] p-1">
       {MODES.map((m) => {
         const Icon = m.icon;
         const active = mode === m.id;
@@ -126,8 +120,8 @@ const ModeSelector = ({ mode, setMode, setFocusMinutes, setSecondsLeft }) => {
             onClick={() => handleModeChange(m.id)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-all ${
               active
-                ? 'bg-[#285943] text-white shadow-[2px_2px_0_#dba08b]'
-                 : 'text-stone-600 hover:bg-[#f8eee5] hover:text-[#7f3f2c]'
+                ? 'bg-[#6D9F46] text-[#18300F] shadow-[2px_2px_0_#D8E6CE]'
+                 : 'text-stone-600 hover:bg-[#E2EDDA] hover:text-[#29451E]'
             }`}
           >
             <Icon size={14} />
@@ -153,8 +147,8 @@ const PresetSelector = ({ selected, onSelect }) => (
             onClick={() => onSelect(p.minutes)}
               className={`min-w-[104px] px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
               isSelected
-                ? 'border-[#b65d43] bg-[#fbebe3] text-[#7f3f2c] shadow-[2px_2px_0_#dba08b]'
-                 : 'border-[#e7d7bf] bg-[#fffdf7] hover:border-[#c9795e] hover:bg-[#f8eee5]'
+                ? 'border-[#29451E] bg-[#E2EDDA] text-[#29451E] shadow-[2px_2px_0_#D8E6CE]'
+                 : 'border-[#6D9F46] bg-[#FFFDF8] hover:border-[#29451E] hover:bg-[#E2EDDA]'
             }`}
           >
             {p.emoji} {p.label}
@@ -166,14 +160,14 @@ const PresetSelector = ({ selected, onSelect }) => (
 );
 
 const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
-  <section className="space-y-3 rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] p-4 shadow-[3px_3px_0_#f1dfce]">
+  <section className="space-y-3 rounded-2xl border border-[#6D9F46] bg-[#FFFDF8] p-4 shadow-[3px_3px_0_#D8E6CE]">
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Session details</p>
       <p className="mt-1 text-xs text-slate-500">Name the one thing this block is for.</p>
     </div>
     <div className="w-full space-y-2">
     <div className="relative">
-       <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#b65d43]/70">
+       <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#6D9F46]">
         <Crosshair size={18} />
       </div>
       <input
@@ -182,12 +176,12 @@ const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
         value={intent}
         onChange={(e) => setIntent(e.target.value)}
         disabled={isActive}
-        className="h-11 w-full rounded-xl border border-[#e7d7bf] bg-[#fffaf1] pl-11 pr-4 text-sm font-medium text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#285943] focus:ring-4 focus:ring-[#dceadf] disabled:opacity-60"
+        className="h-11 w-full rounded-xl border border-[#6D9F46] bg-[#FFFDF8] pl-11 pr-4 text-sm font-medium text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#29451E] focus:ring-4 focus:ring-[#D8E6CE] disabled:opacity-60"
       />
     </div>
 
     <div className="relative">
-       <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#b65d43]/70">
+       <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#6D9F46]">
         <Tag size={18} />
       </div>
       <input
@@ -196,7 +190,7 @@ const TaskInput = ({ intent, setIntent, tag, setTag, isActive }) => (
         value={tag}
         onChange={(e) => setTag(e.target.value)}
         disabled={isActive}
-        className="h-11 w-full rounded-xl border border-[#e7d7bf] bg-[#fffaf1] pl-11 pr-4 text-sm font-medium text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#285943] focus:ring-4 focus:ring-[#dceadf] disabled:opacity-60"
+        className="h-11 w-full rounded-xl border border-[#6D9F46] bg-[#FFFDF8] pl-11 pr-4 text-sm font-medium text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#29451E] focus:ring-4 focus:ring-[#D8E6CE] disabled:opacity-60"
       />
     </div>
     </div>
@@ -213,12 +207,12 @@ const MicroGoals = ({ goals, setGoals }) => {
   const completedCount = goals.filter((g) => g.done).length;
 
   return (
-   <div className="space-y-3 rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] p-4 shadow-[3px_3px_0_#f1dfce]">
+   <div className="space-y-3 rounded-2xl border border-[#6D9F46] bg-[#FFFDF8] p-4 shadow-[3px_3px_0_#D8E6CE]">
       <div className="flex items-center justify-between">
         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
           Micro-goals
         </p>
-        <span className="rounded-lg border border-lime-400 bg-lime-100 px-2.5 py-1 text-[11px] font-black text-slate-900">
+        <span className="rounded-lg border border-[#6D9F46] bg-[#E2EDDA] px-2.5 py-1 text-[11px] font-black text-[#29451E]">
           {completedCount}/{goals.length}
         </span>
       </div>
@@ -229,8 +223,8 @@ const MicroGoals = ({ goals, setGoals }) => {
               onClick={() => toggleGoal(idx)}
               className={`w-5 h-5 rounded-xl border flex items-center justify-center transition-all ${
                 g.done
-                     ? 'border-lime-400 bg-lime-400'
-                     : 'border-slate-300 bg-white hover:border-[#b65d43]'
+                     ? 'border-[#6D9F46] bg-[#6D9F46]'
+                     : 'border-slate-300 bg-[#FFFDF8] hover:border-[#6D9F46]'
               }`}
             >
               {g.done && <span className="w-2.5 h-2.5 rounded-[6px] bg-white" />}
@@ -246,7 +240,7 @@ const MicroGoals = ({ goals, setGoals }) => {
 };
 
 const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
-  <div className="space-y-1 rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] p-4 shadow-[3px_3px_0_#f1dfce]">
+  <div className="space-y-1 rounded-2xl border border-[#6D9F46] bg-[#FFFDF8] p-4 shadow-[3px_3px_0_#D8E6CE]">
     <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
       Today
     </p>
@@ -255,14 +249,14 @@ const StatsRow = ({ sessions, totalMinutes, streak, weeklyMinutes }) => (
     </p>
     <p className="text-xs text-slate-600">
       Streak{' '}
-        <span className="font-black text-[#b65d43]">{streak}</span> days | Week{' '}
-        <span className="font-black text-[#b65d43]">{weeklyMinutes}</span> min
+        <span className="font-black text-[#29451E]">{streak}</span> days | Week{' '}
+        <span className="font-black text-[#29451E]">{weeklyMinutes}</span> min
     </p>
   </div>
 );
 
 const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
-   <div className="space-y-3 rounded-2xl border border-[#e4c9bb] bg-[#fbebe3] p-4 shadow-[3px_3px_0_#dba08b]">
+   <div className="space-y-3 rounded-2xl border border-[#6D9F46] bg-[#E2EDDA] p-4 shadow-[3px_3px_0_#D8E6CE]">
     <p className="text-sm font-semibold text-slate-900">Block complete</p>
     <p className="text-xs text-slate-600">
       You protected {focusMinutes} minutes.
@@ -271,7 +265,7 @@ const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
     <div className="flex flex-wrap gap-2">
       <button
         onClick={onStartBreak}
-          className="rounded-xl bg-[#285943] px-4 py-2 text-xs font-black text-white shadow-[2px_2px_0_#dba08b] transition-colors hover:bg-[#1d4332]"
+          className="rounded-xl bg-[#6D9F46] px-4 py-2 text-xs font-black text-[#18300F] shadow-[2px_2px_0_#D8E6CE] transition-colors hover:bg-[#557D37]"
       >
         Take 5-min break
       </button>
@@ -286,12 +280,12 @@ const CelebrationBanner = ({ onStartBreak, onSkip, intent, focusMinutes }) => (
 );
 
 const FocusCues = () => (
-  <section className="rounded-2xl border border-[#e4c9bb] bg-[#fbebe3] p-4 shadow-[3px_3px_0_#f1dfce]">
-    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7f3f2c]">A simple plan</p>
+  <section className="rounded-2xl border border-[#6D9F46] bg-[#E2EDDA] p-4 shadow-[3px_3px_0_#D8E6CE]">
+    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#29451E]">A simple plan</p>
     <ol className="mt-3 space-y-2 text-sm text-slate-700">
-       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-300 text-[11px] font-black text-slate-950">1</span><span>Choose one small, specific outcome.</span></li>
-       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-300 text-[11px] font-black text-slate-950">2</span><span>Work until the timer asks you to stop.</span></li>
-       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-300 text-[11px] font-black text-slate-950">3</span><span>End the block without deciding the next thing yet.</span></li>
+       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#6D9F46] text-[11px] font-black text-[#18300F]">1</span><span>Choose one small, specific outcome.</span></li>
+       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#6D9F46] text-[11px] font-black text-[#18300F]">2</span><span>Work until the timer asks you to stop.</span></li>
+       <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#6D9F46] text-[11px] font-black text-[#18300F]">3</span><span>End the block without deciding the next thing yet.</span></li>
     </ol>
   </section>
 );
@@ -303,8 +297,8 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
   const s = (secondsLeft % 60).toString().padStart(2, '0');
 
   return (
-    <div className="space-y-2 rounded-3xl border border-[#e4c9bb] bg-[#fbebe3] p-4 shadow-[4px_4px_0_#dba08b]">
-      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7f3f2c]">
+    <div className="space-y-2 rounded-3xl border border-[#6D9F46] bg-[#E2EDDA] p-4 shadow-[4px_4px_0_#D8E6CE]">
+      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#29451E]">
         Break
       </p>
       <div className="text-3xl font-semibold text-slate-900">
@@ -313,7 +307,7 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
       <p className="text-xs text-slate-600">{tip}</p>
       <button
         onClick={onEnd}
-        className="mt-1 rounded-2xl bg-[#285943] px-4 py-2 text-xs font-black text-white shadow-[2px_2px_0_#dba08b] transition-colors hover:bg-[#1d4332]"
+        className="mt-1 rounded-2xl bg-[#6D9F46] px-4 py-2 text-xs font-black text-[#18300F] shadow-[2px_2px_0_#D8E6CE] transition-colors hover:bg-[#557D37]"
       >
         Back to focus
       </button>
@@ -531,33 +525,33 @@ const FocusSessions = () => {
     <SupportToolThemeProvider theme="adhd_focus">
     <SupportToolLayout className="focus-session-layout">
       <div className="mx-auto w-full max-w-[1320px] space-y-4 px-1 sm:px-2">
-        <header className="flex flex-col gap-2 border-b border-[#e7d7bf] pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-2 border-b border-[#6D9F46] pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-[#b65d43]">Protect your attention</p>
+            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-[#29451E]">Protect your attention</p>
             <h1 className="text-3xl font-black tracking-tight text-stone-900 sm:text-4xl">Focus Session</h1>
           </div>
           <p className="max-w-sm text-sm text-slate-500 sm:text-right">Choose one block, make it count, then stop without overthinking it.</p>
         </header>
 
         <main className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.9fr)]">
-          <section className="rounded-3xl border border-[#e7d7bf] bg-[#fffdf7] p-4 shadow-[5px_5px_0_#dba08b] sm:p-5">
+          <section className="rounded-3xl border border-[#6D9F46] bg-[#FFFDF8] p-4 shadow-[5px_5px_0_#D8E6CE] sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#b65d43]">Current block</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#29451E]">Current block</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{mode === 'focus' ? 'A single task, at a steady pace.' : 'Step away briefly and reset.'}</p>
               </div>
               <ModeSelector mode={mode} setMode={setMode} setFocusMinutes={setFocusMinutes} setSecondsLeft={setSecondsLeft} />
             </div>
 
-            <div className="my-4 rounded-3xl bg-gradient-to-br from-[#7f3f2c] via-[#b65d43] to-[#e8c8b5] p-[2px]">
-              <div className="rounded-[22px] bg-[#fff7ed] px-4 py-5 sm:py-6">
+            <div className="my-4 rounded-3xl border-2 border-[#6D9F46] bg-[#E2EDDA] p-[2px]">
+              <div className="rounded-[22px] bg-[#FFFDF8] px-4 py-5 sm:py-6">
                 <div className="flex justify-center">
                   <CircularProgress progress={progress}>
                     <div className="text-3xl font-black tracking-[0.12em] text-slate-950 sm:text-4xl">{minutes}:{seconds}</div>
-                    <div className="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-[#7f3f2c]">
+                    <div className="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-[#29451E]">
                       {phase === 'running' ? (mode === 'focus' ? 'Focusing' : 'On break') : phase === 'paused' ? 'Paused' : 'Ready'}
                     </div>
-                    {tag && <div className="mt-3 rounded-full border border-[#e4c9bb] bg-white px-3 py-1 text-[11px] font-semibold text-[#7f3f2c]">#{tag}</div>}
+                    {tag && <div className="mt-3 rounded-full border border-[#6D9F46] bg-[#FFFDF8] px-3 py-1 text-[11px] font-semibold text-[#29451E]">#{tag}</div>}
                   </CircularProgress>
                 </div>
               </div>
@@ -566,11 +560,11 @@ const FocusSessions = () => {
             <div className="space-y-3">
               <PresetSelector selected={focusMinutes} onSelect={selectPreset} />
               {durationRecommendation && !recommendationDismissed && phase === 'setup' && (
-                <div className="rounded-2xl border border-[#e4c9bb] bg-[#fbebe3] p-4 shadow-[3px_3px_0_#dba08b]">
+                <div className="rounded-2xl border border-[#6D9F46] bg-[#E2EDDA] p-4 shadow-[3px_3px_0_#D8E6CE]">
                   <p className="text-sm font-semibold text-slate-900">15 min may work better</p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-600">Your recent Focus Sessions have gone better at 15 minutes.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={useRecommendedDuration} className="rounded-xl bg-[#285943] px-3 py-2 text-xs font-black text-white shadow-[2px_2px_0_#dba08b]">Use 15 min</button>
+                    <button type="button" onClick={useRecommendedDuration} className="rounded-xl bg-[#6D9F46] px-3 py-2 text-xs font-black text-[#18300F] shadow-[2px_2px_0_#D8E6CE]">Use 15 min</button>
                     <button type="button" onClick={() => setRecommendationDismissed(true)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Keep 25 min</button>
                   </div>
                 </div>
@@ -578,10 +572,10 @@ const FocusSessions = () => {
 
               <div className="flex gap-2">
                 {phase === 'setup' ? (
-                   <button onClick={startSession} className="flex-1 rounded-xl bg-[#285943] py-3 text-sm font-black text-white shadow-[3px_3px_0_#dba08b] transition-colors hover:bg-[#1d4332]">Start</button>
+                   <button onClick={startSession} className="flex-1 rounded-xl bg-[#6D9F46] py-3 text-sm font-black text-[#18300F] shadow-[3px_3px_0_#D8E6CE] transition-colors hover:bg-[#557D37]">Start</button>
                 ) : (
                   <>
-                     <button onClick={togglePause} className="flex-1 rounded-xl bg-[#285943] py-3 text-sm font-black text-white shadow-[3px_3px_0_#dba08b] transition-colors hover:bg-[#1d4332]">{phase === 'running' ? 'Pause' : 'Resume'}</button>
+                     <button onClick={togglePause} className="flex-1 rounded-xl bg-[#6D9F46] py-3 text-sm font-black text-[#18300F] shadow-[3px_3px_0_#D8E6CE] transition-colors hover:bg-[#557D37]">{phase === 'running' ? 'Pause' : 'Resume'}</button>
                      <button onClick={resetToSetup} className="rounded-xl border-2 border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:border-slate-500 hover:bg-slate-50">End</button>
                   </>
                 )}
@@ -596,7 +590,7 @@ const FocusSessions = () => {
             <FocusCues />
             {phase === 'celebration' && <CelebrationBanner onStartBreak={startBreak} onSkip={skipToNext} intent={intent} focusMinutes={focusMinutes} />}
             {phase === 'break' && <BreakMode secondsLeft={breakSecondsLeft} tip={breakTip} onEnd={resetToSetup} />}
-            {!user?.id && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>}
+            {!user?.id && <p role="alert" className="rounded-xl border border-[#6D9F46] bg-[#E2EDDA] p-3 text-xs text-[#29451E]">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>}
           </aside>
         </main>
       </div>

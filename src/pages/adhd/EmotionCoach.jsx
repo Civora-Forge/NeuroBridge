@@ -28,46 +28,41 @@ const moods = [
     id: 'calm',
     label: 'Calm',
     icon: Wind,
-    color: 'from-emerald-300/30 to-emerald-500/30',
-    border: 'border-emerald-300/60',
-    text: 'text-emerald-700',
-    bg: 'bg-emerald-50',
+    border: 'border-[#F7E3AE]',
+    text: 'text-[#473916]',
+    bg: 'bg-[#FBF1D5]',
   },
   {
     id: 'focused',
     label: 'Focused',
     icon: Brain,
-    color: 'from-teal-400/30 to-emerald-500/30',
-    border: 'border-teal-400/60',
-    text: 'text-teal-700',
-    bg: 'bg-teal-50',
+    border: 'border-[#F7E3AE]',
+    text: 'text-[#473916]',
+    bg: 'bg-[#FBF1D5]',
   },
   {
     id: 'stressed',
     label: 'Stressed',
     icon: AlertTriangle,
-    color: 'from-amber-300/25 to-amber-500/25',
-    border: 'border-amber-300/60',
-    text: 'text-amber-700',
-    bg: 'bg-amber-50',
+    border: 'border-[#F7E3AE]',
+    text: 'text-[#473916]',
+    bg: 'bg-[#FBF1D5]',
   },
   {
     id: 'overwhelmed',
     label: 'Overwhelmed',
     icon: Zap,
-    color: 'from-rose-300/25 to-rose-500/25',
-    border: 'border-rose-300/60',
-    text: 'text-rose-700',
-    bg: 'bg-rose-50',
+    border: 'border-[#F7E3AE]',
+    text: 'text-[#473916]',
+    bg: 'bg-[#FBF1D5]',
   },
   {
     id: 'bored',
     label: 'Bored',
     icon: Moon,
-    color: 'from-slate-300/25 to-slate-500/25',
-    border: 'border-slate-300/60',
-    text: 'text-slate-700',
-    bg: 'bg-slate-50',
+    border: 'border-[#F7E3AE]',
+    text: 'text-[#473916]',
+    bg: 'bg-[#FBF1D5]',
   },
 ];
 
@@ -193,9 +188,9 @@ const EmotionCoach = () => {
     <SupportToolLayout>
       {/* Header Section */}
       <div className="space-y-2 text-center md:text-left">
-        <div className="mb-2 inline-flex rounded-full bg-[#ead9e9] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#583554]">Name it. Then nudge it.</div>
+        <div className="mb-2 inline-flex rounded-full bg-[#F7E3AE] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#473916]">Name it. Then nudge it.</div>
         <h2 className="text-3xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3 text-stone-900">
-          <Compass className="text-[#79506f] h-8 w-8" />
+          <Compass className="text-[#473916] h-8 w-8" />
            Mood Check-in
         </h2>
         <p className="text-muted-foreground text-sm max-w-xl mx-auto md:mx-0">
@@ -213,11 +208,11 @@ const EmotionCoach = () => {
             onClick={() => setSelectedMood(m.id)}
             className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${
               selectedMood === m.id
-                ? `border-[#79506f] bg-[#faf2f8] shadow-md ring-2 ring-[#ead9e9]`
-                : 'border-[#e7d7bf] bg-[#fffdf7] hover:border-[#b58aab] hover:bg-[#faf2f8]'
+                ? `border-[#473916] bg-[#FBF1D5] shadow-md ring-2 ring-[#F7E3AE]`
+                : 'border-[#F7E3AE] bg-[#FFFDF8] hover:border-[#473916] hover:bg-[#FBF1D5]'
             }`}
           >
-            <div className={`p-3 rounded-xl bg-gradient-to-br ${m.color}`}>
+            <div className={`p-3 rounded-xl ${m.bg}`}>
               <m.icon className={`h-6 w-6 ${m.text}`} />
             </div>
             <span
@@ -230,7 +225,7 @@ const EmotionCoach = () => {
             {selectedMood === m.id && (
               <motion.div
                 layoutId="active-indicator"
-                className="absolute -bottom-1 w-8 h-1 bg-[#79506f] rounded-full"
+                className="absolute -bottom-1 w-8 h-1 bg-[#F7E3AE] rounded-full"
               />
             )}
           </motion.button>
@@ -248,7 +243,7 @@ const EmotionCoach = () => {
             className="space-y-4"
           >
             <div className="flex items-center gap-2 px-1">
-              <Sparkles className="h-4 w-4 text-[#79506f]" />
+              <Sparkles className="h-4 w-4 text-[#473916]" />
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                  Support Prompts
               </h3>
@@ -258,10 +253,10 @@ const EmotionCoach = () => {
               {suggestions.map((s, idx) => (
                 <Card
                   key={idx}
-                  className="group overflow-hidden border border-[#e7d7bf] bg-[#fffdf7] shadow-sm hover:border-[#b58aab] hover:shadow-md transition-colors rounded-2xl"
+                  className="group overflow-hidden border border-[#F7E3AE] bg-[#FFFDF8] shadow-sm hover:border-[#473916] hover:shadow-md transition-colors rounded-2xl"
                 >
                   <div className="p-5 flex gap-4">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-[#ead9e9] flex items-center justify-center text-[#79506f] group-hover:bg-[#79506f] group-hover:text-white transition-colors">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-[#F7E3AE] flex items-center justify-center text-[#473916] group-hover:bg-[#473916] group-hover:text-[#FFFDF8] transition-colors">
                       <s.icon className="h-5 w-5" />
                     </div>
                     <div className="space-y-1">
@@ -279,7 +274,7 @@ const EmotionCoach = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-32 flex items-center justify-center border-2 border-dashed border-[#d9bdd3] rounded-3xl text-muted-foreground text-sm font-medium italic bg-[#faf2f8]"
+            className="h-32 flex items-center justify-center border-2 border-dashed border-[#F7E3AE] rounded-3xl text-muted-foreground text-sm font-medium italic bg-[#FBF1D5]"
           >
             Select your current state to see support prompts.
           </motion.div>
@@ -287,7 +282,7 @@ const EmotionCoach = () => {
       </AnimatePresence>
 
       {/* Pattern Spotter */}
-      <Card className="border border-[#e7d7bf] bg-gradient-to-br from-[#fffdf7] via-[#faf2f8] to-[#f5eee2] overflow-hidden shadow-md rounded-3xl">
+      <Card className="border border-[#F7E3AE] bg-[#FFFDF8] overflow-hidden shadow-md rounded-3xl">
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
@@ -296,7 +291,7 @@ const EmotionCoach = () => {
             </h3>
             <Badge
               variant="outline"
-               className="text-[10px] font-bold border-[#d9bdd3] text-[#583554] bg-[#ead9e9]"
+               className="text-[10px] font-bold border-[#F7E3AE] text-[#473916] bg-[#FBF1D5]"
             >
                Quick check-in
             </Badge>
@@ -307,7 +302,7 @@ const EmotionCoach = () => {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Context: Slept 4h, noise outside, high caffeine..."
-              className="min-h-[80px] rounded-2xl border border-[#e7d7bf] focus:border-[#285943] focus:ring-2 focus:ring-[#dceadf] bg-[#fffdf7] transition-colors resize-none p-4 text-sm"
+               className="min-h-[80px] rounded-2xl border border-[#F7E3AE] focus:border-[#473916] focus:ring-2 focus:ring-[#F7E3AE] bg-[#FFFDF8] transition-colors resize-none p-4 text-sm"
             />
             <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 px-1">
               <div className="flex items-center gap-1">
@@ -318,7 +313,7 @@ const EmotionCoach = () => {
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <Button
                 size="sm"
-                className="h-8 rounded-lg bg-[#285943] px-3 text-xs font-bold text-white hover:bg-[#1d4332]"
+                className="h-8 rounded-lg bg-[#F7E3AE] px-3 text-xs font-bold text-[#473916] hover:bg-[#E8D18E]"
                 type="button"
                 onClick={handleSavePattern}
               >
@@ -331,7 +326,7 @@ const EmotionCoach = () => {
           {insightTags.length > 0 && (
             <div className="pt-1">
               <div className="flex items-center gap-2 mb-1 text-[11px] text-muted-foreground">
-                <Sparkles className="h-3 w-3 text-teal-500" />
+                 <Sparkles className="h-3 w-3 text-[#473916]" />
                 <span className="font-semibold">Today&apos;s signals:</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -339,7 +334,7 @@ const EmotionCoach = () => {
                   <Badge
                     key={tag}
                     variant="outline"
-                    className="text-[10px] px-2 py-1 rounded-full border-teal-400/50 text-teal-800 bg-teal-50/60"
+                     className="text-[10px] px-2 py-1 rounded-full border-[#F7E3AE] text-[#473916] bg-[#FBF1D5]"
                   >
                     {tag}
                   </Badge>
@@ -350,14 +345,14 @@ const EmotionCoach = () => {
 
           {/* Recent patterns (local history) */}
           {patterns.length > 0 && (
-             <div className="pt-3 border-t border-[#e7d7bf] mt-1 space-y-2">
+             <div className="pt-3 border-t border-[#F7E3AE] mt-1 space-y-2">
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <BarChart2 className="h-3 w-3" />
                   <span>Recent entries</span>
                 </span>
                 {latestPattern && (
-                  <span className="flex items-center gap-1 text-[#79506f]">
+                  <span className="flex items-center gap-1 text-[#473916]">
                     <Brain className="h-3 w-3" />
                     <span>{latestPattern.moodLabel}</span>
                   </span>
@@ -371,7 +366,7 @@ const EmotionCoach = () => {
                     className="text-[10px] px-2 py-1 rounded-full border-slate-300/70 bg-white/70 text-slate-700 max-w-[160px] truncate flex items-center gap-1"
                     title={p.note}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                     <span className="w-1.5 h-1.5 rounded-full bg-[#F7E3AE]" />
                     <span>{p.moodLabel}</span>
                     {p.tags[0] && (
                       <>

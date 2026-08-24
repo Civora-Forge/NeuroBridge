@@ -64,18 +64,18 @@ const BodyDoubling = () => {
       {/* Header with Live Status */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="mb-2 inline-flex rounded-full bg-[#cce8e3] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1f5e58]">One task. One visible timer.</div>
+          <div className="mb-2 inline-flex rounded-full bg-[#C0C0C0] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#343434]">One task. One visible timer.</div>
           <h2 className="text-3xl font-black tracking-tight flex items-center gap-3 text-stone-900">
-            <Users className="text-[#287d74] h-8 w-8" />
+            <Users className="text-[#343434] h-8 w-8" />
              Accountability Session
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
              Set one commitment and use a guided timer to stay with it.
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-[#e8f4f1] px-4 py-2 rounded-full border border-[#a8d5ce] shadow-sm">
+        <div className="flex items-center gap-2 bg-[#E6E6E6] px-4 py-2 rounded-full border border-[#C0C0C0] shadow-sm">
           <span className="relative flex h-3 w-3">
-             <span className="relative inline-flex rounded-full h-3 w-3 bg-[#287d74]" />
+             <span className="relative inline-flex rounded-full h-3 w-3 bg-[#C0C0C0]" />
           </span>
           <span className="text-xs font-bold uppercase tracking-wider">
              Personal timer
@@ -84,9 +84,7 @@ const BodyDoubling = () => {
       </div>
 
       {/* Main Interaction Card */}
-       <Card className="relative overflow-hidden border border-[#e7d7bf] bg-gradient-to-b from-[#fffdf7] via-[#f4fbf9] to-[#edf6ee] shadow-lg">
-         <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#5fa89e]/10 rounded-full blur-3xl pointer-events-none" />
-         <div className="absolute -bottom-24 -left-24 w-56 h-56 bg-[#dceadf] rounded-full blur-3xl pointer-events-none" />
+       <Card className="relative overflow-hidden border border-[#C0C0C0] bg-[#FFFDF8] shadow-lg">
 
         <div className="p-6 md:p-8 space-y-8 relative z-10">
           {/* Timer Visual */}
@@ -96,7 +94,7 @@ const BodyDoubling = () => {
             </div>
             <div
               className={`text-7xl md:text-8xl font-black tabular-nums transition-colors duration-500 ${
-                 isLive ? 'text-[#287d74]' : 'text-muted-foreground/30'
+                 isLive ? 'text-[#343434]' : 'text-muted-foreground/30'
               }`}
             >
               {minutes}
@@ -107,7 +105,7 @@ const BodyDoubling = () => {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-[#287d74] font-bold text-sm"
+                className="flex items-center gap-2 text-[#343434] font-bold text-sm"
               >
                 <Activity className="h-4 w-4 animate-pulse" />
                  Session in progress
@@ -119,12 +117,12 @@ const BodyDoubling = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-semibold flex items-center gap-2">
-                 <ShieldCheck className="h-4 w-4 text-[#287d74]" />
+                 <ShieldCheck className="h-4 w-4 text-[#343434]" />
                 My Commitment
               </label>
               <Badge
                 variant="outline"
-                 className="bg-[#cce8e3] border-[#a8d5ce] text-[#1f5e58] px-2 py-0"
+                 className="bg-[#E6E6E6] border-[#C0C0C0] text-[#343434] px-2 py-0"
               >
                  Keep it concrete
               </Badge>
@@ -135,7 +133,7 @@ const BodyDoubling = () => {
                 value={commitment}
                 onChange={(e) => setCommitment(e.target.value)}
                 disabled={isLive}
-                className="min-h-[100px] rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] focus:border-[#285943] focus:ring-2 focus:ring-[#dceadf] transition-colors resize-none p-4 text-base shadow-inner"
+                className="min-h-[100px] rounded-2xl border border-[#C0C0C0] bg-[#FFFDF8] focus:border-[#343434] focus:ring-2 focus:ring-[#E6E6E6] transition-colors resize-none p-4 text-base shadow-inner"
                 placeholder="What is your one focus? Example: Finish the assignment draft."
               />
               {!isLive && (
@@ -165,7 +163,7 @@ const BodyDoubling = () => {
               <Button
                 onClick={startSession}
                 size="lg"
-                className="h-14 rounded-2xl text-lg font-bold shadow-lg shadow-[#285943]/20 bg-[#285943] hover:bg-[#1d4332] transition-colors"
+                className="h-14 rounded-2xl text-lg font-bold shadow-lg shadow-[#C0C0C0] bg-[#C0C0C0] text-[#343434] hover:bg-[#AFAFAF] transition-colors"
               >
                 <Flame className="mr-2 h-5 w-5" />
                  Start session
@@ -185,7 +183,7 @@ const BodyDoubling = () => {
               variant="secondary"
               onClick={() => setShowCommitmentReview((visible) => !visible)}
               size="lg"
-               className="h-14 rounded-2xl text-lg font-bold bg-[#cce8e3] hover:bg-[#b8ddd6] border border-[#a8d5ce] shadow-sm flex items-center justify-center text-[#174740]"
+               className="h-14 rounded-2xl text-lg font-bold bg-[#E6E6E6] hover:bg-[#D6D6D6] border border-[#C0C0C0] shadow-sm flex items-center justify-center text-[#343434]"
             >
                 <Users className="mr-2 h-5 w-5 text-slate-950" />
                 {showCommitmentReview ? 'Hide commitment' : 'Review commitment'}
@@ -195,17 +193,17 @@ const BodyDoubling = () => {
       </Card>
 
       {showCommitmentReview && (
-         <div className="rounded-2xl border border-[#a8d5ce] bg-[#e8f4f1] px-4 py-3 text-sm text-[#174740]">
-           <span className="font-black uppercase tracking-wider text-[10px] text-[#287d74]">Your focus</span>
+         <div className="rounded-2xl border border-[#C0C0C0] bg-[#E6E6E6] px-4 py-3 text-sm text-[#343434]">
+           <span className="font-black uppercase tracking-wider text-[10px] text-[#343434]">Your focus</span>
           <p className="mt-1 font-medium">{commitment.trim() || 'Add a commitment before you begin.'}</p>
         </div>
       )}
 
       {/* Ambient Social Presence */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <Card className="p-4 bg-[#f4fbf9] border border-[#cce8e3] shadow-sm space-y-3 rounded-2xl">
-           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#287d74]">
-             <Zap className="h-3 w-3 text-[#287d74]" />
+         <Card className="p-4 bg-[#FFFDF8] border border-[#C0C0C0] shadow-sm space-y-3 rounded-2xl">
+           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#343434]">
+             <Zap className="h-3 w-3 text-[#343434]" />
              Session notes
           </h3>
           <div className="space-y-2 overflow-hidden h-24 relative">
@@ -216,30 +214,29 @@ const BodyDoubling = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="text-xs text-muted-foreground py-1 border-l-2 border-teal-400/40 pl-3 flex items-center gap-2 bg-white/60 rounded-r-md"
+                   className="text-xs text-muted-foreground py-1 border-l-2 border-[#C0C0C0] pl-3 flex items-center gap-2 bg-[#FFFDF8] rounded-r-md"
                 >
-                  <Sparkles className="h-3 w-3 text-yellow-400" />
+                   <Sparkles className="h-3 w-3 text-[#343434]" />
                   {action}
                 </motion.div>
               ))}
             </AnimatePresence>
-            <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-background/0 to-transparent pointer-events-none" />
           </div>
         </Card>
 
-         <Card className="p-4 bg-[#edf6ee] border border-[#dceadf] shadow-sm space-y-3 rounded-2xl">
-           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#285943]">
-             <Trophy className="h-3 w-3 text-[#285943]" />
+         <Card className="p-4 bg-[#E6E6E6] border border-[#C0C0C0] shadow-sm space-y-3 rounded-2xl">
+           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#343434]">
+             <Trophy className="h-3 w-3 text-[#343434]" />
              Session reminders
           </h3>
           <div className="flex flex-wrap gap-2">
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
+             <Badge className="bg-[#FFFDF8] text-[10px] py-0 px-2 border border-[#C0C0C0] text-[#343434]">
                Keep the next step small
             </Badge>
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
+             <Badge className="bg-[#FFFDF8] text-[10px] py-0 px-2 border border-[#C0C0C0] text-[#343434]">
                Pause when you need to
             </Badge>
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
+             <Badge className="bg-[#FFFDF8] text-[10px] py-0 px-2 border border-[#C0C0C0] text-[#343434]">
                Return when you are ready
             </Badge>
           </div>
