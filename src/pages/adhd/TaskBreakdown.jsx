@@ -30,7 +30,7 @@ const placeholders = [
   'Prepare a presentation',
 ];
 
-  const motivationalMessages = {
+const motivationalMessages = {
   0: 'We only need one clear next step.',
   30: "You've built momentum.",
   60: "You're in a good groove.",
@@ -226,27 +226,28 @@ const TaskBreakdown = ({
   return (
     <SupportToolThemeProvider theme="adhd_focus">
     <SupportToolLayout>
-      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
         {/* Header */}
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-blue-100 pb-5">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
-              <span className="text-xl">{selectedEmoji}</span>
+            <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-blue-700">Clear the runway</p>
+            <h2 className="flex items-center gap-2 text-3xl font-black tracking-tight text-slate-950">
+              <span className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-lime-300 px-1 text-xs font-bold text-slate-950 shadow-[3px_3px_0_#1d4ed8]">{selectedEmoji}</span>
               <span>Task breakdown</span>
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="mt-1 text-sm text-slate-600">
               Turn one vague task into a short, clear sequence of steps.
             </p>
           </div>
           {steps.length > 0 && (
-            <div className="rounded-full bg-white border border-slate-200 px-3 py-1 text-xs text-slate-700">
+            <div className="rounded-full border-2 border-blue-700 bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow-[3px_3px_0_#bef264]">
               Progress: {progress}%
             </div>
           )}
         </header>
 
         {/* Task input card */}
-        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+        <section className="mb-6 space-y-4 rounded-3xl border-2 border-blue-200 bg-white p-4 shadow-[5px_5px_0_#d9f99d] sm:p-5">
           {/* Emoji + style row */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-2">
@@ -256,8 +257,8 @@ const TaskBreakdown = ({
                   onClick={() => setSelectedEmoji(e)}
                   className={`h-9 w-9 rounded-lg text-lg flex items-center justify-center ${
                     selectedEmoji === e
-                      ? 'bg-[hsl(142_72%_36%)] text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-blue-700 text-white shadow-[2px_2px_0_#bef264]'
+                       : 'border border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
                   {e}
@@ -283,8 +284,8 @@ const TaskBreakdown = ({
                   }}
                   className={`rounded-full border px-3 py-1 ${
                     selectedStyle === style
-                      ? 'border-[hsl(142_72%_36%)] bg-[hsl(142_72%_36%)] text-white'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      ? 'border-blue-700 bg-blue-700 text-white'
+                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
                   {style}
@@ -295,7 +296,7 @@ const TaskBreakdown = ({
 
           {/* Task textarea */}
           <textarea
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20 resize-none"
+            className="w-full resize-none rounded-2xl border-2 border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             rows={2}
             placeholder={placeholders[placeholderIdx]}
             value={bigTask}
@@ -311,8 +312,8 @@ const TaskBreakdown = ({
                   onClick={() => setSelectedVibe(v.label)}
                   className={`rounded-full border px-3 py-1 flex items-center gap-1 ${
                     selectedVibe === v.label
-                      ? 'border-[hsl(142_72%_36%)] bg-[hsl(142_72%_36%)] text-white'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      ? 'border-lime-400 bg-lime-300 text-slate-950'
+                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-lime-400 hover:bg-lime-50'
                   }`}
                 >
                   <span>{v.label}</span>
@@ -322,7 +323,7 @@ const TaskBreakdown = ({
 
             <button
               onClick={generateBreakdown}
-              className="rounded-lg bg-[hsl(142_72%_36%)] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(142_72%_32%)]"
+              className="rounded-xl bg-blue-700 px-5 py-2.5 text-xs font-black text-white shadow-[3px_3px_0_#bef264] transition hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
             >
               Break into steps
             </button>
@@ -331,7 +332,8 @@ const TaskBreakdown = ({
 
         {/* When no steps yet */}
         {!steps.length && (
-          <div className="text-center text-sm text-slate-500 py-8">
+          <div className="rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-5 py-10 text-center text-sm text-slate-600">
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-blue-700">One thing at a time</span>
             Describe one task that feels heavy. You will get a short, concrete checklist.
           </div>
         )}
@@ -340,18 +342,18 @@ const TaskBreakdown = ({
         {steps.length > 0 && (
           <section className="space-y-4">
             {/* Progress */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs space-y-2">
+            <div className="space-y-2 rounded-2xl border-2 border-blue-100 bg-blue-50/60 p-4 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-800">Progress</span>
-                <span className="font-mono text-slate-800">{progress}%</span>
+                <span className="font-black uppercase tracking-[0.14em] text-blue-800">Progress</span>
+                <span className="rounded-md bg-lime-300 px-2 py-1 font-mono font-black text-slate-950">{progress}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-blue-100">
                 <div
-                  className="h-full rounded-full bg-[hsl(142_72%_36%)] transition-all"
+                  className="h-full rounded-full bg-blue-700 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-slate-600">{motivational}</p>
+              <p className="font-medium text-slate-700">{motivational}</p>
             </div>
 
             {/* Start tiny + timer */}
@@ -359,7 +361,7 @@ const TaskBreakdown = ({
               <button
                 onClick={startBreakdown}
                 disabled={!user?.id || lifecycle.hasStarted || completedSteps.size >= steps.length}
-                className="flex-1 rounded-xl bg-[hsl(142_72%_36%)] px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-black text-white shadow-[3px_3px_0_#bef264] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {lifecycle.hasStarted ? "Breakdown started" : "Start this breakdown"}
               </button>
@@ -369,7 +371,7 @@ const TaskBreakdown = ({
                 className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium ${
                   completedSteps.size >= steps.length
                     ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-                    : 'border-[hsl(142_72%_36%)] text-[hsl(142_72%_36%)] hover:bg-[hsl(142_72%_36%)]/5'
+                     : 'border-blue-700 text-blue-700 hover:bg-blue-50'
                 }`}
               >
                 Focus on the next step
@@ -377,14 +379,14 @@ const TaskBreakdown = ({
 
               <button
                 onClick={resetBreakdown}
-                className="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-slate-500 hover:bg-slate-50"
               >
                 Discard breakdown
               </button>
 
               {timerActive && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                  <span className="font-mono text-slate-800">{timerDisplay}</span>
+                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-lime-400 bg-lime-50 px-4 py-3 text-sm">
+                  <span className="font-mono font-black text-slate-900">{timerDisplay}</span>
                   <button
                     onClick={() => setTimerActive(false)}
                     className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
@@ -404,8 +406,8 @@ const TaskBreakdown = ({
                     key={step.id}
                     className={`rounded-xl border px-3 py-3 text-sm transition ${
                       done
-                        ? 'border-emerald-200 bg-emerald-50/60 opacity-80'
-                        : 'border-slate-200 bg-white hover:border-[hsl(142_72%_36%)]/40'
+                        ? 'border-lime-400 bg-lime-50 opacity-80'
+                         : 'border-slate-200 bg-white hover:border-blue-400 hover:shadow-[3px_3px_0_#dbeafe]'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -415,7 +417,7 @@ const TaskBreakdown = ({
                         aria-label={`Mark step ${i + 1} ${done ? "incomplete" : "complete"}`}
                         className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center text-[10px] disabled:cursor-not-allowed ${
                           done
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                             ? 'border-lime-400 bg-lime-400 text-slate-950'
                             : 'border-slate-300 bg-white'
                         }`}
                       >
@@ -426,7 +428,7 @@ const TaskBreakdown = ({
                         {editingId === step.id ? (
                           <input
                             autoFocus
-                            className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20"
+                            className="w-full rounded-md border-2 border-blue-300 px-2 py-1 text-xs focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                             value={step.text}
                             onChange={(e) => updateStepText(step.id, e.target.value)}
                             onBlur={() => setEditingId(null)}
@@ -438,7 +440,7 @@ const TaskBreakdown = ({
                             onClick={() => setEditingId(step.id)}
                             disabled={lifecycle.isTerminal}
                             className={`text-left text-sm disabled:cursor-not-allowed ${
-                              done ? 'line-through text-slate-400' : 'text-slate-800'
+                              done ? 'line-through text-slate-400' : 'font-semibold text-slate-900'
                             }`}
                           >
                             {step.text}
@@ -447,7 +449,7 @@ const TaskBreakdown = ({
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                        <span className="rounded-md bg-slate-50 px-2 py-1 font-mono">
+                         <span className="rounded-md bg-blue-50 px-2 py-1 font-mono font-semibold text-blue-800">
                           {step.time}m
                         </span>
                         <button

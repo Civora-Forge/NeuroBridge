@@ -261,9 +261,9 @@ const VisualTimeline = () => {
     const isActive = nowMinutes >= startM && nowMinutes < endM;
 
     return (
-      <div className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-3 text-sm">
-        <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-slate-50">
-          <span className="text-lg" aria-hidden>
+      <div className={`flex gap-3 rounded-2xl border bg-white px-3 py-3 shadow-sm sm:px-4 ${block.done ? 'border-lime-200' : isActive ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-700">
+          <span aria-hidden>
             {block.icon || 'Task'}
           </span>
         </div>
@@ -271,7 +271,7 @@ const VisualTimeline = () => {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-slate-900 truncate">
+                <p className="font-bold text-slate-950 truncate">
                   {block.label}
                 </p>
                 {block.routine && (
@@ -286,8 +286,8 @@ const VisualTimeline = () => {
             </div>
             <div className="flex flex-col items-end gap-1 text-[11px] text-slate-500">
               {isActive && (
-                <span className="text-emerald-600">
-                  Now | {minutesToCountdown(endM - nowMinutes)}
+                  <span className="font-bold text-blue-700">
+                    LIVE | {minutesToCountdown(endM - nowMinutes)}
                 </span>
               )}
               {block.done && <span>Done</span>}
@@ -298,8 +298,8 @@ const VisualTimeline = () => {
             <div
               className={`h-full rounded-full ${
                 block.done
-                  ? 'bg-emerald-500'
-                  : 'bg-[hsl(142_72%_36%)]'
+                  ? 'bg-lime-500'
+                  : 'bg-blue-500'
               }`}
               style={{ width: `${progressed}%` }}
             />
@@ -309,7 +309,7 @@ const VisualTimeline = () => {
             {!block.done && (
               <button
                 onClick={() => toggleDone(block.id)}
-                className="rounded-full border border-slate-200 px-2 py-0.5 text-slate-700 hover:bg-slate-50"
+                className="rounded-full border border-lime-300 bg-lime-50 px-2 py-1 font-bold text-lime-800 hover:bg-lime-100"
               >
                 Mark done
               </button>
@@ -317,14 +317,14 @@ const VisualTimeline = () => {
             {!block.started ? (
               <button
                 onClick={() => startBlock(block.id)}
-                className="rounded-full bg-[hsl(142_72%_36%)] px-2 py-0.5 text-white"
+                className="rounded-full bg-blue-600 px-2 py-1 font-bold text-white hover:bg-blue-700"
               >
                 Start
               </button>
             ) : (
               <button
                 onClick={() => stopBlock(block.id)}
-                className="rounded-full border border-slate-200 px-2 py-0.5 text-slate-700 hover:bg-slate-50"
+                className="rounded-full border border-blue-200 px-2 py-1 font-bold text-blue-700 hover:bg-blue-50"
               >
                 Stop
               </button>
@@ -363,27 +363,29 @@ const VisualTimeline = () => {
     return (
       <form
         onSubmit={submit}
-        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 rounded-2xl border-2 border-blue-100 bg-white p-3 shadow-sm text-sm sm:flex-row sm:items-center"
       >
         <input
-          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Add block: Email 20m"
         />
         <div className="flex items-center gap-2">
           <input
-            className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-xs"
+            type="time"
+            className="w-24 rounded-xl border border-slate-200 px-2 py-2 text-xs"
             value={start}
             onChange={(e) => setStart(e.target.value)}
           />
           <span className="text-slate-400 text-xs">to</span>
           <input
-            className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-xs"
+            type="time"
+            className="w-24 rounded-xl border border-slate-200 px-2 py-2 text-xs"
             value={end}
             onChange={(e) => setEnd(e.target.value)}
           />
-          <button className="rounded-lg bg-[hsl(142_72%_36%)] px-3 py-2 text-xs font-medium text-white">
+          <button className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">
             Add
           </button>
         </div>
@@ -397,7 +399,7 @@ const VisualTimeline = () => {
         <button
           key={name}
           onClick={() => addRoutine(name)}
-          className="rounded-full border border-slate-200 px-3 py-1 text-slate-700 hover:bg-slate-50"
+          className="rounded-full border border-blue-200 bg-white px-3 py-1 font-bold text-blue-700 hover:bg-blue-50"
         >
           + {name}
         </button>
@@ -482,23 +484,24 @@ const VisualTimeline = () => {
 
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
+            <div className="mb-2 inline-flex rounded-full bg-lime-300 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950">Time made visible</div>
+            <h1 className="text-3xl font-black tracking-tight text-blue-700 sm:text-4xl">
               Visual timeline
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm font-medium text-slate-600">
               Make time visible. Plan a few blocks and follow them.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="rounded-full bg-white px-3 py-1 border border-slate-200 font-mono text-slate-700">
+            <div className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-mono font-bold text-blue-800">
               Now: {minutesToTime(nowMinutes)}
             </div>
-            <div className="flex rounded-full border border-slate-200 bg-white p-1">
+            <div className="flex rounded-full border border-blue-200 bg-white p-1">
               <button
                 onClick={() => setView('day')}
                 className={`rounded-full px-3 py-1 ${
                   view === 'day'
-                    ? 'bg-[hsl(142_72%_36%)] text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-700'
                 }`}
               >
@@ -508,7 +511,7 @@ const VisualTimeline = () => {
                 onClick={() => setView('week')}
                 className={`rounded-full px-3 py-1 ${
                   view === 'week'
-                    ? 'bg-[hsl(142_72%_36%)] text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-700'
                 }`}
               >
@@ -549,13 +552,13 @@ const VisualTimeline = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
                 <h3 className="mb-2 text-sm font-medium text-slate-900">
                   Brain dump
                 </h3>
                 <BrainDump />
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              <div className="rounded-2xl border border-lime-200 bg-lime-50 p-4 text-sm">
                 <h3 className="mb-2 text-sm font-medium text-slate-900">
                   Today
                 </h3>
@@ -578,18 +581,13 @@ const VisualTimeline = () => {
                 const blocks = getBlocksForDate(d.key);
                 const isToday = d.key === todayKey();
                 return (
-                  <button
+                  <div
                     key={d.key}
                     className={`flex-1 rounded-lg px-2 py-2 text-left ${
                       isToday
-                        ? 'bg-[hsl(142_72%_36%)] text-white'
-                        : 'text-slate-700 hover:bg-slate-50'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-500'
                     }`}
-                    onClick={() => {
-                      if (!isToday) {
-                        setView('day');
-                      }
-                    }}
                   >
                     <div className="text-[11px]">{d.label}</div>
                     <div className="mt-1 text-[10px] opacity-80">
@@ -597,13 +595,12 @@ const VisualTimeline = () => {
                         ? '-'
                         : `${blocks.length} block${blocks.length > 1 ? 's' : ''}`}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
             <p className="text-[11px] text-slate-500">
-              Only today is editable in this prototype. Use week view just to see
-              how full your week is.
+              Week view is a quick capacity scan. Today is the only editable day in this local tool.
             </p>
           </section>
         )}

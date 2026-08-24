@@ -266,6 +266,7 @@ const SUPPORT_MODULE_FEATURE_ALIASES = {
   "support.visual_timeline": [FEATURES.ADHD, FEATURES.ADHD_TIMELINE],
   "support.mood_checkin": [FEATURES.ADHD, FEATURES.ADHD_EMOTION],
   "support.accountability_session": [FEATURES.ADHD, FEATURES.ADHD_DOUBLING],
+  "support.soundscapes": [FEATURES.ADHD, FEATURES.ADHD_SOUNDS],
   "support.gentle_activity": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_MVH],
   "support.grounding": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_ANXIETY_DISSOLVER],
   "support.social_connection": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_SOCIAL],

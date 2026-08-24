@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import SupportToolThemeProvider from '@/theme/SupportToolThemeProvider';
+import SupportToolLayout from '@/components/support/SupportToolLayout';
 
 // ── Sound Library ─────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ const SOUND_URLS = {
 const useSimpleAudioEngine = () => {
   const [layers, setLayers] = useState([]); // [{id, audio, volume}]
   const [masterVolume, setMasterVolume] = useState(0.8);
+  const [playbackErrors, setPlaybackErrors] = useState({});
   const layersRef = useRef([]);
 
   // keep ref in sync
@@ -81,10 +84,22 @@ const useSimpleAudioEngine = () => {
     const audio = new Audio(url);
     audio.loop = true;
     audio.volume = masterVolume * 0.7; // default 70% of master
+    audio.addEventListener('error', () => {
+      audio.pause();
+      setLayers((prev) => prev.filter((layer) => layer.id !== id));
+      setPlaybackErrors((prev) => ({
+        ...prev,
+        [id]: 'This audio file is unavailable or could not be played. Try another sound or check your connection.',
+      }));
+    });
     return audio;
   };
 
   const toggleLayer = (id) => {
+    setPlaybackErrors((errors) => {
+      const { [id]: _ignored, ...remaining } = errors;
+      return remaining;
+    });
     setLayers((prev) => {
       const existing = prev.find((l) => l.id === id);
       if (existing) {
@@ -96,7 +111,14 @@ const useSimpleAudioEngine = () => {
       // create and start
       const audio = createAudio(id);
       if (!audio) return prev;
-      audio.play().catch(() => {});
+      audio.play().catch(() => {
+        audio.pause();
+        setPlaybackErrors((errors) => ({
+          ...errors,
+          [id]: 'This audio could not start. Your browser may have blocked playback or the file is unavailable.',
+        }));
+        setLayers((currentLayers) => currentLayers.filter((layer) => layer.id !== id));
+      });
       return [...prev, { id, audio, volume: 0.7 }];
     });
   };
@@ -135,6 +157,7 @@ const useSimpleAudioEngine = () => {
   return {
     layers,
     masterVolume,
+    playbackErrors,
     toggleLayer,
     setLayerVolume,
     setMasterVolume: updateMasterVolume,
@@ -189,12 +212,14 @@ const AnimatedBackground = ({ activeLayers }) => {
 
 // ── Sound Card ──────────────────────────────────────────────────
 
-const SoundCard = ({ sound, isActive, volume, onToggle, onVolumeChange }) => (
+const SoundCard = ({ sound, isActive, volume, error, onToggle, onVolumeChange }) => (
   <button
     onClick={onToggle}
     className={`group relative w-full text-left rounded-2xl p-4 transition-all duration-300 border overflow-hidden ${
       isActive
         ? 'border-primary/30 shadow-lg shadow-primary/5 scale-[1.02]'
+        : error
+        ? 'border-red-300 bg-red-50 hover:border-red-400'
         : 'border-border/50 hover:border-border hover:shadow-md hover:scale-[1.01]'
     }`}
   >
@@ -237,6 +262,7 @@ const SoundCard = ({ sound, isActive, volume, onToggle, onVolumeChange }) => (
       >
         {sound.description}
       </p>
+      {error && <p className="mt-2 text-xs font-medium text-red-700">{error}</p>}
       {isActive && (
         <div
           className="mt-3 flex items-center gap-2 animate-slide-up"
@@ -385,6 +411,7 @@ const Soundscapes = () => {
   const {
     layers,
     masterVolume,
+    playbackErrors,
     toggleLayer,
     setLayerVolume,
     setMasterVolume,
@@ -448,29 +475,30 @@ const Soundscapes = () => {
     preset.layers.every((id) => activeSoundIds.includes(id));
 
   return (
-    <>
-      <AnimatedBackground activeLayers={activeSoundIds} />
-      <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 relative z-10">
-        <div className="w-full max-w-2xl space-y-6 py-8">
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <Link
-              to="/"
-              className="inline-block text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
-            >
-              ← Back to Focus
-            </Link>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-              🎧 Soundscapes
-            </h1>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Mix immersive sound layers to create your perfect focus, calm, or sleep environment.
-            </p>
-          </div>
+    <SupportToolThemeProvider theme="adhd_focus">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe,_transparent_38%),radial-gradient(circle_at_top_right,_#d9f99d,_transparent_30%),#f8fafc] relative overflow-hidden">
+        <AnimatedBackground activeLayers={activeSoundIds} />
+        <SupportToolLayout
+          className="relative z-10 max-w-4xl"
+          title="Soundscapes"
+          description="Build a bright, distraction-light audio mix for your next focus block."
+          status={<Link to="/adhd" className="font-semibold text-blue-700 hover:text-blue-900">Back to Focus and Planning</Link>}
+          notice="Audio starts only after you select a layer. If a file cannot play, the affected layer stays visible with a clear error."
+        >
+          <div className="rounded-3xl border-2 border-blue-500 bg-slate-950 p-5 shadow-[0_18px_50px_rgba(37,99,235,0.25)] sm:p-7">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-300">Focus audio lab</p>
+              <span className="rounded-full bg-blue-500 px-3 py-1 text-xs font-bold text-white">{layers.length} live layers</span>
+            </div>
+            {Object.keys(playbackErrors).length > 0 && (
+              <div role="alert" className="mb-5 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+                One or more selected sounds could not play. Each unavailable sound is marked below.
+              </div>
+            )}
 
           {/* Quick Presets */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-center text-lime-200">
               Quick Mixes
             </p>
             <div className="flex gap-2 justify-center flex-wrap">
@@ -491,8 +519,8 @@ const Soundscapes = () => {
               onClick={() => setActiveCategory('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeCategory === 'all'
-                  ? 'bg-foreground text-background'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  ? 'bg-lime-300 text-slate-950'
+                  : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
               All
@@ -503,8 +531,8 @@ const Soundscapes = () => {
                 onClick={() => setActiveCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeCategory === cat.id
-                    ? 'bg-foreground text-background'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    ? 'bg-lime-300 text-slate-950'
+                    : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
                 {cat.emoji} {cat.label}
@@ -522,6 +550,7 @@ const Soundscapes = () => {
                   sound={sound}
                   isActive={!!layer}
                   volume={layer?.volume ?? 0.7}
+                  error={playbackErrors[sound.id]}
                   onToggle={() => toggleLayer(sound.id)}
                   onVolumeChange={(v) => setLayerVolume(sound.id, v)}
                 />
@@ -555,9 +584,10 @@ const Soundscapes = () => {
                 </p>
               </div>
             )}
-        </div>
+          </div>
+        </SupportToolLayout>
       </div>
-    </>
+    </SupportToolThemeProvider>
   );
 };
 

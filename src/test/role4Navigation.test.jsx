@@ -63,13 +63,14 @@ describe("Role 4 ADHD and depression navigation", () => {
 
     expect(screen.getByRole("heading", { name: "Focus and Planning" })).toBeInTheDocument();
     expect(screen.queryByText("ADHD Hub")).not.toBeInTheDocument();
-    expect(screen.queryByText("Soundscapes")).not.toBeInTheDocument();
+    expect(screen.getByText("Soundscapes")).toBeInTheDocument();
     expect(ADHD_LANDING_TOOLS.map((tool) => tool.moduleId)).toEqual([
       "support.visual_timeline",
       "support.task_breakdown",
       "support.focus_session",
       "support.mood_checkin",
       "support.accountability_session",
+      "support.soundscapes",
     ]);
   });
 
@@ -82,6 +83,8 @@ describe("Role 4 ADHD and depression navigation", () => {
     window.history.pushState({}, "", "/depression");
     render(<App />);
     expect(screen.getByRole("heading", { name: "Daily Momentum" })).toBeInTheDocument();
+    expect(appSource).toContain('path="/adhd/soundscapes"');
+    expect(appSource).toContain('feature={FEATURES.ADHD_SOUNDS}');
   });
 
   it("registers the Evidence Journal route without falling through to the 404 page", () => {
@@ -114,8 +117,8 @@ describe("Role 4 ADHD and depression navigation", () => {
     });
   });
 
-  it("does not advertise deferred modules through the home module registry", () => {
-    expect(MODULES_REGISTRY[FEATURES.ADHD_SOUNDS]).toBeUndefined();
+  it("registers shipped Soundscapes while keeping other deferred modules hidden", () => {
+    expect(MODULES_REGISTRY[FEATURES.ADHD_SOUNDS]?.launchRoute).toBe("/adhd/soundscapes");
     expect(MODULES_REGISTRY[FEATURES.DEPRESSION_PROOF]).toBeUndefined();
     expect(MODULES_REGISTRY[FEATURES.DEPRESSION_VOID]).toBeUndefined();
   });
