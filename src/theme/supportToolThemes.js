@@ -1,9 +1,9 @@
 export const SUPPORT_TOOL_THEMES = {
   adhd_focus: {
-    background: "#F8F4EC", surface: "#FFFDF8", surfaceStrong: "#F0E7D6",
-    primary: "#315F45", primaryHover: "#244937", accent: "#B76445",
-    text: "#27342B", textMuted: "#5E665D", border: "#DED2BE",
-    focusRing: "#315F45", success: "#456B38", warning: "#946200", danger: "#B42318",
+    background: "#F8F4EC", surface: "#FFFDF8", surfaceStrong: "#F1ECE4",
+    primary: "#3D3A35", primaryHover: "#272521", accent: "#C0C0C0",
+    text: "#33302B", textMuted: "#625E57", border: "#DDD5C9",
+    focusRing: "#3D3A35", success: "#6D9F46", warning: "#946200", danger: "#B42318",
   },
   depression_gentle: {
     background: "#F2FFF5", surface: "#FFFFFF", surfaceStrong: "#DCFCE7",
@@ -25,7 +25,6 @@ export const SUPPORT_TOOL_THEME_BY_MODULE = {
   "support.visual_timeline": "adhd_focus",
   "support.mood_checkin": "adhd_focus",
   "support.accountability_session": "adhd_focus",
-  "support.soundscapes": "adhd_focus",
   "support.gentle_activity": "depression_gentle",
   "support.grounding": "depression_gentle",
   "support.social_connection": "depression_gentle",

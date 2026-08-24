@@ -20,11 +20,16 @@
 .adhd-display-controls > div { display: flex; gap: 6px; margin-top: 6px; padding: 8px; border: 1px solid var(--tool-border); border-radius: 10px; background: var(--tool-surface); box-shadow: 0 6px 18px rgb(39 52 43 / 0.12); }
 .adhd-display-controls button { border: 1px solid var(--tool-border); border-radius: 999px; padding: 5px 8px; background: transparent; color: var(--tool-text-muted); }
 .adhd-display-controls button[aria-pressed="true"] { border-color: var(--tool-primary); background: var(--tool-primary); color: #fff; }
+.adhd-display-status { margin: 6px 0 0; color: var(--tool-text-muted); font-size: 0.6875rem; font-weight: 700; }
 
-[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-page { background: #FCFAF5 !important; }
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-page { background: #F5F5F1 !important; filter: grayscale(0.78) saturate(0.38); }
 [data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-card,
 [data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-completion { box-shadow: none; }
-[data-support-theme="adhd_focus"][data-adhd-soft-colors="true"] .support-tool-page { filter: saturate(0.68); }
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-page [class*="shadow"] { box-shadow: none !important; }
+[data-support-theme="adhd_focus"][data-adhd-low-stimulation="true"] .support-tool-page [class*="bg-gradient"] { background-image: none !important; }
+[data-support-theme="adhd_focus"][data-adhd-soft-colors="true"] .support-tool-page { filter: saturate(0.45) brightness(1.025); }
+[data-support-theme="adhd_focus"][data-adhd-soft-colors="true"][data-adhd-low-stimulation="true"] .support-tool-page { filter: grayscale(0.78) saturate(0.2) brightness(1.025); }
+[data-support-theme="adhd_focus"][data-adhd-reduced-motion="true"] .support-tool-page { outline: 2px solid rgb(109 159 70 / 0.32); outline-offset: -2px; }
 
 html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support-tool-page *,
 html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support-tool-page *::before,

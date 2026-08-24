@@ -1,43 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from 'react';
 import {
-  Users,
-  Flame,
-  Zap,
-  Sparkles,
-  ShieldCheck,
-  Trophy,
-  Activity,
+  Bell, CheckCircle2, ClipboardList, Heart, Lightbulb, Pencil, Play,
+  ShieldCheck, Sparkles, Target, Users,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
-import SupportToolLayout from "@/components/support/SupportToolLayout";
+import SupportToolThemeProvider from '@/theme/SupportToolThemeProvider';
+import SupportToolLayout from '@/components/support/SupportToolLayout';
 
-const BodyDoubling = () => {
+const notes = [
+  'Choose one task before starting.',
+  'Keep your next step visible.',
+  'Pause or end the session when needed.',
+];
+
+export default function BodyDoubling() {
   const [isLive, setIsLive] = useState(false);
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [commitment, setCommitment] = useState('');
   const [showCommitmentToast, setShowCommitmentToast] = useState(false);
   const [showCommitmentReview, setShowCommitmentReview] = useState(false);
 
-  const [recentActions] = useState([
-    'Choose one task before starting.',
-    'Keep your next step visible.',
-    'Pause or end the session when needed.',
-  ]);
-
   useEffect(() => {
-    let interval;
-    if (isLive) {
-      interval = setInterval(() => {
-        setSessionSeconds((s) => s + 1);
-      }, 1000);
-    }
+    if (!isLive) return undefined;
+    const interval = setInterval(() => setSessionSeconds((seconds) => seconds + 1), 1000);
     return () => clearInterval(interval);
   }, [isLive]);
 
@@ -51,209 +37,13 @@ const BodyDoubling = () => {
     setIsLive(true);
   };
 
-  const stopSession = () => {
-    setIsLive(false);
-  };
+  const minutes = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+  const seconds = String(sessionSeconds % 60).padStart(2, '0');
 
-  const minutes = Math.floor(sessionSeconds / 60).toString().padStart(2, '0');
-  const seconds = (sessionSeconds % 60).toString().padStart(2, '0');
-
-  return (
-    <SupportToolThemeProvider theme="adhd_focus">
-    <SupportToolLayout>
-      {/* Header with Live Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="mb-2 inline-flex rounded-full bg-[#cce8e3] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1f5e58]">One task. One visible timer.</div>
-          <h2 className="text-3xl font-black tracking-tight flex items-center gap-3 text-stone-900">
-            <Users className="text-[#287d74] h-8 w-8" />
-             Accountability Session
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-             Set one commitment and use a guided timer to stay with it.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-[#e8f4f1] px-4 py-2 rounded-full border border-[#a8d5ce] shadow-sm">
-          <span className="relative flex h-3 w-3">
-             <span className="relative inline-flex rounded-full h-3 w-3 bg-[#287d74]" />
-          </span>
-          <span className="text-xs font-bold uppercase tracking-wider">
-             Personal timer
-          </span>
-        </div>
-      </div>
-
-      {/* Main Interaction Card */}
-       <Card className="relative overflow-hidden border border-[#e7d7bf] bg-gradient-to-b from-[#fffdf7] via-[#f4fbf9] to-[#edf6ee] shadow-lg">
-         <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#5fa89e]/10 rounded-full blur-3xl pointer-events-none" />
-         <div className="absolute -bottom-24 -left-24 w-56 h-56 bg-[#dceadf] rounded-full blur-3xl pointer-events-none" />
-
-        <div className="p-6 md:p-8 space-y-8 relative z-10">
-          {/* Timer Visual */}
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">
-               Current session
-            </div>
-            <div
-              className={`text-7xl md:text-8xl font-black tabular-nums transition-colors duration-500 ${
-                 isLive ? 'text-[#287d74]' : 'text-muted-foreground/30'
-              }`}
-            >
-              {minutes}
-              <span>:</span>
-              {seconds}
-            </div>
-            {isLive && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-[#287d74] font-bold text-sm"
-              >
-                <Activity className="h-4 w-4 animate-pulse" />
-                 Session in progress
-              </motion.div>
-            )}
-          </div>
-
-          {/* Commitment Ritual */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold flex items-center gap-2">
-                 <ShieldCheck className="h-4 w-4 text-[#287d74]" />
-                My Commitment
-              </label>
-              <Badge
-                variant="outline"
-                 className="bg-[#cce8e3] border-[#a8d5ce] text-[#1f5e58] px-2 py-0"
-              >
-                 Keep it concrete
-              </Badge>
-            </div>
-
-            <div className="relative group">
-              <Textarea
-                value={commitment}
-                onChange={(e) => setCommitment(e.target.value)}
-                disabled={isLive}
-                className="min-h-[100px] rounded-2xl border border-[#e7d7bf] bg-[#fffdf7] focus:border-[#285943] focus:ring-2 focus:ring-[#dceadf] transition-colors resize-none p-4 text-base shadow-inner"
-                placeholder="What is your one focus? Example: Finish the assignment draft."
-              />
-              {!isLive && (
-                <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground font-medium italic">
-                  Clear goals prevent distraction
-                </div>
-              )}
-            </div>
-
-            <AnimatePresence>
-              {showCommitmentToast && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="text-red-500 text-xs font-bold text-center"
-                >
-                  Please set a commitment before starting.
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Action Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            {!isLive ? (
-              <Button
-                onClick={startSession}
-                size="lg"
-                className="h-14 rounded-2xl text-lg font-bold shadow-lg shadow-[#285943]/20 bg-[#285943] hover:bg-[#1d4332] transition-colors"
-              >
-                <Flame className="mr-2 h-5 w-5" />
-                 Start session
-              </Button>
-            ) : (
-              <Button
-                onClick={stopSession}
-                variant="outline"
-                size="lg"
-                className="h-14 rounded-2xl text-lg font-bold border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all"
-              >
-                End Session
-              </Button>
-            )}
-
-            <Button
-              variant="secondary"
-              onClick={() => setShowCommitmentReview((visible) => !visible)}
-              size="lg"
-               className="h-14 rounded-2xl text-lg font-bold bg-[#cce8e3] hover:bg-[#b8ddd6] border border-[#a8d5ce] shadow-sm flex items-center justify-center text-[#174740]"
-            >
-                <Users className="mr-2 h-5 w-5 text-slate-950" />
-                {showCommitmentReview ? 'Hide commitment' : 'Review commitment'}
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {showCommitmentReview && (
-         <div className="rounded-2xl border border-[#a8d5ce] bg-[#e8f4f1] px-4 py-3 text-sm text-[#174740]">
-           <span className="font-black uppercase tracking-wider text-[10px] text-[#287d74]">Your focus</span>
-          <p className="mt-1 font-medium">{commitment.trim() || 'Add a commitment before you begin.'}</p>
-        </div>
-      )}
-
-      {/* Ambient Social Presence */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <Card className="p-4 bg-[#f4fbf9] border border-[#cce8e3] shadow-sm space-y-3 rounded-2xl">
-           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#287d74]">
-             <Zap className="h-3 w-3 text-[#287d74]" />
-             Session notes
-          </h3>
-          <div className="space-y-2 overflow-hidden h-24 relative">
-            <AnimatePresence mode="popLayout">
-              {recentActions.map((action) => (
-                <motion.div
-                  key={action}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="text-xs text-muted-foreground py-1 border-l-2 border-teal-400/40 pl-3 flex items-center gap-2 bg-white/60 rounded-r-md"
-                >
-                  <Sparkles className="h-3 w-3 text-yellow-400" />
-                  {action}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-background/0 to-transparent pointer-events-none" />
-          </div>
-        </Card>
-
-         <Card className="p-4 bg-[#edf6ee] border border-[#dceadf] shadow-sm space-y-3 rounded-2xl">
-           <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-[#285943]">
-             <Trophy className="h-3 w-3 text-[#285943]" />
-             Session reminders
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-               Keep the next step small
-            </Badge>
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-               Pause when you need to
-            </Badge>
-            <Badge className="bg-white text-[10px] py-0 px-2 border border-cyan-200 text-cyan-700">
-               Return when you are ready
-            </Badge>
-          </div>
-          <p className="text-[10px] text-muted-foreground font-medium">This is a private, local timer. No one else joins this session.</p>
-        </Card>
-      </div>
-
-      {/* Footer Meta */}
-      <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed">
-         Use this manual timer and commitment prompt as a personal accountability aid.
-      </p>
-    </SupportToolLayout>
-    </SupportToolThemeProvider>
-  );
-};
-
-export default BodyDoubling;
+  return <SupportToolThemeProvider theme="adhd_focus"><SupportToolLayout className="!m-0 !w-full !max-w-none !gap-0 !p-0"><main className="relative w-full bg-[#fffefa] px-4 py-4 text-[#202036] sm:px-8 sm:py-5 lg:px-[9vw]">
+    <header className="relative mx-auto flex max-w-6xl items-start justify-between gap-5"><div><p className="inline-flex items-center gap-2 rounded-full bg-[#dff8d6] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.16em] text-[#24743a]"><Target size={15} /> ONE TASK. ONE VISIBLE TIMER.</p><h1 className="mt-3 flex items-center gap-3 text-4xl font-black tracking-tight sm:text-5xl"><Users className="h-11 w-11 text-[#27a34b]" strokeWidth={1.8} /> Accountability <span className="text-[#20a34a]">Session</span></h1><p className="mt-1 text-sm text-slate-500">Set one commitment and use a <span className="font-bold underline decoration-[#a98aff] decoration-2 underline-offset-4">guided timer</span> to stay with it.</p></div><img src="/focus-mascot.svg" alt="Calm brain wearing green headphones" className="hidden h-28 w-36 object-contain lg:block" /></header>
+    <section className="relative mx-auto mt-5 max-w-6xl overflow-hidden rounded-[2rem] border border-[#aae39b] bg-gradient-to-b from-white to-[#f2ffed] p-6 shadow-[0_5px_14px_rgba(32,163,74,.18)] sm:p-7"><div className="absolute left-1/2 top-20 h-44 w-[52%] -translate-x-1/2 rounded-t-full bg-[#ddf8d1]" /><div className="relative"><p className="text-center text-xs font-black uppercase tracking-[.16em] text-[#24963e]">Current session <Sparkles className="inline" size={14} /></p><p className="mt-1 text-center text-6xl font-black tracking-[.11em] text-[#151b34] sm:text-8xl">{minutes}:{seconds}</p><div className="mt-3 flex items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-black"><ShieldCheck className="text-[#20a34a]" size={21} /> My Commitment</p><span className="inline-flex items-center gap-2 rounded-full border border-[#b5e9a8] bg-[#eaffdf] px-3 py-1.5 text-xs font-medium text-[#218a3c]"><Lightbulb size={14} /> Keep it concrete</span></div><div className="relative mt-3"><Pencil className="absolute left-4 top-1/2 -translate-y-1/2 text-[#25ad50]" size={19} /><input value={commitment} onChange={(event) => setCommitment(event.target.value)} disabled={isLive} placeholder="What is your one focus? Example: Finish the assignment draft." className="w-full rounded-xl border border-[#78ca71] bg-white py-4 pl-12 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-[#20a34a] disabled:opacity-70" /></div>{showCommitmentToast && <p role="alert" className="mt-2 text-center text-xs font-bold text-rose-600">Please set a commitment before starting.</p>}<div className="mt-4 grid gap-4 sm:grid-cols-2">{isLive ? <button onClick={() => setIsLive(false)} className="rounded-xl bg-[#20a34a] py-3 text-base font-black text-white">End session</button> : <button onClick={startSession} className="rounded-xl bg-gradient-to-r from-[#55c85d] to-[#19a047] py-3 text-base font-black text-white shadow-[3px_3px_0_#b9edb3]"><Play className="mr-2 inline" size={18} fill="currentColor" /> Start session</button>}<button onClick={() => setShowCommitmentReview((visible) => !visible)} className="rounded-xl border border-[#78ca71] bg-white py-3 text-base font-black text-[#25263a]"><Users className="mr-2 inline text-[#20a34a]" size={18} /> {showCommitmentReview ? 'Hide commitment' : 'Review commitment'}</button></div>{showCommitmentReview && <p className="mt-3 rounded-xl bg-[#e9ffe2] px-4 py-3 text-sm text-slate-700">{commitment.trim() || 'Add a commitment before you begin.'}</p>}</div></section>
+    <section className="mx-auto mt-5 grid max-w-6xl gap-4 md:grid-cols-2"><article className="relative rounded-2xl border border-[#c9b2ff] bg-[#fbf7ff] p-5 shadow-[0_4px_10px_rgba(130,77,232,.15)]"><h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-[.15em] text-[#7745e5]"><ClipboardList size={21} /> Session notes <Sparkles size={15} /></h2><div className="mt-4 space-y-3">{notes.map((note, index) => <p key={note} className="flex items-center gap-3 border-b border-[#e8deff] pb-2 text-sm text-slate-700"><span className="grid h-6 w-6 place-items-center rounded-md bg-[#e9deff] text-xs font-black text-[#7745e5]">{index + 1}</span>{note}</p>)}</div></article><article className="relative rounded-2xl border border-[#b8d6ff] bg-[#f6faff] p-5 shadow-[0_4px_10px_rgba(49,118,239,.15)]"><h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-[.15em] text-[#3479ef]"><Bell size={21} /> Session reminders <Sparkles size={15} /></h2><div className="mt-4 flex flex-wrap gap-3"><span className="rounded-full border border-[#c8ddff] bg-[#eaf3ff] px-4 py-2 text-xs text-[#2366ce]">Keep the next step small</span><span className="rounded-full border border-[#c8ddff] bg-[#eaf3ff] px-4 py-2 text-xs text-[#2366ce]">Pause when you need to</span><span className="rounded-full border border-[#c8ddff] bg-[#eaf3ff] px-4 py-2 text-xs text-[#2366ce]">Return when you are ready</span></div><p className="mt-4 text-[11px] text-slate-500">This is a private, local timer. No one else joins this session.</p></article></section>
+    <div className="relative mx-auto mt-4 max-w-6xl"><img src="/focus-plant.svg" alt="Potted green plant" className="absolute -left-20 bottom-0 hidden h-24 w-20 lg:block" /><p className="flex items-center justify-center gap-2 text-center text-xs text-slate-500"><Heart size={18} className="text-pink-500" /> Use this manual timer and commitment prompt as a personal accountability aid.</p></div>
+  </main></SupportToolLayout></SupportToolThemeProvider>;
+}

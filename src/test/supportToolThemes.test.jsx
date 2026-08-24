@@ -67,7 +67,7 @@ describe("scoped support tool themes", () => {
   it("scopes tokens to the provider and safely falls back for invalid overrides", () => {
     const { container } = render(<SupportToolThemeProvider theme="adhd_focus"><p>Tool</p></SupportToolThemeProvider>);
     expect(container.firstChild).toHaveAttribute("data-support-theme", "adhd_focus");
-    expect(container.firstChild.style.getPropertyValue("--tool-primary")).toBe("#315F45");
+    expect(container.firstChild.style.getPropertyValue("--tool-primary")).toBe("#3D3A35");
     expect(resolveSupportToolTheme("adhd_focus", "not-a-theme")).toBe("adhd_focus");
     expect(resolveSupportToolTheme("adhd_focus", "neutral")).toBeNull();
   });
