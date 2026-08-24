@@ -6,16 +6,16 @@ export const SUPPORT_TOOL_THEMES = {
     focusRing: "#235D98", success: "#2F7A55", warning: "#946200", danger: "#B42318",
   },
   depression_gentle: {
-    background: "#F4FAF5", surface: "#FFFFFF", surfaceStrong: "#E1F0E4",
-    primary: "#3F7654", primaryHover: "#2F6142", accent: "#6B8C70",
-    text: "#26372C", textMuted: "#607165", border: "#C9DDCD",
-    focusRing: "#3F7654", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F2FFF5", surface: "#FFFFFF", surfaceStrong: "#DCFCE7",
+    primary: "#15803D", primaryHover: "#166534", accent: "#86D89A",
+    text: "#173D26", textMuted: "#466B50", border: "#BDECC8",
+    focusRing: "#15803D", success: "#15803D", warning: "#946200", danger: "#B42318",
   },
   depression_reflection: {
-    background: "#F4FAF5", surface: "#FFFFFF", surfaceStrong: "#E1F0E4",
-    primary: "#3F7654", primaryHover: "#2F6142", accent: "#6B8C70",
-    text: "#26372C", textMuted: "#607165", border: "#C9DDCD",
-    focusRing: "#3F7654", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F2FFF5", surface: "#FFFFFF", surfaceStrong: "#DCFCE7",
+    primary: "#15803D", primaryHover: "#166534", accent: "#86D89A",
+    text: "#173D26", textMuted: "#466B50", border: "#BDECC8",
+    focusRing: "#15803D", success: "#15803D", warning: "#946200", danger: "#B42318",
   },
 };
 

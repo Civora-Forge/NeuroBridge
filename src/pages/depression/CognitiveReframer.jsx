@@ -169,7 +169,7 @@ export default function CognitiveReframer() {
   return (
     <SupportToolThemeProvider theme="depression_reflection">
     <SupportToolLayout>
-      <div className="mx-auto max-w-2xl space-y-5 pb-4 text-[#26372c]">
+      <div className="mx-auto max-w-2xl space-y-5 pb-4 text-[#173d26]">
       <header className="border-b border-stone-300 pb-5">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Cognitive reframing</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Review one thought</h1>
@@ -177,12 +177,12 @@ export default function CognitiveReframer() {
       </header>
       {safetyBlocked && <p className="rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-sm leading-5 text-stone-700">This entry cannot be processed here. If you are in immediate danger, contact local emergency services or a trusted support person.</p>}
 
-       <section className="rounded-xl border border-[#c9ddcd] bg-white p-4 shadow-sm">
+       <section className="rounded-xl border border-[#bdecc8] bg-white p-4 shadow-sm">
         <label htmlFor="thought" className="block text-sm font-medium text-stone-800">What thought would you like to review?</label>
         <textarea
           id="thought"
           ref={textareaRef}
-          className="mt-2 min-h-[120px] w-full resize-none rounded-lg border border-[#c9ddcd] bg-white p-3 text-base leading-6 text-stone-800 placeholder:text-stone-400 focus:border-[#3f7654] focus:outline-none focus:ring-2 focus:ring-[#d5e8d8]"
+          className="mt-2 min-h-[120px] w-full resize-none rounded-lg border border-[#bdecc8] bg-white p-3 text-base leading-6 text-stone-800 placeholder:text-stone-400 focus:border-[#15803d] focus:outline-none focus:ring-2 focus:ring-[#d1fadf]"
           value={thought}
           onChange={(e) => {
             setThought(e.target.value);
@@ -194,14 +194,14 @@ export default function CognitiveReframer() {
         <button
           type="button"
           onClick={analyzeThought}
-          className="mt-3 w-full rounded-lg bg-[#3f7654] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2f6142] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2 sm:w-auto"
+          className="mt-3 w-full rounded-lg bg-[#15803d] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#166534] focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2 sm:w-auto"
         >
           Review thought
         </button>
       </section>
 
       {showReframe && analysis ? (
-          <section className="space-y-4 rounded-xl border border-[#c9ddcd] bg-white p-4 shadow-sm">
+          <section className="space-y-4 rounded-xl border border-[#bdecc8] bg-white p-4 shadow-sm">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">A pattern to consider</p>
               <h2 className="mt-1 text-lg font-semibold text-stone-900">{analysis.original}</h2>
@@ -217,10 +217,10 @@ export default function CognitiveReframer() {
             </div>
             <div className="border-t border-stone-200 pt-4">
               <h3 className="text-sm font-semibold text-stone-800">A balanced perspective</h3>
-              <p className="mt-2 rounded-lg border-l-2 border-[#a9cdb0] bg-[#edf7ef] px-3 py-3 text-sm leading-6 text-stone-800">{analysis.reframe}</p>
+              <p className="mt-2 rounded-lg border-l-2 border-[#86d89a] bg-[#ecfdf3] px-3 py-3 text-sm leading-6 text-stone-800">{analysis.reframe}</p>
             </div>
             <div className="border-t border-stone-200 pt-4">
-              <button type="button" onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="w-full rounded-lg bg-[#3f7654] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2f6142] disabled:opacity-50" disabled={complete}> {complete ? 'Exercise complete' : 'Confirm exercise complete'} </button>
+              <button type="button" onClick={async () => { if (!showReframe || complete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildCognitiveReframingOutcome({ stagesCompleted: 3, confirmed: true, startedAt: startedAtRef.current })); setComplete(true); }} className="w-full rounded-lg bg-[#15803d] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#166534] disabled:opacity-50" disabled={complete}> {complete ? 'Exercise complete' : 'Confirm exercise complete'} </button>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button type="button" onClick={clearAnalysis} className="text-sm font-medium text-stone-700 underline underline-offset-4 hover:text-stone-900">New thought</button>
                 <button

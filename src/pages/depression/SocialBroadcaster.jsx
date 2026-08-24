@@ -38,27 +38,27 @@ export default function SocialBroadcaster() {
   return (
     <SupportToolThemeProvider theme="depression_gentle">
       <SupportToolLayout>
-        <main className="mx-auto w-full max-w-xl space-y-5 px-1 py-3 text-[#26372c]">
+        <main className="mx-auto w-full max-w-xl space-y-5 px-1 py-3 text-[#173d26]">
           <header className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">A small connection step</p>
             <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Share your capacity simply</h1>
             <p className="max-w-lg text-sm leading-6 text-stone-600">Choose what fits today. You do not need to explain more than you want to.</p>
           </header>
 
-          <fieldset className="rounded-2xl border border-[#c9ddcd] bg-white p-4 shadow-sm">
+          <fieldset className="rounded-2xl border border-[#bdecc8] bg-white p-4 shadow-sm">
             <legend className="px-1 text-sm font-medium text-stone-700">How available do you feel?</legend>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {["Red", "Yellow", "Green"].map((option) => (
-                <button key={option} onClick={async () => { if (!await start()) return; setStatus(option); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }} className={`rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2 ${status === option ? 'border-[#3f7654] bg-[#3f7654] text-white' : 'border-[#c9ddcd] bg-white text-[#365b40] hover:bg-[#edf7ef]'}`} aria-pressed={status === option}>{option}</button>
+                <button key={option} onClick={async () => { if (!await start()) return; setStatus(option); if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'social_connection_selection', completedUnits: 0, totalUnits: 2, progressRatio: 0 }); }} className={`rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2 ${status === option ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-[#bdecc8] bg-white text-[#246b3d] hover:bg-[#ecfdf3]'}`} aria-pressed={status === option}>{option}</button>
               ))}
             </div>
           </fieldset>
 
-          <section className="rounded-2xl border border-[#c9ddcd] bg-white p-5 shadow-sm" aria-labelledby="status-title">
+          <section className="rounded-2xl border border-[#bdecc8] bg-white p-5 shadow-sm" aria-labelledby="status-title">
             <p className="text-xs font-medium text-stone-500">Your selected status</p>
             <h2 id="status-title" className="mt-1 text-lg font-semibold text-stone-900">{codes[status].label}</h2>
             <p className="mt-3 text-sm leading-6 text-stone-600">{codes[status].explain}</p>
-            <p className="mt-3 border-l-2 border-[#a9cdb0] pl-3 text-sm leading-6 text-stone-600">{codes[status].suggestion}</p>
+            <p className="mt-3 border-l-2 border-[#86d89a] pl-3 text-sm leading-6 text-stone-600">{codes[status].suggestion}</p>
           </section>
 
           <section aria-labelledby="message-title">
@@ -66,16 +66,16 @@ export default function SocialBroadcaster() {
               <h2 id="message-title" className="text-sm font-medium text-stone-700">Message to copy</h2>
               <span className="text-xs text-stone-500">Edit after pasting if you wish</span>
             </div>
-            <pre className="whitespace-pre-wrap rounded-xl border border-[#c9ddcd] bg-[#edf7ef] p-4 font-sans text-sm leading-6 text-stone-700">{codes[status].message}</pre>
+            <pre className="whitespace-pre-wrap rounded-xl border border-[#bdecc8] bg-[#ecfdf3] p-4 font-sans text-sm leading-6 text-stone-700">{codes[status].message}</pre>
           </section>
 
           {!complete && (prepared ? (
             <section className="space-y-3">
-              <button onClick={confirmReady} className="w-full rounded-xl bg-[#3f7654] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2f6142] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">I have my message ready</button>
+              <button onClick={confirmReady} className="w-full rounded-xl bg-[#15803d] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#166534] focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2">I have my message ready</button>
               <p className="text-center text-xs text-stone-600">{copied ? "Copied. " : ""}Send it only if and when it feels right.</p>
             </section>
           ) : (
-            <button onClick={handleCopy} className="w-full rounded-xl bg-[#3f7654] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2f6142] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">{copied ? "Copied" : "Copy this message"}</button>
+            <button onClick={handleCopy} className="w-full rounded-xl bg-[#15803d] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#166534] focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2">{copied ? "Copied" : "Copy this message"}</button>
           ))}
 
           {complete && <p className="rounded-xl border border-[#d8dfd0] bg-[#f4f7f0] px-4 py-3 text-sm leading-6 text-stone-700">Your connection plan is ready. You can take the next step whenever you choose.</p>}

@@ -71,14 +71,14 @@ export default function AnxietyDissolver() {
   return (
     <SupportToolThemeProvider theme="depression_gentle">
       <SupportToolLayout>
-        <main className="mx-auto w-full max-w-xl space-y-5 px-1 py-3 text-[#26372c]">
+        <main className="mx-auto w-full max-w-xl space-y-5 px-1 py-3 text-[#173d26]">
           <header className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">A short grounding practice</p>
             <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Come back to the present</h1>
             <p className="max-w-lg text-sm leading-6 text-stone-600">There is no right way to do this. Try one small practice at your own pace.</p>
           </header>
 
-          <section className="rounded-2xl border border-[#c9ddcd] bg-white p-5 shadow-sm" aria-labelledby="practice-title">
+          <section className="rounded-2xl border border-[#bdecc8] bg-white p-5 shadow-sm" aria-labelledby="practice-title">
             <div className="flex items-baseline justify-between gap-4 border-b border-stone-200 pb-4">
               <div>
                 <p className="text-xs font-medium text-stone-500">Practice {activeStep + 1} of {techniques.length}</p>
@@ -93,7 +93,7 @@ export default function AnxietyDissolver() {
             <ol className="mt-4 space-y-3">
               {technique.steps.map((step, index) => (
                 <li key={index} className="flex gap-3 text-sm leading-6 text-stone-700">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e1f0e4] text-xs font-semibold text-[#3f7654]">{index + 1}</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-xs font-semibold text-[#15803d]">{index + 1}</span>
                   <span>{step}</span>
                 </li>
               ))}
@@ -102,10 +102,10 @@ export default function AnxietyDissolver() {
 
           {!completed && (
             <section className="space-y-3" aria-label="Practice controls">
-              <button onClick={isRunning ? stopTimer : startTimer} className="w-full rounded-xl bg-[#3f7654] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2f6142] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">
+              <button onClick={isRunning ? stopTimer : startTimer} className="w-full rounded-xl bg-[#15803d] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#166534] focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2">
                 {isRunning ? "Pause practice" : durationReached ? `Begin ${technique.title} again` : `Begin ${technique.duration}-minute practice`}
               </button>
-              <button onClick={nextTechnique} className="w-full rounded-xl border border-[#c9ddcd] bg-white px-4 py-3 text-sm font-medium text-[#365b40] hover:bg-[#edf7ef] focus:outline-none focus:ring-2 focus:ring-[#3f7654] focus:ring-offset-2">
+              <button onClick={nextTechnique} className="w-full rounded-xl border border-[#bdecc8] bg-white px-4 py-3 text-sm font-medium text-[#246b3d] hover:bg-[#ecfdf3] focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2">
                 {activeStep === techniques.length - 1 ? "Finish this practice" : "I am ready for the next practice"}
               </button>
               {durationReached && <p className="text-center text-xs leading-5 text-stone-600">You have reached the suggested time. Continue if it helps, or move on when you are ready.</p>}
