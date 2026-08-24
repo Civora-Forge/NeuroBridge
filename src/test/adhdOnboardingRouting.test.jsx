@@ -25,6 +25,7 @@ const ADHD_MODULE_IDS = [
   "support.visual_timeline",
   "support.mood_checkin",
   "support.accountability_session",
+  "support.soundscapes",
 ];
 
 afterEach(() => {
@@ -52,6 +53,8 @@ describe("ADHD onboarding and navigation", () => {
     expect(resolveEnabledFeatures({ enabledModules: ["support.task_breakdown"] }).has(FEATURES.ADHD_BREAKDOWN)).toBe(true);
     expect(resolveEnabledFeatures({ enabledModules: [FEATURES.ADHD_BREAKDOWN] }).has(FEATURES.ADHD_BREAKDOWN)).toBe(true);
     expect(resolveEnabledFeatures({ enabledModules: [FEATURES.ADHD] }).has(FEATURES.ADHD_BREAKDOWN)).toBe(true);
+    expect(getCanonicalSupportModuleId(FEATURES.ADHD_SOUNDS)).toBe("support.soundscapes");
+    expect(resolveEnabledFeatures({ enabledModules: ["support.soundscapes"] }).has(FEATURES.ADHD_SOUNDS)).toBe(true);
   });
 
   it.each([

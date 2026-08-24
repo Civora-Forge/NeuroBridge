@@ -37,6 +37,7 @@ import VisualTimeline from "./pages/adhd/VisualTimeline";
 import TaskBreakdown from "./pages/adhd/TaskBreakdown";
 import FocusSessions from "./pages/adhd/FocusSessions";
 import BodyDoubling from "./pages/adhd/BodyDoubling";
+import Soundscapes from "./pages/adhd/SoundScapes";
 
 import DyslexiaDashboard from "./pages/dyslexia/DyslexiaDashboard";
 import AdaptiveReadingModule from "./pages/dyslexia/AdaptiveReadingModule";
@@ -210,6 +211,14 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.ADHD_EMOTION}>
               <EmotionCoach />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adhd/soundscapes"
+          element={
+            <ProtectedRoute feature={FEATURES.ADHD_SOUNDS}>
+              <Soundscapes />
             </ProtectedRoute>
           }
         />
