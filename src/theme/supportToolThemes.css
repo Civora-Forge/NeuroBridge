@@ -191,6 +191,58 @@ html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support
   transition-duration: 0.01ms !important;
 }
 
+/* ── Sensory Settings: data-sensory-* attribute overrides ── */
+
+/* Visual Intensity: Simple — maximum desaturation, no shadows, no gradients */
+[data-sensory-visual-intensity="simple"] [data-support-theme="asd_social"] .support-tool-page,
+[data-sensory-visual-intensity="simple"] [data-support-theme="anxiety_calm"] .support-tool-page {
+  filter: grayscale(0.4) saturate(0.5);
+}
+[data-sensory-visual-intensity="simple"] [data-support-theme="asd_social"] .support-tool-page [class*="shadow"],
+[data-sensory-visual-intensity="simple"] [data-support-theme="anxiety_calm"] .support-tool-page [class*="shadow"] {
+  box-shadow: none !important;
+}
+[data-sensory-visual-intensity="simple"] [data-support-theme="asd_social"] .support-tool-page [class*="bg-gradient"],
+[data-sensory-visual-intensity="simple"] [data-support-theme="anxiety_calm"] .support-tool-page [class*="bg-gradient"] {
+  background-image: none !important;
+}
+
+/* Visual Intensity: Comfortable — default, no filter changes needed */
+/* Visual Intensity: Expressive — slightly enhanced saturation */
+[data-sensory-visual-intensity="expressive"] [data-support-theme="asd_social"] .support-tool-page,
+[data-sensory-visual-intensity="expressive"] [data-support-theme="anxiety_calm"] .support-tool-page {
+  filter: saturate(1.1);
+}
+
+/* Animation: Off — kill all animations and transitions */
+[data-sensory-animation="off"] [data-support-theme="asd_social"] .support-tool-page *,
+[data-sensory-animation="off"] [data-support-theme="asd_social"] .support-tool-page *::before,
+[data-sensory-animation="off"] [data-support-theme="asd_social"] .support-tool-page *::after,
+[data-sensory-animation="off"] [data-support-theme="anxiety_calm"] .support-tool-page *,
+[data-sensory-animation="off"] [data-support-theme="anxiety_calm"] .support-tool-page *::before,
+[data-sensory-animation="off"] [data-support-theme="anxiety_calm"] .support-tool-page *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Animation: Reduced — slower, subtler transitions */
+[data-sensory-animation="reduced"] [data-support-theme="asd_social"] .support-tool-page *,
+[data-sensory-animation="reduced"] [data-support-theme="anxiety_calm"] .support-tool-page * {
+  transition-duration: 0.4s !important;
+  animation-duration: 0.6s !important;
+}
+
+/* Density: Simple — larger touch targets, more whitespace */
+[data-sensory-density="simple"] [data-support-theme="asd_social"] .support-tool-page,
+[data-sensory-density="simple"] [data-support-theme="anxiety_calm"] .support-tool-page {
+  gap: 16px !important;
+}
+[data-sensory-density="simple"] [data-support-theme="asd_social"] .support-tool-page [class*="rounded"],
+[data-sensory-density="simple"] [data-support-theme="anxiety_calm"] .support-tool-page [class*="rounded"] {
+  min-height: 48px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-support-theme] .support-tool-page *,
   [data-support-theme] .support-tool-page *::before,

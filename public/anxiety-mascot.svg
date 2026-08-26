@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 170" fill="none">
+  <!-- Anxiety Mascot: Gentle crescent moon with star friends -->
+  <!-- Shadow -->
+  <ellipse cx="120" cy="155" rx="80" ry="8" fill="#C7D2FE" opacity=".5"/>
+  <!-- Moon body (crescent via two overlapping circles) -->
+  <circle cx="110" cy="80" r="55" fill="#E0E7FF" stroke="#A5B4FC" stroke-width="3"/>
+  <circle cx="135" cy="68" r="42" fill="#F0F4FF"/>
+  <!-- Moon face fill -->
+  <circle cx="110" cy="80" r="52" fill="#E8EDFA"/>
+  <!-- Eyes (sleepy/peaceful) -->
+  <path d="M90 76c3-4 8-4 11 0" stroke="#3730A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M112 73c3-4 8-4 11 0" stroke="#3730A3" stroke-width="3" stroke-linecap="round"/>
+  <!-- Peaceful smile -->
+  <path d="M97 92c4 5 12 5 16 0" stroke="#3730A3" stroke-width="3" stroke-linecap="round"/>
+  <!-- Blush cheeks -->
+  <ellipse cx="87" cy="88" rx="7" ry="4.5" fill="#FFB5B5" opacity=".55"/>
+  <ellipse cx="128" cy="85" rx="7" ry="4.5" fill="#FFB5B5" opacity=".55"/>
+  <!-- Small star friend (top right) -->
+  <polygon points="190,35 194,48 208,48 197,56 201,69 190,61 179,69 183,56 172,48 186,48" fill="#FFD580" stroke="#FFB300" stroke-width="2"/>
+  <!-- Star face -->
+  <circle cx="187" cy="52" r="1.5" fill="#5D4037"/>
+  <circle cx="193" cy="52" r="1.5" fill="#5D4037"/>
+  <path d="M188 56c1.5 2 4.5 2 6 0" stroke="#5D4037" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Tiny star (top left) -->
+  <polygon points="50,30 52,37 59,37 54,41 56,48 50,44 44,48 46,41 41,37 48,37" fill="#C7D2FE" stroke="#A5B4FC" stroke-width="1.5"/>
+  <!-- Sparkle decorations -->
+  <g transform="translate(210,80) scale(0.8)">
+    <line x1="0" y1="-7" x2="0" y2="7" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-7" y1="0" x2="7" y2="0" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(45,75) scale(0.6)">
+    <line x1="0" y1="-6" x2="0" y2="6" stroke="#FFD580" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-6" y1="0" x2="6" y2="0" stroke="#FFD580" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <!-- Small cloud puffs around moon -->
+  <ellipse cx="55" cy="110" rx="18" ry="8" fill="#E8EDFA" opacity=".6"/>
+  <ellipse cx="175" cy="105" rx="15" ry="7" fill="#E8EDFA" opacity=".5"/>
+  <!-- Small heart -->
+  <path d="M215 58c-2-5-8-6-10-2-2-4-8-4-10-1 0 6 10 11 10 11s10-5 10-11Z" fill="#FFB5B5" opacity=".6"/>
+</svg>
