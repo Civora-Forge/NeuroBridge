@@ -2,7 +2,7 @@ import { BookOpen, Activity, Mic, PenTool, User } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const tools = [
-  { to: "/dyslexia/adaptive-reading",  icon: BookOpen,    title: "Adaptive Reading",     desc: "Guided reading with adaptive pacing and support." },
+  { to: "/dyslexia/adaptive-reading",  icon: BookOpen,    title: "Adaptive Reading Module",desc: "OpenDyslexic reader with TTS, focus mode, reading ruler, and full accessibility controls." },
   { to: "/dyslexia/phonology",         icon: Mic,         title: "Phonology Trainer",     desc: "Decode sounds and strengthen phonological skills." },
   { to: "/dyslexia/reinforcement",     icon: Activity,    title: "Multi-Sensory Learning",desc: "Reinforce literacy with multi-sensory cues." },
   { to: "/dyslexia/writing-assistant", icon: PenTool,     title: "Writing Assistant",     desc: "Structured writing support with real-time feedback." },

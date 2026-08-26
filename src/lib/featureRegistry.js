@@ -348,6 +348,12 @@ export function resolveEnabledFeatures(input) {
       }
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
+        if (moduleId.includes(".")) {
+          const rootModule = moduleId.split(".")[0];
+          if (FEATURE_REGISTRY[rootModule]) {
+            enabled.add(rootModule);
+          }
+        }
       }
     }
 
