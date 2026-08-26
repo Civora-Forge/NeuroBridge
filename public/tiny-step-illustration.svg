@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 230" fill="none">
+  <defs>
+    <linearGradient id="hill" x1="165" y1="82" x2="165" y2="231" gradientUnits="userSpaceOnUse"><stop stop-color="#DDE69C"/><stop offset="1" stop-color="#C6D174"/></linearGradient>
+    <radialGradient id="face" cx="0" cy="0" r="1" gradientTransform="matrix(47 0 0 47 182 139)" gradientUnits="userSpaceOnUse"><stop stop-color="#FFEC83"/><stop offset="1" stop-color="#FFC94B"/></radialGradient>
+  </defs>
+  <path d="M-26 229C-16 137 49 94 126 103c53 6 78 34 118 24 46-12 73-56 113-29v131H-26Z" fill="url(#hill)"/>
+  <path d="M58 176v-38" stroke="#63834C" stroke-width="4" stroke-linecap="round"/><path d="M57 151c-15-21-31-15-36-3 15 12 29 8 36 3Z" fill="#7DA45E"/><path d="M59 146c11-21 28-20 35-9-11 15-27 14-35 9Z" fill="#91B56C"/>
+  <path d="M181 177c-26 0-46-18-46-42 0-25 20-45 46-45s46 20 46 45c0 24-20 42-46 42Z" fill="url(#face)"/><path d="M153 145l-21 12M209 145l22 12" stroke="#75623B" stroke-width="3" stroke-linecap="round"/><circle cx="166" cy="126" r="2.8" fill="#63522E"/><circle cx="196" cy="126" r="2.8" fill="#63522E"/><path d="M173 143c5 5 12 5 17 0" stroke="#63522E" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="m110 88 3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7ZM96 115l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z" fill="#E9B83B"/>
+  <g fill="#A4583E" font-family="cursive" font-size="14" font-style="italic" font-weight="600"><text x="232" y="55">small steps</text><text x="232" y="73">still move you</text><text x="232" y="91">forward</text></g>
+  <path d="M251 102c-8 8-13 18-13 29 0 4-3 7-7 7" stroke="#B98473" stroke-width="2" stroke-linecap="round"/><path d="m227 134 4 4-5 2" stroke="#B98473" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
