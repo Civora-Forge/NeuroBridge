@@ -289,6 +289,12 @@ export function resolveEnabledFeatures(input) {
     for (const moduleId of explicitModules) {
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
+        if (moduleId.includes(".")) {
+          const rootModule = moduleId.split(".")[0];
+          if (FEATURE_REGISTRY[rootModule]) {
+            enabled.add(rootModule);
+          }
+        }
       }
     }
 

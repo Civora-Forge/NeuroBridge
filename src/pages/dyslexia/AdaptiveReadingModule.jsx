@@ -29,6 +29,13 @@ import {
   Sparkles,
   Type,
   Volume2,
+  Loader2,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Upload,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,9 +69,38 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import {
+  uploadAndProcessReadingFile,
+  fetchUserReadingHistory,
+  getReadingFileById,
+  deleteReadingFile,
+  updateReadingFileProgress,
+} from "@/lib/readingFilesService";
+import {
+  extractTextFromFile,
+  extractTextFromImage,
+  extractTextFromImages,
+  formatTextToParagraphs,
+} from "@/lib/textExtractor";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Ephemeral Document Store (In-Memory)
+───────────────────────────────────────────────────────────────────────────── */
+const EPHEMERAL_DOCS = new Map();
+
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Constants & Data
@@ -772,11 +808,318 @@ function TTSPlayer({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Processing & Scan Modals
+───────────────────────────────────────────────────────────────────────────── */
+function ProcessingOverlay({ processingState, error, onRetry, onClose }) {
+  if (!processingState && !error) return null;
+
+  return (
+    <Dialog open={true} onOpenChange={() => (error ? onClose() : null)}>
+      <DialogContent className="sm:max-w-md rounded-3xl p-6 text-center">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-slate-900">
+            {error ? "Extraction Error" : "Processing Document"}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">
+            {error
+              ? "We couldn't read text from the provided file or image."
+              : processingState?.message || "Extracting readable text..."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="my-6 flex flex-col items-center justify-center gap-3">
+          {error ? (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <AlertCircle className="h-8 w-8" />
+            </div>
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          )}
+          <p className="text-sm font-medium text-slate-700">
+            {error || processingState?.message}
+          </p>
+          {processingState?.page && processingState?.total && (
+            <p className="text-xs text-slate-500">
+              Page {processingState.page} of {processingState.total}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="sm:justify-center">
+          {error ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose} className="rounded-xl">
+                Close
+              </Button>
+              {onRetry && (
+                <Button onClick={onRetry} className="rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                  Try Again
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ScanPagesModal({ open, onOpenChange, onStartScan, isProcessing }) {
+  const [files, setFiles] = useState([]);
+  const inputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    if (e.target.files?.length) {
+      setFiles((prev) => [...prev, ...Array.from(e.target.files)]);
+    }
+  };
+
+  const removeFile = (idx) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleScan = () => {
+    if (files.length > 0) {
+      onStartScan(files);
+      setFiles([]);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg rounded-3xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-slate-900">
+            Scan Pages (Multi-Page OCR)
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">
+            Select or capture multiple pages. We will extract text page-by-page using Gemini OCR and combine them.
+          </DialogDescription>
+        </DialogHeader>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        <div className="my-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-700">
+              Captured Pages ({files.length})
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              className="rounded-xl border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Add Pages
+            </Button>
+          </div>
+
+          {files.length === 0 ? (
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              <ImagePlus className="mb-2 h-10 w-10 text-slate-400" />
+              <p className="text-sm font-medium text-slate-700">
+                No pages added yet
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Click here to choose multiple photos or page scans
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto p-1">
+              {files.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="group relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+                >
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Page ${idx + 1}`}
+                    className="h-20 w-full object-cover rounded-lg"
+                  />
+                  <span className="mt-1 text-[11px] font-medium text-slate-600 truncate w-full text-center">
+                    Page {idx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    className="absolute right-1 top-1 rounded-full bg-slate-900/80 p-1 text-white opacity-0 transition group-hover:opacity-100 hover:bg-rose-600"
+                    aria-label="Remove page"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="rounded-xl"
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={files.length === 0 || isProcessing}
+            onClick={handleScan}
+            className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Scanning...
+              </>
+            ) : (
+              `Start Scanning (${files.length} ${files.length === 1 ? "Page" : "Pages"})`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Home Screen
 ───────────────────────────────────────────────────────────────────────────── */
 function HomeScreen({ onOpenDoc }) {
-  const recents = useMemo(() => lsGet(STORAGE_KEY_RECENTS, FALLBACK_RECENTS), []);
+  const { user } = useAuth();
+  const [historyItems, setHistoryItems] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [activeNav, setActiveNav] = useState("home");
+
+  /* Processing & Modal state */
+  const [processingState, setProcessingState] = useState(null);
+  const [processingError, setProcessingError] = useState(null);
+  const [scanPagesOpen, setScanPagesOpen] = useState(false);
+  const [lastFileAction, setLastFileAction] = useState(null);
+
+  /* Hidden file input references */
+  const filesInputRef = useRef(null);
+  const scanTextInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+
+  const loadHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    try {
+      const items = await fetchUserReadingHistory(user);
+      setHistoryItems(items);
+    } catch (err) {
+      console.warn("Failed to fetch reading history:", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const openReadingRecord = (record) => {
+    if (record.ocr_text) {
+      const paragraphs = formatTextToParagraphs(record.ocr_text);
+      const totalWords = paragraphs.join(" ").split(/\s+/).filter(Boolean).length;
+      const estimatedMinutes = Math.max(1, Math.ceil(totalWords / 150));
+
+      EPHEMERAL_DOCS.set(record.id, {
+        id: record.id,
+        title: record.file_name,
+        sourceLabel: record.source,
+        thumb: record.preview_url || "from-amber-200 via-rose-200 to-sky-200",
+        preview_url: record.preview_url,
+        estimatedMinutes,
+        paragraphs,
+        record,
+      });
+    }
+    onOpenDoc(record.id);
+  };
+
+  const handleProcessAndStore = async (fileOrFiles, source) => {
+    setProcessingError(null);
+    setProcessingState({ stage: "uploading", message: "Saving document to Supabase..." });
+    const isArray = Array.isArray(fileOrFiles);
+
+    try {
+      const record = await uploadAndProcessReadingFile({
+        user,
+        file: isArray ? null : fileOrFiles,
+        files: isArray ? fileOrFiles : [],
+        source,
+        onProgress: (st) => setProcessingState(st),
+      });
+
+      setProcessingState(null);
+      await loadHistory();
+      openReadingRecord(record);
+    } catch (err) {
+      setProcessingState(null);
+      setProcessingError(err.message || "Failed to process and store document.");
+    }
+  };
+
+  const handleFromFiles = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLastFileAction(() => () => handleFromFiles({ target: { files: [file] } }));
+    await handleProcessAndStore(file, "files");
+    e.target.value = "";
+  };
+
+  const handleScanText = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLastFileAction(() => () => handleScanText({ target: { files: [file] } }));
+    await handleProcessAndStore(file, "scan-text");
+    e.target.value = "";
+  };
+
+  const handleFromGallery = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLastFileAction(() => () => handleFromGallery({ target: { files: [file] } }));
+    await handleProcessAndStore(file, "gallery");
+    e.target.value = "";
+  };
+
+  const handleScanPages = async (files) => {
+    setScanPagesOpen(false);
+    setLastFileAction(() => () => handleScanPages(files));
+    await handleProcessAndStore(files, "scan-pages");
+  };
+
+  const handleDeleteItem = async (e, docId, storagePath) => {
+    e.stopPropagation();
+    try {
+      setHistoryItems((prev) => prev.filter((item) => item.id !== docId));
+      await deleteReadingFile(docId, storagePath, user);
+    } catch (err) {
+      console.warn("Delete error:", err);
+      loadHistory();
+    }
+  };
+
+  const handleCardClick = (id) => {
+    if (processingState) return;
+    if (id === "files") filesInputRef.current?.click();
+    else if (id === "scan-text") scanTextInputRef.current?.click();
+    else if (id === "scan-pages") setScanPagesOpen(true);
+    else if (id === "gallery") galleryInputRef.current?.click();
+  };
 
   const navItems = [
     {
@@ -817,6 +1160,8 @@ function HomeScreen({ onOpenDoc }) {
       },
     },
   ];
+
+  const recentsList = historyItems.length > 0 ? historyItems : FALLBACK_RECENTS;
 
   return (
     <div
@@ -895,7 +1240,7 @@ function HomeScreen({ onOpenDoc }) {
           </div>
         </motion.header>
 
-        {/* ── Continue Reading ── */}
+        {/* ── Continue Reading (History) ── */}
         <section id="arm-history" className="scroll-mt-24 space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -903,87 +1248,138 @@ function HomeScreen({ onOpenDoc }) {
                 Continue Reading
               </h2>
               <p className="text-sm text-slate-600">
-                Pick up where you left off.
+                Pick up where you left off. Every scanned and uploaded document is stored persistently.
               </p>
             </div>
             <Badge
               variant="secondary"
               className="rounded-full px-3 text-slate-700"
             >
-              {recents.length} documents
+              {historyItems.length > 0 ? `${historyItems.length} stored` : `${recentsList.length} items`}
             </Badge>
           </div>
 
-          <Carousel className="w-full">
-            <CarouselContent>
-              {recents.map((doc, i) => (
-                <CarouselItem
-                  key={doc.id}
-                  className="basis-[86%] md:basis-1/2 xl:basis-1/3"
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18, delay: i * 0.04 }}
-                    className="h-full"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onOpenDoc(doc.id)}
-                      className="group block h-full w-full text-left"
-                      aria-label={`Open ${doc.title}, ${doc.progress}% complete`}
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center py-12 bg-white/60 rounded-3xl border border-black/5">
+              <Loader2 className="h-6 w-6 animate-spin text-amber-600 mr-2" />
+              <span className="text-sm font-medium text-slate-600">Loading reading history...</span>
+            </div>
+          ) : recentsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 bg-white/80 rounded-3xl border border-dashed border-slate-300 text-center">
+              <History className="h-10 w-10 text-slate-400 mb-2" />
+              <h3 className="text-base font-bold text-slate-800">No reading history yet</h3>
+              <p className="text-xs text-slate-500 max-w-sm mt-1">
+                Upload a document or scan a page above to automatically save your files here.
+              </p>
+            </div>
+          ) : (
+            <Carousel className="w-full">
+              <CarouselContent>
+                {recentsList.map((doc, i) => {
+                  const docTitle = doc.file_name || doc.title || "Untitled Document";
+                  const docProgress = doc.metadata?.progress ?? doc.progress ?? 0;
+                  const docSource = doc.source || doc.sourceLabel || "Files";
+                  const docStatus = doc.ocr_status || "completed";
+                  const isImagePreview = doc.preview_url;
+
+                  return (
+                    <CarouselItem
+                      key={doc.id || i}
+                      className="basis-[86%] md:basis-1/2 xl:basis-1/3"
                     >
-                      <Card className="h-full overflow-hidden border-white/60 bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_24px_50px_rgba(15,23,42,0.10)]">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18, delay: i * 0.04 }}
+                        className="h-full"
+                      >
                         <div
-                          className={cn(
-                            "relative h-36 bg-gradient-to-br",
-                            doc.thumb,
-                          )}
+                          onClick={() => {
+                            if (doc.ocr_text || doc.paragraphs) {
+                              openReadingRecord(doc);
+                            } else {
+                              onOpenDoc(doc.id);
+                            }
+                          }}
+                          className="group relative block h-full w-full text-left cursor-pointer"
                         >
-                          <div className="absolute right-3 top-3">
-                            <ProgressRing progress={doc.progress} />
-                          </div>
+                          <Card className="h-full overflow-hidden border-white/60 bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_24px_50px_rgba(15,23,42,0.10)]">
+                            <div className="relative h-36 bg-gradient-to-br from-amber-100 via-yellow-100 to-sky-100 overflow-hidden">
+                              {isImagePreview ? (
+                                <img
+                                  src={doc.preview_url}
+                                  alt={docTitle}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className={cn("h-full w-full bg-gradient-to-br", doc.thumb || "from-amber-200 via-rose-200 to-sky-200")} />
+                              )}
+                              <div className="absolute right-3 top-3 flex items-center gap-2">
+                                <ProgressRing progress={docProgress} />
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteItem(e, doc.id, doc.storage_path)}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/80 text-white backdrop-blur transition hover:bg-rose-600"
+                                  title="Delete from History"
+                                  aria-label={`Delete ${docTitle}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <CardHeader className="space-y-2 pb-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <CardTitle className="text-base leading-snug text-slate-900 truncate">
+                                  {docTitle}
+                                </CardTitle>
+                                <Badge className="shrink-0 rounded-full bg-white text-xs text-slate-700 hover:bg-white">
+                                  {doc.page_count ? `${doc.page_count} pg` : doc.tag || "Saved"}
+                                </Badge>
+                              </div>
+                              <CardDescription className="flex items-center gap-1 text-xs">
+                                <Clock3 className="h-3 w-3" />{" "}
+                                {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : doc.timestamp || "Recent"} ·{" "}
+                                <span className="capitalize">{docSource}</span>
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2 pt-0">
+                              <div className="flex items-center justify-between text-xs text-slate-500">
+                                <span>Status</span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] uppercase font-bold",
+                                    docStatus === "completed" && "border-emerald-300 bg-emerald-50 text-emerald-800",
+                                    docStatus === "processing" && "border-amber-300 bg-amber-50 text-amber-800",
+                                    docStatus === "failed" && "border-rose-300 bg-rose-50 text-rose-800",
+                                  )}
+                                >
+                                  {docStatus}
+                                </Badge>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-black/5">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400"
+                                  style={{
+                                    width: `${docProgress}%`,
+                                    transition: "width 0.4s ease",
+                                  }}
+                                />
+                              </div>
+                            </CardContent>
+                            <CardFooter className="justify-between pt-0 text-xs font-medium text-slate-700">
+                              <span>Open in reader</span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                            </CardFooter>
+                          </Card>
                         </div>
-                        <CardHeader className="space-y-2 pb-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <CardTitle className="text-base leading-snug text-slate-900">
-                              {doc.title}
-                            </CardTitle>
-                            <Badge className="shrink-0 rounded-full bg-white text-xs text-slate-700 hover:bg-white">
-                              {doc.tag}
-                            </Badge>
-                          </div>
-                          <CardDescription className="flex items-center gap-1 text-xs">
-                            <Clock3 className="h-3 w-3" /> {doc.timestamp} ·{" "}
-                            {doc.source}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-2 pt-0">
-                          <div className="flex items-center justify-between text-xs text-slate-500">
-                            <span>Progress</span>
-                            <span>{doc.progress}%</span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-black/5">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400"
-                              style={{
-                                width: `${doc.progress}%`,
-                                transition: "width 0.4s ease",
-                              }}
-                            />
-                          </div>
-                        </CardContent>
-                        <CardFooter className="justify-between pt-0 text-xs font-medium text-slate-700">
-                          <span>Open in reader</span>
-                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                        </CardFooter>
-                      </Card>
-                    </button>
-                  </motion.div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-          </Carousel>
+                      </motion.div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+            </Carousel>
+          )}
         </section>
 
         {/* ── Start Reading ── */}
@@ -1010,8 +1406,9 @@ function HomeScreen({ onOpenDoc }) {
                 >
                   <button
                     type="button"
-                    onClick={() => onOpenDoc(opt.docId)}
-                    className="group h-full w-full text-left focus-visible:ring-2 focus-visible:ring-slate-900/30 focus-visible:outline-none"
+                    disabled={processingState !== null}
+                    onClick={() => handleCardClick(opt.id)}
+                    className="group h-full w-full text-left focus-visible:ring-2 focus-visible:ring-slate-900/30 focus-visible:outline-none disabled:opacity-60"
                     aria-label={`Open reader from: ${opt.title}`}
                   >
                     <Card
@@ -1130,6 +1527,49 @@ function HomeScreen({ onOpenDoc }) {
           );
         })}
       </nav>
+
+      {/* Hidden File Inputs for Start Reading Cards */}
+      <input
+        ref={filesInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.txt"
+        className="hidden"
+        onChange={handleFromFiles}
+      />
+      <input
+        ref={scanTextInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleScanText}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFromGallery}
+      />
+
+      {/* Multi-Page Scan Modal */}
+      <ScanPagesModal
+        open={scanPagesOpen}
+        onOpenChange={setScanPagesOpen}
+        onStartScan={handleScanPages}
+        isProcessing={processingState !== null}
+      />
+
+      {/* Processing Overlay Dialog */}
+      <ProcessingOverlay
+        processingState={processingState}
+        error={processingError}
+        onRetry={lastFileAction}
+        onClose={() => {
+          setProcessingError(null);
+          setProcessingState(null);
+        }}
+      />
     </div>
   );
 }
@@ -1138,7 +1578,47 @@ function HomeScreen({ onOpenDoc }) {
    Reader Screen
 ───────────────────────────────────────────────────────────────────────────── */
 function ReaderScreen({ docId, onBack }) {
-  const doc = READING_LIBRARY[docId] || READING_LIBRARY["moonlight-rail"];
+  const { user } = useAuth();
+  const [docState, setDocState] = useState(() => {
+    return (
+      EPHEMERAL_DOCS.get(docId) ||
+      READING_LIBRARY[docId] ||
+      READING_LIBRARY["moonlight-rail"]
+    );
+  });
+
+  useEffect(() => {
+    if (!docId) return;
+    if (EPHEMERAL_DOCS.has(docId)) {
+      setDocState(EPHEMERAL_DOCS.get(docId));
+      return;
+    }
+    if (READING_LIBRARY[docId]) {
+      setDocState(READING_LIBRARY[docId]);
+      return;
+    }
+    // Fetch persistent document record from Supabase / service by ID
+    getReadingFileById(docId, user).then((rec) => {
+      if (rec && rec.ocr_text) {
+        const paragraphs = formatTextToParagraphs(rec.ocr_text);
+        const totalWords = paragraphs.join(" ").split(/\s+/).filter(Boolean).length;
+        const loaded = {
+          id: rec.id,
+          title: rec.file_name,
+          sourceLabel: rec.source,
+          thumb: rec.preview_url || "from-amber-200 via-rose-200 to-sky-200",
+          preview_url: rec.preview_url,
+          estimatedMinutes: Math.max(1, Math.ceil(totalWords / 150)),
+          paragraphs,
+          record: rec,
+        };
+        EPHEMERAL_DOCS.set(rec.id, loaded);
+        setDocState(loaded);
+      }
+    });
+  }, [docId, user]);
+
+  const doc = docState;
 
   /* Prefs — persisted to localStorage */
   const [prefs, setPrefsState] = useState(() =>
@@ -1156,7 +1636,7 @@ function ReaderScreen({ docId, onBack }) {
   /* Build structured paragraphs with global word indices */
   const structuredParagraphs = useMemo(() => {
     let idx = 0;
-    return doc.paragraphs.map((para) => {
+    return (doc?.paragraphs || []).map((para) => {
       const words = para.match(/\S+/g) || [];
       const start = idx;
       idx += words.length;
@@ -1170,11 +1650,13 @@ function ReaderScreen({ docId, onBack }) {
   );
   const totalWords = allWords.length;
 
-  /* Reading position — restored from localStorage */
+  /* Reading position — restored from localStorage / document metadata */
   const [currentWordIndex, setCurrentWordIndex] = useState(() => {
     const saved = lsGet(`${STORAGE_KEY_PROGRESS}:${docId}`, null);
     if (saved?.wordIndex != null)
       return clamp(saved.wordIndex, 0, Math.max(totalWords - 1, 0));
+    if (doc?.record?.metadata?.currentWordIndex != null)
+      return clamp(doc.record.metadata.currentWordIndex, 0, Math.max(totalWords - 1, 0));
     return 0;
   });
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1183,14 +1665,17 @@ function ReaderScreen({ docId, onBack }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [activePara, setActivePara] = useState(0);
 
-  /* Save progress on unmount */
+  /* Save progress on unmount and position change */
   useEffect(() => {
-    return () => {
-      lsSet(`${STORAGE_KEY_PROGRESS}:${docId}`, {
-        wordIndex: currentWordIndex,
-      });
-    };
-  }, [docId, currentWordIndex]);
+    const progress = totalWords > 1 ? Math.round((currentWordIndex / (totalWords - 1)) * 100) : 0;
+    lsSet(`${STORAGE_KEY_PROGRESS}:${docId}`, {
+      wordIndex: currentWordIndex,
+    });
+    if (docId) {
+      updateReadingFileProgress(docId, progress, currentWordIndex, user);
+    }
+  }, [docId, currentWordIndex, totalWords, user]);
+
 
   /* Sync active paragraph to TTS cursor */
   useEffect(() => {

@@ -140,14 +140,6 @@ export const MODULES_REGISTRY = {
     launchRoute: "/asd/emotion",
     tags: ["emotion_regulation", "social_stress"],
   },
-  "dyslexia.adaptive-reading": {
-    id: "dyslexia.adaptive-reading",
-    title: "Adaptive Reading",
-    description: "Practice guided reading with adaptive pacing.",
-    icon: "Leaf",
-    launchRoute: "/dyslexia/adaptive-reading",
-    tags: ["reading_fatigue", "focus"],
-  },
   [FEATURES.DYSLEXIA_ADAPTIVE_READING]: {
     id: FEATURES.DYSLEXIA_ADAPTIVE_READING,
     title: "Adaptive Reading Module",
@@ -263,7 +255,6 @@ export const CHALLENGE_MODULE_MAP = {
     FEATURES.ASD_EMOTION,
   ],
   dyslexia: [
-    "dyslexia.adaptive-reading",
     FEATURES.DYSLEXIA_ADAPTIVE_READING,
     FEATURES.ADHD_FOCUS,
     FEATURES.ADHD_SOUNDS,

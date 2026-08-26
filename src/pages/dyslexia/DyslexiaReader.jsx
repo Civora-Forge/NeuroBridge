@@ -64,6 +64,9 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { uploadAndProcessReadingFile } from "@/lib/readingFilesService";
+
 
 const RECENT_STORAGE_KEY = "neurobridge-dyslexia-recents";
 const PROGRESS_STORAGE_PREFIX = "neurobridge-dyslexia-progress";
@@ -784,17 +787,32 @@ export default function DyslexiaReader() {
     setSummary(generateSummary(selectedDocument.paragraphs));
   }, [selectedDocument]);
 
-  const handleImport = useCallback((mode) => {
-    return (event) => {
-      const file = event.target.files?.[0];
-      if (!file) {
-        return;
-      }
+  const { user } = useAuth();
 
-      setImportStatus(`${mode} queued: ${file.name}`);
-      event.target.value = "";
-    };
-  }, []);
+  const handleImport = useCallback(
+    (mode) => {
+      return async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          return;
+        }
+
+        setImportStatus(`Uploading ${file.name} to Supabase...`);
+        try {
+          const rec = await uploadAndProcessReadingFile({
+            user,
+            file,
+            source: mode.toLowerCase().includes("scan") ? "scan-text" : "upload",
+          });
+          setImportStatus(`Saved to History: ${rec.file_name}`);
+        } catch (err) {
+          setImportStatus(`Upload failed: ${err.message || "Error"}`);
+        }
+        event.target.value = "";
+      };
+    },
+    [user],
+  );
 
   const readerStyle = {
     backgroundColor: theme.backgroundColor,
