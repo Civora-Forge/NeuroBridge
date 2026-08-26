@@ -106,7 +106,9 @@ html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support
 
 [data-support-theme="adhd_focus"] .support-tool-page .support-tool-primary,
 [data-support-theme="depression_gentle"] .support-tool-page .support-tool-primary,
-[data-support-theme="depression_reflection"] .support-tool-page .support-tool-primary {
+[data-support-theme="depression_reflection"] .support-tool-page .support-tool-primary,
+[data-support-theme="asd_social"] .support-tool-page .support-tool-primary,
+[data-support-theme="anxiety_calm"] .support-tool-page .support-tool-primary {
   background: var(--tool-primary) !important;
   color: #FFFFFF !important;
 }
@@ -119,6 +121,41 @@ html[data-adhd-reduced-motion="true"] [data-support-theme="adhd_focus"] .support
 
 [data-support-theme]:not([data-support-theme="neutral"]) .support-tool-page .support-tool-muted {
   color: var(--tool-text-muted) !important;
+}
+
+/* ASD: low-stimulation mode — desaturate and reduce visual noise */
+[data-support-theme="asd_social"][data-adhd-low-stimulation="true"] .support-tool-page {
+  background: #E8F5F0 !important;
+  filter: grayscale(0.5) saturate(0.55);
+}
+[data-support-theme="asd_social"][data-adhd-low-stimulation="true"] .support-tool-page [class*="shadow"] {
+  box-shadow: none !important;
+}
+[data-support-theme="asd_social"][data-adhd-low-stimulation="true"] .support-tool-page [class*="bg-gradient"] {
+  background-image: none !important;
+}
+[data-support-theme="asd_social"][data-adhd-reduced-motion="true"] .support-tool-page *,
+[data-support-theme="asd_social"][data-adhd-reduced-motion="true"] .support-tool-page *::before,
+[data-support-theme="asd_social"][data-adhd-reduced-motion="true"] .support-tool-page *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Anxiety: low-stimulation mode — softer tones, reduced contrast */
+[data-support-theme="anxiety_calm"][data-adhd-low-stimulation="true"] .support-tool-page {
+  background: #E8EDFA !important;
+  filter: saturate(0.5) brightness(1.04);
+}
+[data-support-theme="anxiety_calm"][data-adhd-low-stimulation="true"] .support-tool-page [class*="shadow"] {
+  box-shadow: none !important;
+}
+[data-support-theme="anxiety_calm"][data-adhd-reduced-motion="true"] .support-tool-page *,
+[data-support-theme="anxiety_calm"][data-adhd-reduced-motion="true"] .support-tool-page *::before,
+[data-support-theme="anxiety_calm"][data-adhd-reduced-motion="true"] .support-tool-page *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -5,8 +5,8 @@
  */
 
 import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Wind, Sparkles, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Wind, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useContextStateOptional } from "@/context/ContextProvider";
 import { useAuth } from "@/context/AuthContext";
@@ -25,21 +25,12 @@ export default function AmbientAnxietyPrompt() {
 
   const [dismissed, setDismissed] = useState(false);
 
-  const evidenceResult = useMemo(() => {
-    return adaptContextToAnxietyEvidence(snapshot);
-  }, [snapshot]);
-
-  const state = useMemo(() => {
-    return deriveAnxietyState({ contextSnapshot: snapshot });
-  }, [snapshot]);
-
-  const reasoning = useMemo(() => {
-    return reasonAnxietyPattern(state);
-  }, [state]);
+  const evidenceResult = useMemo(() => adaptContextToAnxietyEvidence(snapshot), [snapshot]);
+  const state = useMemo(() => deriveAnxietyState({ contextSnapshot: snapshot }), [snapshot]);
+  const reasoning = useMemo(() => reasonAnxietyPattern(state), [state]);
 
   const recentDismissals = getRecentDismissalCount(userId);
 
-  // Suppress prompt if dismissed, if responseTier < 2, or if user repeatedly dismissed recent prompts
   if (dismissed || reasoning.responseTier < 2 || recentDismissals >= 3) {
     return null;
   }
@@ -55,20 +46,29 @@ export default function AmbientAnxietyPrompt() {
 
   return (
     <div className="fixed bottom-5 right-5 z-40 max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="p-3.5 rounded-2xl border border-primary/30 bg-background/95 backdrop-blur-md shadow-xl flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="p-3.5 rounded-2xl border border-[#C7D2FE] bg-white/95 backdrop-blur-md shadow-[6px_6px_0_#DDE8FC] flex items-start gap-3">
+        <div className="w-8 h-8 rounded-xl bg-[#DDE8FC] text-[#4F6BF6] flex items-center justify-center flex-shrink-0 mt-0.5">
           <Wind size={18} />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <p className="text-xs font-bold text-foreground">Need a quick 1-minute reset?</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">
+          <p className="text-xs font-bold text-[#1E2A5E]">Need a quick 1-minute reset?</p>
+          <p className="text-[11px] text-[#6B7BA8] leading-tight">
             NeuroBridge noticed some tension. A short pause can help recharge focus.
           </p>
           <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" className="h-6 text-xs px-2.5 rounded-lg" onClick={handleAccept}>
+            <Button
+              size="sm"
+              className="h-7 text-xs px-2.5 rounded-lg bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE] font-bold"
+              onClick={handleAccept}
+            >
               Take a Reset
             </Button>
-            <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground" onClick={handleDismiss}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2 text-[#6B7BA8] hover:text-[#4F6BF6]"
+              onClick={handleDismiss}
+            >
               Not now
             </Button>
           </div>
@@ -76,7 +76,7 @@ export default function AmbientAnxietyPrompt() {
         <button
           type="button"
           onClick={handleDismiss}
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded-md"
+          className="text-[#6B7BA8] hover:text-[#4F6BF6] p-0.5 rounded-md"
         >
           <X size={14} />
         </button>
