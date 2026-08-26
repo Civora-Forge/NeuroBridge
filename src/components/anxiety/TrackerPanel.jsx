@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Clock, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ function TrendGraph({ logs }) {
   );
 
   if (!sorted.length) {
-    return <p className="text-sm text-muted-foreground">Add anxiety logs to see trend progression.</p>;
+    return <p className="text-sm text-[#6B7BA8]">Add anxiety logs to see trend progression.</p>;
   }
 
   const width = 620;
@@ -31,19 +31,19 @@ function TrendGraph({ logs }) {
 
   return (
     <div className="space-y-2">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full rounded-xl border bg-background/60 p-2">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full rounded-xl border border-[#C7D2FE] bg-white p-2">
         {[0, 2, 4, 6, 8, 10].map((level) => {
           const y = height - padding - (level / 10) * (height - padding * 2);
           return (
             <g key={level}>
-              <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="hsl(var(--border))" strokeDasharray="4 4" />
-              <text x={10} y={y + 4} fontSize="10" fill="hsl(var(--muted-foreground))">{level}</text>
+              <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="#C7D2FE" strokeDasharray="4 4" />
+              <text x={10} y={y + 4} fontSize="10" fill="#6B7BA8">{level}</text>
             </g>
           );
         })}
-        <polyline fill="none" stroke="hsl(var(--primary))" strokeWidth="3" points={points} />
+        <polyline fill="none" stroke="#4F6BF6" strokeWidth="3" points={points} strokeLinejoin="round" strokeLinecap="round" />
       </svg>
-      <p className="text-xs text-muted-foreground">Showing recent {sorted.length} anxiety entries</p>
+      <p className="text-xs text-[#6B7BA8]">Showing recent {sorted.length} anxiety entries</p>
     </div>
   );
 }
@@ -61,16 +61,24 @@ export default function TrackerPanel({
   onAddLog,
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><BarChart3 size={18} /> Real-Time Anxiety Tracker</CardTitle>
-        <CardDescription>Log anxiety level, triggers, location, and timestamp with local persistence.</CardDescription>
+    <Card className="overflow-hidden border-[#C7D2FE] shadow-[4px_4px_0_#DDE8FC]">
+      <div className="h-2 bg-gradient-to-r from-[#4F6BF6] to-[#A5B4FC]" />
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-xl text-[#1E2A5E]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#DDE8FC] text-[#4F6BF6]">
+            <BarChart3 size={18} />
+          </div>
+          Real-Time Anxiety Tracker
+        </CardTitle>
+        <CardDescription className="text-[#6B7BA8]">
+          Log anxiety level, triggers, location, and timestamp with local persistence.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-sm text-muted-foreground">Anxiety Level</label>
-            <Badge variant="outline">{level}/10</Badge>
+            <label className="text-sm font-semibold text-[#1E2A5E]">Anxiety Level</label>
+            <Badge variant="outline" className="border-[#C7D2FE] text-[#4F6BF6] font-bold">{level}/10</Badge>
           </div>
           <input
             type="range"
@@ -78,27 +86,65 @@ export default function TrackerPanel({
             max="10"
             value={level}
             onChange={(event) => setLevel(clampLevel(event.target.value))}
-            className="w-full"
+            className="w-full h-2 rounded-full appearance-none bg-[#C7D2FE] accent-[#4F6BF6]"
           />
+          <div className="flex justify-between text-[10px] text-[#6B7BA8]">
+            <span>Calm</span>
+            <span>Intense</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input value={trigger} onChange={(event) => setTrigger(event.target.value)} placeholder="Trigger (required)" />
-          <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location (optional)" />
-          <Input type="datetime-local" value={loggedAt} onChange={(event) => setLoggedAt(event.target.value)} className="md:col-span-2" />
+          <div className="relative">
+            <Input
+              value={trigger}
+              onChange={(event) => setTrigger(event.target.value)}
+              placeholder="What triggered this?"
+              className="border-[#C7D2FE] text-[#1E2A5E] placeholder:text-[#6B7BA8]/60 focus:border-[#4F6BF6]"
+            />
+          </div>
+          <div className="relative">
+            <Input
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="Where are you?"
+              className="border-[#C7D2FE] text-[#1E2A5E] placeholder:text-[#6B7BA8]/60 focus:border-[#4F6BF6]"
+            />
+          </div>
+          <Input
+            type="datetime-local"
+            value={loggedAt}
+            onChange={(event) => setLoggedAt(event.target.value)}
+            className="md:col-span-2 border-[#C7D2FE] text-[#1E2A5E] focus:border-[#4F6BF6]"
+          />
         </div>
 
-        <Button onClick={onAddLog}>Add Anxiety Log</Button>
+        <Button
+          onClick={onAddLog}
+          className="w-full bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE] font-bold"
+        >
+          Add Anxiety Log
+        </Button>
+
         <TrendGraph logs={logs} />
 
         <div className="max-h-72 overflow-auto space-y-2 pr-1">
-          {logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
+          {logs.length === 0 && <p className="text-sm text-[#6B7BA8]">No logs yet.</p>}
           {logs.map((entry) => (
-            <article key={entry.id} className="rounded-xl border p-3 bg-background/40 text-sm">
-              <p className="font-medium">Level {entry.level}/10 · {getTimeWindow(entry.loggedAt)}</p>
-              <p className="text-muted-foreground mt-1">Trigger: {entry.trigger}</p>
-              <p className="text-muted-foreground">Location: {entry.location}</p>
-              <p className="text-xs text-muted-foreground mt-1">{new Date(entry.loggedAt).toLocaleString()}</p>
+            <article key={entry.id} className="rounded-xl border border-[#C7D2FE] bg-white p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-[#1E2A5E]">Level {entry.level}/10</p>
+                <Badge variant="outline" className="text-[10px] border-[#C7D2FE] text-[#6B7BA8]">
+                  {getTimeWindow(entry.loggedAt)}
+                </Badge>
+              </div>
+              <p className="text-[#6B7BA8] mt-1 flex items-center gap-1">
+                <MapPin size={12} className="text-[#4F6BF6]" /> {entry.trigger}
+              </p>
+              {entry.location && (
+                <p className="text-[#6B7BA8] text-xs">📍 {entry.location}</p>
+              )}
+              <p className="text-[10px] text-[#6B7BA8]/70 mt-1">{new Date(entry.loggedAt).toLocaleString()}</p>
             </article>
           ))}
         </div>

@@ -17,6 +17,18 @@ export const SUPPORT_TOOL_THEMES = {
     text: "#173D26", textMuted: "#466B50", border: "#BDECC8",
     focusRing: "#15803D", success: "#15803D", warning: "#946200", danger: "#B42318",
   },
+  asd_social: {
+    background: "#F0FAF7", surface: "#FFFFFF", surfaceStrong: "#D5F5EC",
+    primary: "#0D9488", primaryHover: "#0F766E", accent: "#5EEAD4",
+    text: "#134E4A", textMuted: "#5F8A87", border: "#B2DFDB",
+    focusRing: "#0D9488", success: "#10B981", warning: "#F59E0B", danger: "#EF4444",
+  },
+  anxiety_calm: {
+    background: "#F0F4FF", surface: "#FFFFFF", surfaceStrong: "#DDE8FC",
+    primary: "#4F6BF6", primaryHover: "#3B51D4", accent: "#A5B4FC",
+    text: "#1E2A5E", textMuted: "#6B7BA8", border: "#C7D2FE",
+    focusRing: "#4F6BF6", success: "#34D399", warning: "#FBBF24", danger: "#F87171",
+  },
 };
 
 export const SUPPORT_TOOL_THEME_BY_MODULE = {
@@ -30,6 +42,23 @@ export const SUPPORT_TOOL_THEME_BY_MODULE = {
   "support.social_connection": "depression_gentle",
   "support.cognitive_reframing": "depression_reflection",
   "support.evidence_journal": "depression_reflection",
+  "asd.social-scenarios": "asd_social",
+  "asd.emotion-decoder": "asd_social",
+  "asd.social-stories": "asd_social",
+  "asd.communication": "asd_social",
+  "asd.checkin": "asd_social",
+  "asd.vocabulary": "asd_social",
+  "asd.environment": "asd_social",
+  "asd.schedule-change": "asd_social",
+  "asd.safe-space": "asd_social",
+  "anxiety.breathing": "anxiety_calm",
+  "anxiety.grounding": "anxiety_calm",
+  "anxiety.reframe": "anxiety_calm",
+  "anxiety.micro-action": "anxiety_calm",
+  "anxiety.tracker": "anxiety_calm",
+  "anxiety.analyzer": "anxiety_calm",
+  "anxiety.panic": "anxiety_calm",
+  "anxiety.engine": "anxiety_calm",
 };
 
 export function resolveSupportToolTheme(recommendedTheme, override) {

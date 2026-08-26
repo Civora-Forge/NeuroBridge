@@ -30,42 +30,33 @@ export default function GroundingExecution({ onComplete, onCancel }) {
 
   const handleFinish = () => {
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
-    onComplete?.({
-      durationSeconds,
-      completed: true,
-      stepsCompleted: checkedSteps.length,
-    });
+    onComplete?.({ durationSeconds, completed: true, stepsCompleted: checkedSteps.length });
   };
 
   const handleAbandon = () => {
     const durationSeconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
-    onCancel?.({
-      durationSeconds,
-      completed: false,
-      abandoned: true,
-    });
+    onCancel?.({ durationSeconds, completed: false, abandoned: true });
   };
 
   return (
-    <Card className="border-primary/30 shadow-md">
+    <Card className="border-[#C7D2FE] shadow-[6px_6px_0_#DDE8FC] rounded-2xl overflow-hidden">
+      <div className="h-2 bg-gradient-to-r from-[#4F6BF6] to-[#A5B4FC]" />
       <CardHeader className="text-center pb-2">
-        <div className="mx-auto w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 flex items-center justify-center mb-2">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-[#DDE8FC] text-[#4F6BF6] flex items-center justify-center mb-2">
           <ListChecks size={24} />
         </div>
-        <CardTitle className="text-xl">5-4-3-2-1 Sensory Grounding</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-xl text-[#1E2A5E]">5-4-3-2-1 Sensory Grounding</CardTitle>
+        <CardDescription className="text-[#6B7BA8]">
           Engage your five senses sequentially to anchor attention in the physical present.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-1.5">
-          <div className="flex justify-between text-xs text-muted-foreground font-medium">
+          <div className="flex justify-between text-xs text-[#6B7BA8] font-medium">
             <span>Sensory Progress</span>
-            <span>
-              {checkedSteps.length}/{SENSORY_STEPS.length} senses engaged ({progressPercent}%)
-            </span>
+            <span className="text-[#1E2A5E]">{checkedSteps.length}/{SENSORY_STEPS.length} senses ({progressPercent}%)</span>
           </div>
-          <Progress value={progressPercent} />
+          <Progress value={progressPercent} className="h-2 bg-[#C7D2FE] [&>[role=progressbar]]:bg-[#4F6BF6]" />
         </div>
 
         <div className="space-y-2.5">
@@ -76,30 +67,30 @@ export default function GroundingExecution({ onComplete, onCancel }) {
               <div
                 key={step.count}
                 onClick={() => toggleStep(index)}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3 select-none ${
                   isDone
-                    ? "bg-primary/10 border-primary/40 shadow-sm"
-                    : "bg-background/60 hover:bg-background border-border/80"
+                    ? "bg-[#DDE8FC] border-[#4F6BF6] shadow-[2px_2px_0_#C7D2FE]"
+                    : "bg-white border-[#C7D2FE] hover:border-[#4F6BF6] hover:bg-[#F0F4FF]"
                 }`}
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    isDone ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    isDone ? "bg-[#4F6BF6] text-white" : "bg-[#E2E8F0] text-[#6B7BA8]"
                   }`}
                 >
                   <Icon size={16} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <p className={`text-sm font-semibold ${isDone ? "text-primary" : "text-foreground"}`}>
+                    <p className={`text-sm font-semibold ${isDone ? "text-[#4F6BF6]" : "text-[#1E2A5E]"}`}>
                       {step.label}
                     </p>
                     <CheckCircle2
                       size={18}
-                      className={isDone ? "text-primary" : "text-muted-foreground/30"}
+                      className={isDone ? "text-[#4F6BF6]" : "text-[#C7D2FE]"}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{step.hint}</p>
+                  <p className="text-xs text-[#6B7BA8] mt-0.5">{step.hint}</p>
                 </div>
               </div>
             );
@@ -109,6 +100,7 @@ export default function GroundingExecution({ onComplete, onCancel }) {
         <div className="grid grid-cols-2 gap-2 pt-2">
           <Button
             variant="outline"
+            className="border-[#C7D2FE] text-[#6B7BA8] hover:text-[#4F6BF6] hover:border-[#4F6BF6]"
             onClick={handleAbandon}
           >
             Cancel
@@ -116,7 +108,7 @@ export default function GroundingExecution({ onComplete, onCancel }) {
           <Button
             onClick={handleFinish}
             disabled={checkedSteps.length === 0}
-            className="gap-2"
+            className="gap-2 bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE] font-bold"
           >
             <CheckCircle2 size={16} />
             Complete ({checkedSteps.length}/5)

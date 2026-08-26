@@ -1,19 +1,24 @@
 import { Link } from "react-router-dom";
-import SocialScenarioSimulatorCard from "@/components/asd/SocialScenarioSimulatorCard";
 import { ArrowLeft } from "lucide-react";
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
+import SocialScenarioSimulatorCard from "@/components/asd/SocialScenarioSimulatorCard";
 
 export default function ASDSocialScenariosPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-teal-50/20">
-      <div className="mx-auto max-w-4xl px-4 py-6">
+    <SupportToolThemeProvider theme="asd_social">
+      <SupportToolLayout
+        title="Social Scenario Simulator"
+        description="Practise responding to one situation at a time with gentle feedback."
+      >
         <Link
           to="/asd"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-green-600 mb-4"
+          className="inline-flex items-center gap-1.5 text-sm text-[#5F8A87] hover:text-[#0D9488] transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Social & Emotional Support Hub
+          <ArrowLeft className="w-4 h-4" /> Back to Social & Emotional Hub
         </Link>
         <SocialScenarioSimulatorCard />
-      </div>
-    </div>
+      </SupportToolLayout>
+    </SupportToolThemeProvider>
   );
 }

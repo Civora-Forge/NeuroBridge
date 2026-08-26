@@ -29,22 +29,36 @@ function Breathing478Exercise({ autoStartToken = 0, title = "4-7-8 Breathing" })
 
   return (
     <div className="space-y-3">
-      <p className="font-medium">{title}</p>
-      <div className="rounded-xl border bg-background/50 p-4 grid place-items-center">
-        <div className="h-32 w-32 rounded-full border-4 border-primary/40 grid place-items-center transition-all duration-1000" style={{ transform: `scale(${scale})` }}>
+      <p className="font-semibold text-[#1E2A5E]">{title}</p>
+      <div className="rounded-xl border border-[#C7D2FE] bg-[#F0F4FF]/60 p-4 grid place-items-center">
+        <div
+          className="h-32 w-32 rounded-full border-4 border-[#4F6BF6]/40 bg-[#4F6BF6]/5 grid place-items-center transition-all duration-1000 shadow-inner"
+          style={{ transform: `scale(${scale})` }}
+        >
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">{phase}</p>
-            <p className="text-2xl font-bold">{remaining}s</p>
+            <p className="text-sm text-[#6B7BA8]">{phase}</p>
+            <p className="text-2xl font-bold text-[#4F6BF6]">{remaining}s</p>
           </div>
         </div>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Cycle time</span>
-        <span className="font-medium">{formatClock(elapsed)}</span>
+        <span className="text-[#6B7BA8]">Cycle time</span>
+        <span className="font-medium text-[#1E2A5E]">{formatClock(elapsed)}</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={() => setRunning((value) => !value)}>{running ? "Pause" : "Start"}</Button>
-        <Button variant="outline" onClick={() => { setRunning(false); setElapsed(0); }}>Reset</Button>
+        <Button
+          onClick={() => setRunning((value) => !value)}
+          className="bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE]"
+        >
+          {running ? "Pause" : "Start"}
+        </Button>
+        <Button
+          variant="outline"
+          className="border-[#C7D2FE] text-[#6B7BA8] hover:text-[#4F6BF6] hover:border-[#4F6BF6]"
+          onClick={() => { setRunning(false); setElapsed(0); }}
+        >
+          Reset
+        </Button>
       </div>
     </div>
   );
@@ -76,14 +90,31 @@ function BoxBreathingGuide() {
 
   return (
     <div className="space-y-3">
-      <p className="font-medium">Box Breathing</p>
-      <div className="relative mx-auto h-44 w-44 rounded-2xl border-2 border-primary/40 bg-background/60">
-        <div className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary transition-all duration-1000" style={position} />
+      <p className="font-semibold text-[#1E2A5E]">Box Breathing</p>
+      <div className="relative mx-auto h-44 w-44 rounded-2xl border-2 border-[#4F6BF6]/30 bg-[#F0F4FF]/60">
+        <div
+          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4F6BF6] transition-all duration-1000 shadow-md"
+          style={position}
+        />
       </div>
-      <p className="text-center text-sm"><span className="font-semibold">{phase}</span><span className="text-muted-foreground"> · Follow the dot around the square</span></p>
+      <p className="text-center text-sm">
+        <span className="font-semibold text-[#1E2A5E]">{phase}</span>
+        <span className="text-[#6B7BA8]"> · Follow the dot around the square</span>
+      </p>
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={() => setRunning((value) => !value)}>{running ? "Pause" : "Start"}</Button>
-        <Button variant="outline" onClick={() => { setRunning(false); setElapsed(0); }}>Reset</Button>
+        <Button
+          onClick={() => setRunning((value) => !value)}
+          className="bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE]"
+        >
+          {running ? "Pause" : "Start"}
+        </Button>
+        <Button
+          variant="outline"
+          className="border-[#C7D2FE] text-[#6B7BA8] hover:text-[#4F6BF6] hover:border-[#4F6BF6]"
+          onClick={() => { setRunning(false); setElapsed(0); }}
+        >
+          Reset
+        </Button>
       </div>
     </div>
   );
@@ -95,18 +126,33 @@ function GroundingChecklist54321() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Completed {completed}/{GROUNDING_STEPS.length}</p>
-        <Badge variant="secondary">{Math.round((completed / GROUNDING_STEPS.length) * 100)}%</Badge>
+        <p className="text-sm text-[#6B7BA8]">Completed {completed}/{GROUNDING_STEPS.length}</p>
+        <Badge variant="secondary" className="bg-[#DDE8FC] text-[#4F6BF6] border-[#C7D2FE]">{Math.round((completed / GROUNDING_STEPS.length) * 100)}%</Badge>
       </div>
-      <Progress value={(completed / GROUNDING_STEPS.length) * 100} />
+      <Progress value={(completed / GROUNDING_STEPS.length) * 100} className="h-2 bg-[#C7D2FE] [&>[role=progressbar]]:bg-[#4F6BF6]" />
       <div className="space-y-2">
         {GROUNDING_STEPS.map((step, index) => (
-          <Button key={step} variant="outline" className={`w-full justify-start min-h-12 ${checked[index] ? "bg-primary/10 border-primary" : ""}`} onClick={() => setChecked((prev) => prev.map((v, i) => (i === index ? !v : v)))}>
+          <Button
+            key={step}
+            variant="outline"
+            className={`w-full justify-start min-h-12 font-medium border-2 transition-all ${
+              checked[index]
+                ? "bg-[#DDE8FC] border-[#4F6BF6] text-[#1E2A5E]"
+                : "border-[#C7D2FE] bg-white text-[#1E2A5E] hover:border-[#4F6BF6] hover:bg-[#F0F4FF]"
+            }`}
+            onClick={() => setChecked((prev) => prev.map((v, i) => (i === index ? !v : v)))}
+          >
             {step}
           </Button>
         ))}
       </div>
-      <Button variant="outline" className="w-full" onClick={() => setChecked(GROUNDING_STEPS.map(() => false))}>Reset Checklist</Button>
+      <Button
+        variant="outline"
+        className="w-full border-[#C7D2FE] text-[#6B7BA8] hover:text-[#4F6BF6] hover:border-[#4F6BF6]"
+        onClick={() => setChecked(GROUNDING_STEPS.map(() => false))}
+      >
+        Reset Checklist
+      </Button>
     </div>
   );
 }
@@ -118,23 +164,37 @@ function ProgressiveMuscleRelaxation() {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border bg-background/50 p-3 space-y-2">
+      <div className="rounded-xl border border-[#C7D2FE] bg-[#F0F4FF]/60 p-3 space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Current step {currentIndex + 1}/{PMR_STEPS.length}</span>
-          <Badge variant="secondary">{Math.round(completion)}%</Badge>
+          <span className="text-[#6B7BA8]">Current step {currentIndex + 1}/{PMR_STEPS.length}</span>
+          <Badge variant="secondary" className="bg-[#DDE8FC] text-[#4F6BF6] border-[#C7D2FE]">{Math.round(completion)}%</Badge>
         </div>
-        <Progress value={completion} />
-        <p className="font-medium">{PMR_STEPS[currentIndex]}</p>
+        <Progress value={completion} className="h-2 bg-[#C7D2FE] [&>[role=progressbar]]:bg-[#4F6BF6]" />
+        <p className="font-semibold text-[#1E2A5E]">{PMR_STEPS[currentIndex]}</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={() => { setDone((prev) => (prev.includes(currentIndex) ? prev : [...prev, currentIndex])); setCurrentIndex((v) => Math.min(PMR_STEPS.length - 1, v + 1)); }}>
+        <Button
+          className="bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE]"
+          onClick={() => {
+            setDone((prev) => (prev.includes(currentIndex) ? prev : [...prev, currentIndex]));
+            setCurrentIndex((v) => Math.min(PMR_STEPS.length - 1, v + 1));
+          }}
+        >
           Mark and Next
         </Button>
-        <Button variant="outline" onClick={() => { setCurrentIndex(0); setDone([]); }}>Restart</Button>
+        <Button
+          variant="outline"
+          className="border-[#C7D2FE] text-[#6B7BA8] hover:text-[#4F6BF6] hover:border-[#4F6BF6]"
+          onClick={() => { setCurrentIndex(0); setDone([]); }}
+        >
+          Restart
+        </Button>
       </div>
       <div className="space-y-1 text-sm">
         {PMR_STEPS.map((step, index) => (
-          <p key={step} className={done.includes(index) ? "text-primary font-medium" : "text-muted-foreground"}>{index + 1}. {step}</p>
+          <p key={step} className={done.includes(index) ? "text-[#4F6BF6] font-semibold" : "text-[#6B7BA8]"}>
+            {index + 1}. {step}
+          </p>
         ))}
       </div>
     </div>
@@ -143,16 +203,36 @@ function ProgressiveMuscleRelaxation() {
 
 export default function GroundingPanel({ autoBreathingToken }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Wind size={18} /> Guided Grounding System</CardTitle>
-        <CardDescription>4-7-8 breathing, box breathing, 5-4-3-2-1 checklist, and PMR in dedicated modules.</CardDescription>
+    <Card className="overflow-hidden border-[#C7D2FE] shadow-[4px_4px_0_#DDE8FC]">
+      <div className="h-2 bg-gradient-to-r from-[#4F6BF6] to-[#A5B4FC]" />
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-xl text-[#1E2A5E]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#DDE8FC] text-[#4F6BF6]">
+            <Wind size={18} />
+          </div>
+          Guided Grounding System
+        </CardTitle>
+        <CardDescription className="text-[#6B7BA8]">
+          4-7-8 breathing, box breathing, 5-4-3-2-1 checklist, and PMR in dedicated modules.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card><CardHeader><CardTitle className="text-lg">4-7-8 Breathing Animation</CardTitle></CardHeader><CardContent><Breathing478Exercise autoStartToken={autoBreathingToken} /></CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-lg">Box Breathing Guide</CardTitle></CardHeader><CardContent><BoxBreathingGuide /></CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><ListChecks size={16} /> 5-4-3-2-1 Grounding</CardTitle></CardHeader><CardContent><GroundingChecklist54321 /></CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Waves size={16} /> Progressive Muscle Relaxation</CardTitle></CardHeader><CardContent><ProgressiveMuscleRelaxation /></CardContent></Card>
+        <Card className="border-[#C7D2FE] shadow-[2px_2px_0_#DDE8FC]">
+          <CardHeader><CardTitle className="text-lg text-[#1E2A5E]">4-7-8 Breathing Animation</CardTitle></CardHeader>
+          <CardContent><Breathing478Exercise autoStartToken={autoBreathingToken} /></CardContent>
+        </Card>
+        <Card className="border-[#C7D2FE] shadow-[2px_2px_0_#DDE8FC]">
+          <CardHeader><CardTitle className="text-lg text-[#1E2A5E]">Box Breathing Guide</CardTitle></CardHeader>
+          <CardContent><BoxBreathingGuide /></CardContent>
+        </Card>
+        <Card className="border-[#C7D2FE] shadow-[2px_2px_0_#DDE8FC]">
+          <CardHeader><CardTitle className="text-lg text-[#1E2A5E] flex items-center gap-2"><ListChecks size={16} className="text-[#4F6BF6]" /> 5-4-3-2-1 Grounding</CardTitle></CardHeader>
+          <CardContent><GroundingChecklist54321 /></CardContent>
+        </Card>
+        <Card className="border-[#C7D2FE] shadow-[2px_2px_0_#DDE8FC]">
+          <CardHeader><CardTitle className="text-lg text-[#1E2A5E] flex items-center gap-2"><Waves size={16} className="text-[#4F6BF6]" /> Progressive Muscle Relaxation</CardTitle></CardHeader>
+          <CardContent><ProgressiveMuscleRelaxation /></CardContent>
+        </Card>
       </CardContent>
     </Card>
   );

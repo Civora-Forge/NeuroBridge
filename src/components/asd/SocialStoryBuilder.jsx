@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen, ChevronLeft, ChevronRight, Pencil, Play, Plus, Repeat, Trash2, Volume2, VolumeX, X } from "lucide-react";
 
 const STEP_COLORS = [
-  "from-blue-400 to-blue-600",
-  "from-violet-400 to-violet-600",
-  "from-amber-400 to-amber-600",
-  "from-emerald-400 to-emerald-600",
-  "from-pink-400 to-pink-600",
   "from-teal-400 to-teal-600",
-  "from-orange-400 to-orange-600",
+  "from-emerald-400 to-emerald-600",
+  "from-cyan-400 to-cyan-600",
+  "from-green-400 to-green-600",
+  "from-teal-500 to-emerald-500",
+  "from-cyan-500 to-teal-500",
+  "from-emerald-500 to-cyan-500",
 ];
 
 const createEmptyStep = () => ({
@@ -149,10 +149,11 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
   const replayStory = () => setActiveStepIndex(0);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="border-[#B2DFDB] shadow-[6px_6px_0_#B2DFDB] rounded-2xl overflow-hidden">
+      <div className="h-2 bg-gradient-to-r from-[#0D9488] to-[#5EEAD4]" />
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl"><BookOpen size={20} /> Social Story Builder</CardTitle>
-        <CardDescription>Interactive story cards with read-aloud and visual illustrations for each step.</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-xl text-[#134E4A]"><BookOpen size={20} className="text-[#0D9488]" /> Social Story Builder</CardTitle>
+        <CardDescription className="text-[#5F7A75]">Interactive story cards with read-aloud and visual illustrations for each step.</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
@@ -161,7 +162,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-2xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 p-4 space-y-4"
+            className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-4 space-y-4"
           >
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
@@ -173,7 +174,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                   {speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
                   {speaking ? "Stop" : "Read Aloud"}
                 </Button>
-                <Badge variant="secondary">Story Mode</Badge>
+                <Badge variant="secondary" className="bg-[#D1FAE5] text-[#059669]">Story Mode</Badge>
               </div>
             </div>
 
@@ -183,7 +184,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                 <motion.button
                   key={i}
                   onClick={() => setActiveStepIndex(i)}
-                  className={`rounded-full transition-all ${i === activeStepIndex ? "w-6 h-3 bg-blue-500" : i < activeStepIndex ? "w-3 h-3 bg-emerald-400" : "w-3 h-3 bg-muted-foreground/30"}`}
+                  className={`rounded-full transition-all ${i === activeStepIndex ? "w-6 h-3 bg-[#0D9488]" : i < activeStepIndex ? "w-3 h-3 bg-[#34D399]" : "w-3 h-3 bg-[#B2DFDB]"}`}
                   whileHover={{ scale: 1.3 }}
                 />
               ))}
@@ -218,13 +219,13 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                 {/* Step text - tappable */}
                 <motion.div
                   className="p-5 cursor-pointer select-none"
-                  whileTap={{ scale: 0.98, backgroundColor: "rgba(99,102,241,0.06)" }}
+                  whileTap={{ scale: 0.98, backgroundColor: "rgba(13,148,136,0.06)" }}
                   onClick={() => speak(activeStep.text)}
                 >
                   <p className="text-2xl md:text-3xl leading-relaxed font-semibold tracking-wide">
                     {activeStep.text}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">Tap text to hear it again</p>
+                  <p className="text-xs text-[#5F7A75] mt-2">Tap text to hear it again</p>
                 </motion.div>
               </motion.div>
             </AnimatePresence>
@@ -239,7 +240,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                   Next <ChevronRight size={16} />
                 </Button>
               ) : (
-                <Button variant="default" className="gap-1 rounded-xl h-11 bg-emerald-500 hover:bg-emerald-600" onClick={exitStory}>
+                <Button variant="default" className="gap-1 rounded-xl h-11 bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={exitStory}>
                   🎉 Finish!
                 </Button>
               )}
@@ -267,8 +268,8 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
 
         {/* Guardian story builder */}
         {canManageStories && (
-          <div className="rounded-2xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/20 p-4 space-y-3">
-            <p className="font-semibold text-violet-700 dark:text-violet-300">Create New Story</p>
+          <div className="rounded-2xl border-2 border-[#B2DFDB] bg-[#F0FAF7] p-4 space-y-3">
+            <p className="font-semibold text-[#0D9488]">Create New Story</p>
 
             <div className="rounded-xl border bg-background/60 p-3 space-y-2">
               <p className="text-sm font-medium">Quick Task Breakdown</p>
@@ -326,7 +327,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                   layout
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border-2 border-border p-4 space-y-3 bg-card/60"
+                  className="rounded-2xl border-2 border-[#B2DFDB] p-4 space-y-3 bg-white/80"
                 >
                   {isEditing ? (
                     <>
@@ -372,7 +373,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                           {!isBuiltIn && canManageStories && (
                             <Button size="sm" variant="destructive" className="gap-1" onClick={() => onDeleteStory(story.id)}><Trash2 size={14} /></Button>
                           )}
-                          <Button size="sm" className="gap-1 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => startStory(story.id)}>
+                          <Button size="sm" className="gap-1 bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => startStory(story.id)}>
                             <Play size={14} /> Start Story
                           </Button>
                         </div>
@@ -386,7 +387,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                             whileHover={{ scale: 1.04, y: -2 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => startStory(story.id)}
-                            className="rounded-xl overflow-hidden border-2 border-border bg-card text-left"
+                            className="rounded-xl overflow-hidden border-2 border-[#B2DFDB] bg-white text-left"
                           >
                             {step.image_url ? (
                               <img src={step.image_url} alt={`Step ${i + 1}`} className="w-full h-20 object-cover" />
