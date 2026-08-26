@@ -13,20 +13,14 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  Brain,
   Wind,
-  ListChecks,
   Lightbulb,
   Zap,
   ShieldCheck,
   CheckCircle2,
-  Sparkles,
-  Sliders,
   ChevronDown,
   ChevronUp,
   RotateCcw,
-  Activity,
-  Heart,
   Smile,
   Meh,
   Frown,
@@ -39,6 +33,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/AuthContext";
 import { useContextStateOptional } from "@/context/ContextProvider";
 import { useToast } from "@/hooks/use-toast";
+
+import CompanionSticker from "@/components/neurobridge/CompanionSticker";
+import AdaptiveGreeting from "@/components/neurobridge/AdaptiveGreeting";
 
 // Domain & Adaptation imports
 import {
@@ -342,8 +339,8 @@ export default function AdaptiveAnxietyEngine() {
       {/* ── 1-Tap Post-Session Feedback View ── */}
       {pendingOutcomeRecord && (
         <Card className="border-[#C7D2FE] shadow-[6px_6px_0_#DDE8FC] bg-gradient-to-b from-[#DDE8FC] to-white text-center p-6 space-y-5 animate-in fade-in slide-in-from-top-4 duration-300 rounded-2xl">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-[#4F6BF6]/10 text-[#4F6BF6] flex items-center justify-center">
-            <Sparkles size={24} />
+          <div className="flex justify-center">
+            <CompanionSticker variant="recovery-sunrise" mood="recovery" size={56} />
           </div>
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-[#1E2A5E]">How are you feeling now?</h2>
@@ -391,13 +388,13 @@ export default function AdaptiveAnxietyEngine() {
           {/* Level 0: Baseline / Calm Status */}
           {reasoningResult.responseTier === 0 || isDismissed ? (
             <Card className="border-[#C7D2FE] shadow-[4px_4px_0_#DDE8FC] text-center p-8 space-y-6 rounded-2xl bg-white">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-[#34D399]/10 text-[#34D399] flex items-center justify-center shadow-inner">
-                <Wind size={32} />
+              <div className="flex justify-center">
+                <CompanionSticker variant="calm-cloud" mood="calm" size={64} />
               </div>
               <div className="space-y-2 max-w-sm mx-auto">
                 <h2 className="text-xl font-bold text-[#1E2A5E]">You're doing okay</h2>
                 <p className="text-sm text-[#6B7BA8] leading-relaxed">
-                  NeuroBridge is quietly observing in the background. If things start feeling difficult or tense, support is ready.
+                  NeuroBridge is quietly watching. If things start feeling tense, support is ready.
                 </p>
               </div>
 
@@ -416,9 +413,7 @@ export default function AdaptiveAnxietyEngine() {
             /* Ambiguous Friction -> 1-Tap Semantic Clarification */
             <Card className="border-[#C7D2FE] shadow-[6px_6px_0_#DDE8FC] p-6 space-y-5 rounded-2xl bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#4F6BF6]/10 text-[#4F6BF6] flex items-center justify-center flex-shrink-0">
-                  <Activity size={20} />
-                </div>
+                <CompanionSticker variant="concern" mood="concern" size={40} animate={false} />
                 <div>
                   <h2 className="text-base font-bold text-[#1E2A5E]">
                     What feels hardest right now?
@@ -486,9 +481,12 @@ export default function AdaptiveAnxietyEngine() {
             <Card className="border-[#C7D2FE] shadow-[6px_6px_0_#DDE8FC] p-6 space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300 rounded-2xl bg-white">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#4F6BF6]/10 text-[#4F6BF6] flex items-center justify-center flex-shrink-0">
-                    <Sparkles size={20} />
-                  </div>
+                  <CompanionSticker
+                    variant={reasoningResult.responseTier >= 3 ? "concern" : "grounding-tree"}
+                    mood={reasoningResult.responseTier >= 3 ? "concern" : "grounding"}
+                    size={40}
+                    animate={false}
+                  />
                   <div>
                     <h2 className="text-base font-bold text-[#1E2A5E]">
                       {reasoningResult.responseTier >= 3
