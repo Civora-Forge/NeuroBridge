@@ -115,7 +115,7 @@ function _classify(reading) {
 
   if (event) {
     // 90-second cooldown so interventions don't stack
-    _cooldownUntil = now + 90_000;
+    _cooldownUntil = now + 90000;
   }
 
   return event;

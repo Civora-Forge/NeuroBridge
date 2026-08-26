@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import ModuleCard from "@/components/ModuleCard";
-import { MODULES_REGISTRY } from "@/data/modulesRegistry";
+import { composeHomeModules } from "@/data/modulesRegistry";
 
 export default function Home() {
   const { user, enabledModules } = useAuth();
 
   const modules = useMemo(
-    () => (enabledModules || []).map((moduleId) => MODULES_REGISTRY[moduleId]).filter(Boolean),
+    () => composeHomeModules(enabledModules || []),
     [enabledModules],
   );
 
@@ -21,7 +21,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-900">
-                Welcome back{user?.name ? `, ${user.name}` : ""}
+                Welcome FRONT{user?.name ? `, ${user.name}` : ""}
               </h1>
               <p className="text-sm text-slate-500">Your personalized support tools are ready below.</p>
             </div>

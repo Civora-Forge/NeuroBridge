@@ -6,7 +6,7 @@ import AdaptiveOutcomePanel from "@/components/adaptive/AdaptiveOutcomePanel";
 
 // Each card maps to a top-level feature key so we can filter by disorders.
 const ALL_MODES = [
-  { featureKey: FEATURES.ASD,         title: "Sensory Balance",  subtitle: "Regulation & social support", icon: Brain,      color: "bg-mode-asd",         path: "/asd" },
+  { featureKey: FEATURES.ASD,         title: "Social & Emotional Support",  subtitle: "Social confidence & emotional understanding", icon: Brain,      color: "bg-mode-asd",         path: "/asd" },
   { featureKey: FEATURES.ADHD,        title: "Focus Flow",       subtitle: "Attention & planning",        icon: Zap,        color: "bg-mode-adhd",        path: "/adhd" },
   { featureKey: FEATURES.DYSLEXIA,    title: "Reading Support",  subtitle: "Language clarity",            icon: BookOpen,   color: "bg-mode-dyslexia",    path: "/dyslexia" },
   { featureKey: FEATURES.DYSCALCULIA, title: "Number Confidence",subtitle: "Step-by-step math support",   icon: Calculator, color: "bg-mode-dyscalculia", path: "/dyscalculia" },

@@ -47,7 +47,6 @@ export const FEATURES = /** @type {const} */ ({
   ADHD_EMOTION:   "adhd.emotion-coach",
   ADHD_TIMELINE:  "adhd.visual-timeline",
   ADHD_BREAKDOWN: "adhd.task-breakdown",
-  ADHD_SOUNDS:    "adhd.soundscapes",
   ADHD_DOUBLING:  "adhd.body-doubling",
 
   // ── Dyslexia sub-features ───────────────────
@@ -64,11 +63,12 @@ export const FEATURES = /** @type {const} */ ({
   DYSPRAXIA_MOOD:      "dyspraxia.mood-tracker",
 
   // ── ASD sub-features ────────────────────────
-  ASD_ROUTINE:  "asd.routine",
-  ASD_SENSORY:  "asd.sensory",
   ASD_STORIES:  "asd.stories",
-  ASD_MELTDOWN: "asd.meltdown",
   ASD_EMOTION:  "asd.emotion",
+  ASD_SOCIAL_SCENARIOS: "asd.social-scenarios",
+
+  // ── Cross-disorder communication practice ──
+  COMMUNICATION: "communication.simulator",
 });
 
 // ─────────────────────────────────────────────
@@ -122,15 +122,15 @@ export const FEATURE_REGISTRY = {
 
   // ── Depression sub-features ───────────────
   [FEATURES.DEPRESSION_MVH]: {
-    label: "MVH Protocol",
+    label: "Gentle Activity",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_ANXIETY_DISSOLVER]: {
-    label: "Anxiety Dissolver",
+    label: "Grounding",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_SOCIAL]: {
-    label: "Social Broadcaster",
+    label: "Social Connection",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_PROOF]: {
@@ -138,7 +138,7 @@ export const FEATURE_REGISTRY = {
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_REALITY]: {
-    label: "Cognitive Reframer",
+    label: "Cognitive Reframing",
     disorders: [DISORDERS.DEPRESSION],
   },
   [FEATURES.DEPRESSION_VOID]: {
@@ -170,11 +170,11 @@ export const FEATURE_REGISTRY = {
 
   // ── ADHD sub-features ───────────────────────
   [FEATURES.ADHD_FOCUS]: {
-    label: "Focus Sessions",
+    label: "Focus Session",
     disorders: [DISORDERS.ADHD],
   },
   [FEATURES.ADHD_EMOTION]: {
-    label: "Emotion Coach",
+    label: "Mood Check-in",
     disorders: [DISORDERS.ADHD],
     modeConfig: {
       [DISORDERS.ADHD]: { showImpulsivityTips: true },
@@ -189,12 +189,8 @@ export const FEATURE_REGISTRY = {
     label: "Task Breakdown",
     disorders: [DISORDERS.ADHD],
   },
-  [FEATURES.ADHD_SOUNDS]: {
-    label: "Focus Soundscapes",
-    disorders: [DISORDERS.ADHD],
-  },
   [FEATURES.ADHD_DOUBLING]: {
-    label: "Body Doubling",
+    label: "Accountability Session",
     disorders: [DISORDERS.ADHD],
   },
 
@@ -239,27 +235,66 @@ export const FEATURE_REGISTRY = {
   },
 
   // ── ASD sub-features ────────────────────────
-  [FEATURES.ASD_ROUTINE]: {
-    label: "Routine Visualizer",
-    disorders: [DISORDERS.ASD],
-  },
-  [FEATURES.ASD_SENSORY]: {
-    label: "Sensory Regulation",
-    disorders: [DISORDERS.ASD],
-  },
   [FEATURES.ASD_STORIES]: {
     label: "Social Story Builder",
-    disorders: [DISORDERS.ASD],
-  },
-  [FEATURES.ASD_MELTDOWN]: {
-    label: "Meltdown Prevention",
     disorders: [DISORDERS.ASD],
   },
   [FEATURES.ASD_EMOTION]: {
     label: "Emotional Check-in",
     disorders: [DISORDERS.ASD],
   },
+  [FEATURES.ASD_SOCIAL_SCENARIOS]: {
+    label: "Social Scenario Simulator",
+    disorders: [DISORDERS.ASD],
+  },
+  [FEATURES.COMMUNICATION]: {
+    label: "Conversation Practice",
+    disorders: [DISORDERS.ASD, DISORDERS.ANXIETY, DISORDERS.ADHD, DISORDERS.APD],
+  },
 };
+
+// Onboarding stores support-module IDs, while the existing route guards use
+// feature IDs. Keep the legacy IDs valid while granting the matching route.
+const SUPPORT_MODULE_FEATURE_ALIASES = {
+  "support.task_breakdown": [FEATURES.ADHD, FEATURES.ADHD_BREAKDOWN],
+  "support.focus_session": [FEATURES.ADHD, FEATURES.ADHD_FOCUS],
+  "support.visual_timeline": [FEATURES.ADHD, FEATURES.ADHD_TIMELINE],
+  "support.mood_checkin": [FEATURES.ADHD, FEATURES.ADHD_EMOTION],
+  "support.accountability_session": [FEATURES.ADHD, FEATURES.ADHD_DOUBLING],
+  "support.gentle_activity": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_MVH],
+  "support.grounding": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_ANXIETY_DISSOLVER],
+  "support.social_connection": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_SOCIAL],
+  "support.cognitive_reframing": [FEATURES.DEPRESSION, FEATURES.DEPRESSION_REALITY],
+};
+
+// ASD modules carry their feature key directly as the module id (no "support.*"
+// alias), so grant the hub root + sub-feature together. This keeps /asd reachable
+// whenever any ASD tool is enabled, mirroring the ADHD/depression pattern above.
+const ASD_MODULE_GRANTS = {
+  [FEATURES.ASD_STORIES]: [FEATURES.ASD, FEATURES.ASD_STORIES],
+  [FEATURES.ASD_EMOTION]: [FEATURES.ASD, FEATURES.ASD_EMOTION],
+  [FEATURES.ASD_SOCIAL_SCENARIOS]: [FEATURES.ASD, FEATURES.ASD_SOCIAL_SCENARIOS],
+};
+
+// Same root-granting for dyslexia: enabling any dyslexia tool keeps the
+// /dyslexia hub reachable so back-navigation never bounces to Home.
+const DYSLEXIA_MODULE_GRANTS = {
+  [FEATURES.DYSLEXIA_READER]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_READER],
+  [FEATURES.DYSLEXIA_WORDBANK]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_WORDBANK],
+  [FEATURES.DYSLEXIA_ADAPTIVE_READING]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
+  "dyslexia.adaptive-reading": [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
+};
+
+const LEGACY_FEATURE_SUPPORT_ALIASES = Object.fromEntries(
+  Object.entries(SUPPORT_MODULE_FEATURE_ALIASES).flatMap(([canonicalId, featureIds]) =>
+    featureIds.filter((featureId) => featureId !== FEATURES.ADHD).map((featureId) => [featureId, canonicalId]),
+  ),
+);
+
+/** Return the canonical support module ID for supported ADHD legacy IDs. */
+export function getCanonicalEnabledModuleId(moduleId) {
+  return LEGACY_FEATURE_SUPPORT_ALIASES[moduleId] ?? moduleId;
+}
 
 // ─────────────────────────────────────────────
 //  Core algorithm — O(F × D)
@@ -287,6 +322,30 @@ export function resolveEnabledFeatures(input) {
     const activeDisorders = new Set();
 
     for (const moduleId of explicitModules) {
+      if (moduleId === FEATURES.ADHD || moduleId === FEATURES.DEPRESSION) {
+        Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
+          if (featureIds.includes(moduleId)) featureIds.forEach((featureId) => enabled.add(featureId));
+        });
+      }
+      if (moduleId === FEATURES.ASD) {
+        Object.values(ASD_MODULE_GRANTS).forEach((featureIds) =>
+          featureIds.forEach((featureId) => enabled.add(featureId)),
+        );
+      }
+      if (moduleId === FEATURES.DYSLEXIA) {
+        Object.values(DYSLEXIA_MODULE_GRANTS).forEach((featureIds) =>
+          featureIds.forEach((featureId) => enabled.add(featureId)),
+        );
+      }
+      for (const featureId of SUPPORT_MODULE_FEATURE_ALIASES[moduleId] || []) {
+        enabled.add(featureId);
+      }
+      for (const featureId of ASD_MODULE_GRANTS[moduleId] || []) {
+        enabled.add(featureId);
+      }
+      for (const featureId of DYSLEXIA_MODULE_GRANTS[moduleId] || []) {
+        enabled.add(featureId);
+      }
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
         if (moduleId.includes(".")) {

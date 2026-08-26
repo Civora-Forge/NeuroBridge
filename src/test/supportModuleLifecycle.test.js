@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { MemoryType, InterventionStatus, ModuleCategory } from "@/support/schemas/supportSchemas";
-import { getSupportModuleById, getSupportModules, getSupportModulesByInterventionType } from "@/support/framework/supportModuleRegistry";
+import {
+  getCanonicalSupportModuleId,
+  getSupportModuleById,
+  getSupportModules,
+  getSupportModulesByInterventionType,
+  getSupportModulesByRoute,
+} from "@/support/framework/supportModuleRegistry";
 import {
   assessSupportSafety,
   checkModuleEligibility,
@@ -29,11 +35,49 @@ describe("Support module registry and selection", () => {
     const modules = getSupportModules();
     const ids = modules.map((module) => module.id);
 
-    expect(ids).toContain("adhd.task-breakdown");
+    expect(ids).toContain("support.task_breakdown");
+    expect(ids).toContain("support.gentle_activity");
     expect(ids).toContain("ocd.exposure-session");
     expect(ids).toContain("dyslexia.adaptive-reading-module");
     expect(getSupportModuleById("ocd.exposure-session").category).toBe(ModuleCategory.SPECIALIZED);
-    expect(getSupportModulesByInterventionType("grounding").map((module) => module.id)).toContain("adhd.emotion-coach");
+    expect(getSupportModulesByInterventionType("grounding").map((module) => module.id)).toContain("support.mood_checkin");
+  });
+
+  it("uses unique need-based IDs and preserves legacy feature aliases", () => {
+    const modules = getSupportModules();
+    const ids = modules.map((module) => module.id);
+    const needBasedModules = modules.filter((module) => module.id.startsWith("support."));
+
+    expect(new Set(ids).size).toBe(ids.length);
+    needBasedModules.forEach((module) => {
+      expect(module.moduleId).toBe(module.id);
+      expect(module.id).not.toMatch(/react|route|component/i);
+      expect(module.id).not.toContain("/");
+      expect(module.supportedNeeds.length).toBeGreaterThan(0);
+      expect(module.actions.length).toBeGreaterThan(0);
+      expect(module.lifecycleEvents.length).toBeGreaterThan(0);
+    });
+    expect(getCanonicalSupportModuleId("adhd.task-breakdown")).toBe("support.task_breakdown");
+    expect(getCanonicalSupportModuleId("depression.mvh")).toBe("support.gentle_activity");
+  });
+
+  it("maps retained ADHD and depression modules to unique registered routes", () => {
+    const expectedRoutes = {
+      "support.task_breakdown": "/adhd/breakdown",
+      "support.focus_session": "/adhd/focus",
+      "support.visual_timeline": "/adhd/timeline",
+      "support.mood_checkin": "/adhd/emotion-coach",
+      "support.accountability_session": "/adhd/doubling",
+      "support.gentle_activity": "/depression/mvh",
+      "support.grounding": "/depression/anxietydissolver",
+      "support.social_connection": "/depression/social",
+      "support.cognitive_reframing": "/depression/reality",
+    };
+
+    Object.entries(expectedRoutes).forEach(([moduleId, route]) => {
+      expect(getSupportModuleById(moduleId)?.route).toBe(route);
+      expect(getSupportModulesByRoute(route).map((module) => module.id)).toEqual([moduleId]);
+    });
   });
 
   it("selects an eligible intervention from explicit request and context", () => {
@@ -47,7 +91,7 @@ describe("Support module registry and selection", () => {
       userProfile: { role: "user", disorders: ["anxiety"] },
     });
 
-    expect(result.selectedModule.id).toBe("adhd.emotion-coach");
+    expect(result.selectedModule.id).toBe("support.mood_checkin");
     expect(result.fallbackUsed).toBe(false);
     expect(result.reasonCodes).toContain("explicit_request_match");
   });

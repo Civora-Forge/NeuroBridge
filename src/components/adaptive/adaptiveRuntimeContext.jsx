@@ -55,8 +55,7 @@ export function resolveCanonicalModuleId(pathname) {
   }
   const legacyAliases = {
     focus: "support.focus_session",
-    reader: "dyslexia.adaptive-reading-module",
-    "dyslexia.adaptive-reading": "dyslexia.adaptive-reading-module",
+    reader: "dyslexia.adaptive-reading",
   };
   const name = resolveModuleFromPath(pathname);
   return legacyAliases[name] ?? getCanonicalSupportModuleId(name) ?? null;

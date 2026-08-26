@@ -1,418 +1,66 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
-  Compass,
-  Wind,
-  Brain,
-  AlertTriangle,
-  Zap,
-  Moon,
-  Coffee,
-  Sparkles,
-  ChevronRight,
-  BarChart2,
-  History,
-  Lightbulb,
-  Clock,
+  AlertTriangle, BarChart2, Brain, CircleGauge, ClipboardList, Compass,
+  Frown, Heart, Lightbulb, Moon, Pencil, Send, Smile,
+  Sparkles, Wind, Zap,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import SupportToolThemeProvider from '@/theme/SupportToolThemeProvider';
+import SupportToolLayout from '@/components/support/SupportToolLayout';
 
 const moods = [
-  {
-    id: 'calm',
-    label: 'Calm',
-    icon: Wind,
-    color: 'from-emerald-300/30 to-emerald-500/30',
-    border: 'border-emerald-300/60',
-    text: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-  },
-  {
-    id: 'focused',
-    label: 'Focused',
-    icon: Brain,
-    color: 'from-teal-400/30 to-emerald-500/30',
-    border: 'border-teal-400/60',
-    text: 'text-teal-700',
-    bg: 'bg-teal-50',
-  },
-  {
-    id: 'stressed',
-    label: 'Stressed',
-    icon: AlertTriangle,
-    color: 'from-amber-300/25 to-amber-500/25',
-    border: 'border-amber-300/60',
-    text: 'text-amber-700',
-    bg: 'bg-amber-50',
-  },
-  {
-    id: 'overwhelmed',
-    label: 'Overwhelmed',
-    icon: Zap,
-    color: 'from-rose-300/25 to-rose-500/25',
-    border: 'border-rose-300/60',
-    text: 'text-rose-700',
-    bg: 'bg-rose-50',
-  },
-  {
-    id: 'bored',
-    label: 'Bored',
-    icon: Moon,
-    color: 'from-slate-300/25 to-slate-500/25',
-    border: 'border-slate-300/60',
-    text: 'text-slate-700',
-    bg: 'bg-slate-50',
-  },
+  { id: 'calm', label: 'Calm', caption: 'I feel at ease', icon: Wind, card: 'border-[#d6efdc] bg-[#fcfffb]', color: 'text-[#4cac70]', pill: 'border-[#d6efdc] text-[#438d5d]', art: '✣' },
+  { id: 'focused', label: 'Focused', caption: "I'm in the zone", icon: Brain, card: 'border-[#e6d7ff] bg-[#fcfaff]', color: 'text-[#8455e6]', pill: 'border-[#e1d2ff] text-[#7746d9]', art: '✧' },
+  { id: 'stressed', label: 'Stressed', caption: 'A lot on my mind', icon: AlertTriangle, card: 'border-[#f5e5b6] bg-[#fffdf6]', color: 'text-[#eba931]', pill: 'border-[#f4dfa1] text-[#a8751d]', art: '⋮' },
+  { id: 'overwhelmed', label: 'Overwhelmed', caption: 'Too much at once', icon: Zap, card: 'border-[#f7d5e5] bg-[#fffaff]', color: 'text-[#e94a96]', pill: 'border-[#f4c6dd] text-[#ce347c]', art: '✦' },
+  { id: 'bored', label: 'Bored', caption: 'Nothing feels fun', icon: Moon, card: 'border-[#dbe5ff] bg-[#fbfcff]', color: 'text-[#5480ed]', pill: 'border-[#cedcff] text-[#4a73d6]', art: 'zᶻ' },
 ];
 
 const suggestionsByMood = {
-  calm: [
-    {
-      title: 'Lock In',
-      text: 'Start a 25-minute focus block on one clear task while the mental waters are still.',
-      icon: Brain,
-    },
-    {
-      title: 'Anchor It',
-      text: 'Note down one sensory detail of this calm to recall it when stressed.',
-      icon: Lightbulb,
-    },
-  ],
-  focused: [
-    {
-      title: 'Shield Mode',
-      text: 'Silence all non-urgent notifications. This state is fragile; protect it.',
-      icon: Zap,
-    },
-    {
-      title: 'Deep Work',
-      text: 'Avoid task-switching for the next 20 minutes. Pick ONE specific output.',
-      icon: Compass,
-    },
-  ],
-  stressed: [
-    {
-      title: 'Reset Breath',
-      text: 'Try 4-7-8 breathing: Inhale 4s, Hold 7s, Exhale 8s. Repeat 3 times.',
-      icon: Wind,
-    },
-    {
-      title: 'Externalize',
-      text: 'Brain dump every stressor into a list. Get them out of your head.',
-      icon: BarChart2,
-    },
-  ],
-  overwhelmed: [
-    {
-      title: 'The 5-Min Rule',
-      text: 'Pick a task so small it takes 5 mins. Ignore everything else for now.',
-      icon: Zap,
-    },
-    {
-      title: 'Micro-Goal',
-      text: 'Ask: "What is the single next physical action?" Do only that.',
-      icon: Coffee,
-    },
-  ],
-  bored: [
-    {
-      title: 'Dopamine Race',
-      text: 'Set a timer for 10 minutes. Can you finish the task before it beeps?',
-      icon: Zap,
-    },
-    {
-      title: 'Remix Surroundings',
-      text: 'Switch to a high-tempo soundscape or move to a different chair.',
-      icon: Sparkles,
-    },
-  ],
+  calm: [{ title: 'Lock in', text: 'Start one clear focus block while things feel settled.', icon: Brain }, { title: 'Anchor it', text: 'Notice one detail that helps you feel this calm.', icon: Lightbulb }],
+  focused: [{ title: 'Shield mode', text: 'Silence non-urgent notifications for the next 20 minutes.', icon: Zap }, { title: 'Deep work', text: 'Choose one specific output and avoid task-switching.', icon: Compass }],
+  stressed: [{ title: 'Reset breath', text: 'Try a slow 4-7-8 breath three times.', icon: Wind }, { title: 'Externalize', text: 'Write every stressor down before picking one next move.', icon: ClipboardList }],
+  overwhelmed: [{ title: 'The 5-minute rule', text: 'Pick a task small enough to take five minutes.', icon: Zap }, { title: 'Micro-goal', text: 'Name the next physical action, not the whole outcome.', icon: CircleGauge }],
+  bored: [{ title: 'Dopamine race', text: 'Set a 10-minute timer and make it a small challenge.', icon: Zap }, { title: 'Remix surroundings', text: 'Change chairs, music, or where you start.', icon: Sparkles }],
 };
 
-// very lightweight pattern extractor – local only, no backend
 const extractPatternTags = (text) => {
-  const t = text.toLowerCase();
+  const value = text.toLowerCase();
   const tags = [];
-
-  if (/(sleep|slept|4h|5h|6h|hours)/.test(t)) tags.push('Sleep debt');
-  if (/(coffee|caffeine|tea|energy drink)/.test(t)) tags.push('High caffeine');
-  if (/(noise|loud|construction|traffic|crowd)/.test(t)) tags.push('Noisy environment');
-  if (/(phone|scroll|instagram|youtube|twitter|doomscroll)/.test(t)) tags.push('Digital pull');
-  if (/(deadline|exam|assignment|workload|backlog)/.test(t)) tags.push('Load spike');
-  if (/(gym|walk|movement|exercise)/.test(t)) tags.push('Movement change');
-  if (/(routine|schedule|plan|structure)/.test(t)) tags.push('Routine shift');
-
-  if (!tags.length && text.trim().length > 0) tags.push('Context logged');
-
-  return Array.from(new Set(tags)).slice(0, 3);
+  if (/(sleep|slept|4h|5h|6h|hours)/.test(value)) tags.push('Sleep debt');
+  if (/(coffee|caffeine|tea|energy drink)/.test(value)) tags.push('High caffeine');
+  if (/(noise|loud|construction|traffic|crowd)/.test(value)) tags.push('Noisy environment');
+  if (/(phone|scroll|instagram|youtube|twitter|doomscroll)/.test(value)) tags.push('Digital pull');
+  if (/(deadline|exam|assignment|workload|backlog)/.test(value)) tags.push('Load spike');
+  if (/(gym|walk|movement|exercise)/.test(value)) tags.push('Movement change');
+  if (/(routine|schedule|plan|structure)/.test(value)) tags.push('Routine shift');
+  if (!tags.length && value.trim()) tags.push('Context logged');
+  return [...new Set(tags)].slice(0, 3);
 };
 
-const EmotionCoach = () => {
+export default function EmotionCoach() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [note, setNote] = useState('');
-  const [patterns, setPatterns] = useState([]); // {id, moodId, moodLabel, note, tags, createdAt}
+  const [patterns, setPatterns] = useState([]);
   const [insightTags, setInsightTags] = useState([]);
-
-  const moodData = selectedMood ? moods.find((m) => m.id === selectedMood) : null;
+  const [activePrompt, setActivePrompt] = useState(null);
+  const selected = moods.find((mood) => mood.id === selectedMood);
   const suggestions = selectedMood ? suggestionsByMood[selectedMood] : [];
 
-  const handleSavePattern = () => {
+  const savePattern = () => {
     const trimmed = note.trim();
     if (!trimmed) return;
-
     const tags = extractPatternTags(trimmed);
     setInsightTags(tags);
-
-    const now = new Date();
-    const entry = {
-      id: now.getTime(),
-      moodId: selectedMood,
-      moodLabel: moodData ? moodData.label : 'Unknown',
-      note: trimmed,
-      tags,
-      createdAt: now.toISOString(),
-    };
-
-    setPatterns((prev) => {
-      const next = [entry, ...prev];
-      return next.slice(0, 5); // keep last 5
-    });
-
-    // do not clear the note; feels like a journal – user can edit if they want
+    setPatterns((items) => [{ id: Date.now(), moodLabel: selected?.label || 'Unknown', note: trimmed, tags }, ...items].slice(0, 5));
   };
 
-  const latestPattern = patterns[0];
-
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-8">
-      {/* Header Section */}
-      <div className="space-y-2 text-center md:text-left">
-        <h2 className="text-3xl font-extrabold tracking-tight flex items-center justify-center md:justify-start gap-3 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-          <Compass className="text-teal-500 h-8 w-8" />
-          Emotion Navigator
-        </h2>
-        <p className="text-muted-foreground text-sm max-w-xl mx-auto md:mx-0">
-          Spot "emotional drift" before it becomes a crash. Get ADHD-specific intervention
-          strategies tailored to your current state.
-        </p>
-      </div>
-
-      {/* Mood Matrix */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {moods.map((m) => (
-          <motion.button
-            key={m.id}
-            whileHover={{ y: -4 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setSelectedMood(m.id)}
-            className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${
-              selectedMood === m.id
-                ? `${m.border} ${m.bg} shadow-lg ring-2 ring-teal-400/30`
-                : 'border-transparent bg-slate-50/70 hover:bg-slate-100/80'
-            }`}
-          >
-            <div className={`p-3 rounded-xl bg-gradient-to-br ${m.color}`}>
-              <m.icon className={`h-6 w-6 ${m.text}`} />
-            </div>
-            <span
-              className={`text-xs font-bold uppercase tracking-wider ${
-                selectedMood === m.id ? m.text : 'text-muted-foreground'
-              }`}
-            >
-              {m.label}
-            </span>
-            {selectedMood === m.id && (
-              <motion.div
-                layoutId="active-indicator"
-                className="absolute -bottom-1 w-8 h-1 bg-teal-500 rounded-full"
-              />
-            )}
-          </motion.button>
-        ))}
-      </div>
-
-      {/* Intervention Engine */}
-      <AnimatePresence mode="wait">
-        {selectedMood ? (
-          <motion.div
-            key={selectedMood}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-4"
-          >
-            <div className="flex items-center gap-2 px-1">
-              <Sparkles className="h-4 w-4 text-teal-500" />
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                Tactical Interventions
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {suggestions.map((s, idx) => (
-                <Card
-                  key={idx}
-                  className="group overflow-hidden border border-teal-500/10 bg-white/85 backdrop-blur-sm shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl"
-                >
-                  <div className="p-5 flex gap-4">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors">
-                      <s.icon className="h-5 w-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-sm">{s.title}</h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {s.text}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="h-32 flex items-center justify-center border-2 border-dashed border-teal-400/30 rounded-3xl text-muted-foreground/60 text-sm font-medium italic bg-teal-50/30"
-          >
-            Select your current state to generate interventions
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Pattern Spotter */}
-      <Card className="border-2 border-teal-500/10 bg-gradient-to-br from-white via-teal-50/40 to-teal-100/40 overflow-hidden shadow-xl rounded-3xl">
-        <div className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
-              <History className="h-4 w-4" />
-              Pattern Spotter
-            </h3>
-            <Badge
-              variant="outline"
-              className="text-[10px] font-bold opacity-80 border-teal-400/40 text-teal-700 bg-teal-50/60"
-            >
-              30s Ritual
-            </Badge>
-          </div>
-
-          <div className="relative space-y-2">
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Context: Slept 4h, noise outside, high caffeine..."
-              className="min-h-[80px] rounded-2xl border-2 border-border focus:border-teal-400/70 focus:ring-2 focus:ring-teal-400/20 bg-white/80 transition-all resize-none p-4 text-sm"
-            />
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 px-1">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>Write 1–2 lines about what might be shaping today.</span>
-              </div>
-            </div>
-            <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-teal-500"
-                type="button"
-                onClick={handleSavePattern}
-              >
-                <Lightbulb className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Insight pill row */}
-          {insightTags.length > 0 && (
-            <div className="pt-1">
-              <div className="flex items-center gap-2 mb-1 text-[11px] text-muted-foreground">
-                <Sparkles className="h-3 w-3 text-teal-500" />
-                <span className="font-semibold">Today&apos;s signals:</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {insightTags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="text-[10px] px-2 py-1 rounded-full border-teal-400/50 text-teal-800 bg-teal-50/60"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recent patterns (local history) */}
-          {patterns.length > 0 && (
-            <div className="pt-3 border-t border-teal-100/60 mt-1 space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <BarChart2 className="h-3 w-3" />
-                  <span>Recent entries</span>
-                </span>
-                {latestPattern && (
-                  <span className="flex items-center gap-1 text-teal-700">
-                    <Brain className="h-3 w-3" />
-                    <span>{latestPattern.moodLabel}</span>
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {patterns.map((p) => (
-                  <Badge
-                    key={p.id}
-                    variant="outline"
-                    className="text-[10px] px-2 py-1 rounded-full border-slate-300/70 bg-white/70 text-slate-700 max-w-[160px] truncate flex items-center gap-1"
-                    title={p.note}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
-                    <span>{p.moodLabel}</span>
-                    {p.tags[0] && (
-                      <>
-                        <span className="text-slate-400">•</span>
-                        <span className="truncate">{p.tags[0]}</span>
-                      </>
-                    )}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="pt-2 flex items-center justify-between text-[10px] text-muted-foreground/70 font-medium">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <BarChart2 className="h-3 w-3" />
-                Data-driven tracking
-              </span>
-              <span className="flex items-center gap-1">
-                <Zap className="h-3 w-3" />
-                Dopamine-aligned
-              </span>
-            </div>
-            <Button
-              variant="link"
-              className="h-auto p-0 text-[10px] font-bold text-teal-600"
-              type="button"
-            >
-              View Analytics <ChevronRight className="h-3 w-3 ml-1" />
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Footer */}
-      <p className="text-center text-[10px] text-muted-foreground/70 font-medium px-8 leading-relaxed max-w-lg mx-auto">
-        Standard ADHD apps wait for you to fail. Emotion Navigator uses "Proactive Interception"
-        to help you adjust your strategy to match your biological state in real-time.
-      </p>
-    </div>
-  );
-};
-
-export default EmotionCoach;
+  return <SupportToolThemeProvider theme="adhd_focus"><SupportToolLayout className="!m-0 !w-full !max-w-none !gap-0 !p-0"><main className="w-full bg-[#fffefa] px-4 py-5 text-[#202036] sm:px-8 sm:py-6 lg:px-[7vw]">
+    <header className="relative mx-auto max-w-7xl"><div className="max-w-3xl"><p className="inline-flex items-center gap-1 rounded-full bg-[#fff0bd] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.15em] text-[#9b7631]"><Sparkles size={13} className="text-pink-400" /> NAME IT. THEN NUDGE IT.</p><h1 className="mt-4 text-4xl font-black tracking-tight sm:text-6xl">Mood <span className="text-[#7250e5]">Check</span><span className="text-[#c65cc4]">-in</span></h1><p className="mt-3 text-sm font-medium text-slate-500 sm:text-base">Notice your current state and choose a <span className="font-bold text-slate-800 underline decoration-pink-300 decoration-2 underline-offset-4">small support prompt.</span></p></div><div className="absolute right-[12%] top-0 hidden lg:block"><Brain className="h-28 w-28 text-pink-400" strokeWidth={1.5} /><Heart className="absolute -left-8 bottom-4 text-violet-400" size={26} /><Sparkles className="absolute -right-6 top-1 text-pink-400" size={20} /><div className="absolute -right-40 top-4 w-28 rounded-2xl border border-[#f0dec8] bg-white px-3 py-2 text-center text-[10px] font-bold shadow-sm">Checking in<br />is <span className="text-[#7653df]">self-care</span> ✨</div></div></header>
+    <section className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-3 sm:grid-cols-5">{moods.map((mood) => { const Icon = mood.icon; const active = selectedMood === mood.id; return <button key={mood.id} onClick={() => { setSelectedMood(mood.id); setActivePrompt(null); }} className={`relative min-h-36 rounded-2xl border p-4 text-center transition hover:-translate-y-0.5 ${mood.card} ${active ? 'ring-2 ring-violet-400 ring-offset-2' : ''}`}><span className={`absolute right-4 top-3 text-lg ${mood.color}`}>{mood.art}</span><Icon className={`mx-auto h-10 w-10 ${mood.color}`} strokeWidth={1.8} /><p className={`mt-3 text-sm font-black uppercase ${mood.color}`}>{mood.label}</p><span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-bold ${mood.pill}`}>{mood.caption} {mood.id === 'overwhelmed' ? <Frown size={14} className="ml-2" /> : <Smile size={14} className="ml-2" />}</span></button>; })}</section>
+    <section className="mx-auto mt-6 max-w-7xl overflow-hidden rounded-2xl border border-dashed border-[#f0c465] bg-[#fffdf8] px-6 py-5"><div className="grid min-h-12 items-center gap-4 sm:grid-cols-[64px_1fr_160px]"><Lightbulb className="mx-auto h-11 w-11 text-[#f2bf3d]" />{selected ? <div><p className="font-black">Support prompts for <span className={selected.color}>{selected.label.toLowerCase()}</span></p><div className="mt-2 flex flex-wrap gap-2">{suggestions.map((suggestion) => <button key={suggestion.title} onClick={() => setActivePrompt(suggestion)} className={`rounded-full px-3 py-1.5 text-xs font-bold shadow-sm transition ${activePrompt?.title === suggestion.title ? 'bg-[#7045e2] text-white' : 'bg-white text-slate-700 hover:bg-[#f1ebff]'}`}><suggestion.icon className="mr-1 inline h-3.5 w-3.5" />{suggestion.title}</button>)}</div></div> : <div><p className="font-black">Select your current state above <Sparkles className="ml-2 inline text-violet-500" size={19} /></p><p className="mt-1 text-sm text-slate-500">You&apos;ll see personalized support prompts here.</p></div>}<Sparkles className="mx-auto hidden h-12 w-12 text-[#f1c13e] sm:block" /></div>{activePrompt && <div role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-white px-4 py-3"><p className="text-sm text-slate-700"><strong className="text-[#7045e2]">{activePrompt.title}:</strong> {activePrompt.text}</p><button onClick={() => setActivePrompt(null)} className="rounded-lg bg-[#7045e2] px-3 py-1.5 text-xs font-bold text-white">Done</button></div>}</section>
+    <section className="mx-auto mt-6 max-w-7xl rounded-2xl border border-[#eee9f7] bg-white p-5 shadow-[0_5px_15px_rgba(48,36,92,.08)]"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide"><span className="rounded-lg bg-[#eee6ff] p-2 text-[#7653df]"><ClipboardList size={16} /></span> Pattern notes <Sparkles className="text-violet-500" size={16} /></h2><span className="rounded-full bg-[#f1ebff] px-3 py-1.5 text-xs font-bold text-[#7045d7]"><Zap className="mr-1 inline" size={13} /> Quick check-in</span></div><div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]"><div className="relative"><Pencil className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7653df]" size={17} /><input value={note} onChange={(event) => setNote(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePattern()} placeholder="Write one or two lines about what might be shaping today..." className="w-full rounded-2xl border border-[#ded8ef] bg-white py-4 pl-11 pr-12 text-sm outline-none focus:border-violet-400" /><Send className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-[#7653df] p-2 text-white" size={32} /></div><button onClick={savePattern} className="rounded-2xl bg-[#7045e2] px-5 py-3 text-sm font-black text-white shadow-sm"><Lightbulb className="mr-2 inline" size={16} /> Save check-in</button></div>{insightTags.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{insightTags.map((tag) => <span key={tag} className="rounded-full bg-[#f1ebff] px-3 py-1 text-xs font-bold text-[#7045d7]">{tag}</span>)}</div>}{patterns.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{patterns.map((pattern) => <span key={pattern.id} title={pattern.note} className="rounded-full border border-slate-100 px-3 py-1 text-xs text-slate-600">{pattern.moodLabel} · {pattern.tags[0]}</span>)}</div>}<footer className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-medium text-slate-500"><span><BarChart2 className="mr-1 inline text-violet-500" size={14} /> Local check-ins</span><span><Zap className="mr-1 inline text-violet-500" size={14} /> Dopamine-aligned</span><span>Last 5 notes shown</span></footer></section>
+    <p className="mx-auto mt-5 flex max-w-7xl items-center justify-center gap-1 text-center text-xs text-slate-500"><Heart size={16} className="text-pink-400" /> Use these prompts to <strong className="text-[#7653df]">pause</strong>, notice what is happening, and choose a <strong className="text-[#7653df]">next step.</strong></p>
+  </main></SupportToolLayout></SupportToolThemeProvider>;
+}

@@ -455,6 +455,21 @@ npm run preview
 The project is gradually being organized around the adaptive architecture.
 
 ```text
+backend/
+│   └── adaptive/
+│       ├── state/   (Role 2 · User State Model)
+│       │   ├── userStateModel.js
+│       │   └── snapshotNormalizer.js
+│       │
+│       └── reasoning/   (Role 2 · Cognitive Reasoning Core)
+│           ├── cognitiveReasoning.js
+│           ├── planner.js
+│           ├── interventionRanking.js
+│           ├── adaptationPolicy.js
+│           ├── disorderFeatureRegistry.js
+│           ├── moduleSelector.js
+│           └── questionEngine.js
+│
 src/
 │
 ├── adaptive/
@@ -466,19 +481,6 @@ src/
 │   │   ├── activityTracker.js
 │   │   ├── contextFusion.js
 │   │   └── jitaiService.js
-│   │
-│   ├── state/
-│   │   ├── userStateModel.js
-│   │   └── useAdaptiveBehavioralEngine.js
-│   │
-│   ├── reasoning/
-│   │   ├── cognitiveReasoning.js
-│   │   ├── planner.js
-│   │   ├── interventionRanking.js
-│   │   ├── adaptationPolicy.js
-│   │   ├── disorderFeatureRegistry.js
-│   │   ├── moduleSelector.js
-│   │   └── questionEngine.js
 │   │
 │   ├── ui/
 │   │   └── uiAdapter.js

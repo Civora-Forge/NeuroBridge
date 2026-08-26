@@ -1,44 +1,50 @@
-import { Wind, BookOpen, Activity, Brain, Leaf } from "lucide-react";
-import { Link } from "react-router-dom";
-
-const tools = [
-  { to: "/anxiety",           icon: Wind,     title: "Breathing Guide",    desc: "Guided breathwork to calm your nervous system quickly." },
-  { to: "/ocd/logic-journal", icon: BookOpen, title: "Thought Journal",    desc: "Capture worry loops and reframe with grounding facts." },
-  { to: "/adhd/emotion-coach",icon: Brain,    title: "Emotion Coach",      desc: "Regulate emotional spikes with guided prompts." },
-  { to: "/depression",        icon: Activity, title: "Mood Check-in",      desc: "Track mood shifts and identify patterns." },
-  { to: "/adhd/sounds",       icon: Leaf,     title: "Soundscapes",        desc: "Use ambient audio to reduce stress and improve sleep." },
-];
+import { Wind, Heart, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import SupportToolLayout from "@/components/support/SupportToolLayout";
+import AdaptiveAnxietyEngine from "@/components/anxiety/AdaptiveAnxietyEngine";
 
 export default function AnxietyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/40 to-teal-50/40 p-8">
-      <div className="max-w-5xl mx-auto text-center mb-12">
-        <div className="w-20 h-20 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-xl">
-          <Wind className="w-10 h-10 text-white" />
-        </div>
-        <h1 className="text-4xl font-black bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-2">
-          Calming Toolkit
-        </h1>
-        <p className="text-base text-slate-600 max-w-xl mx-auto">
-          Grounding techniques and breathwork for anxiety and stress relief.
-        </p>
-      </div>
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {tools.map(({ to, icon: Icon, title, desc }) => (
-          <Link key={to} to={to}
-            className="group relative bg-white border border-green-100 rounded-2xl p-6 flex flex-col gap-3 shadow-sm hover:shadow-[0_10px_30px_rgba(34,197,94,0.18)] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-            <div className="absolute -top-8 -right-8 w-24 h-24 bg-green-100/60 rounded-full blur-2xl group-hover:scale-110 transition-transform duration-500" />
-            <div className="w-11 h-11 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center text-green-600">
-              <Icon className="w-5 h-5" />
+    <SupportToolThemeProvider theme="anxiety_calm">
+      <SupportToolLayout
+        title="Calming Toolkit"
+        description="Gentle, adaptive anxiety support — zero pressure, just calm."
+      >
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden rounded-[2rem] border border-[#C7D2FE] bg-white/85 p-6 shadow-[0_20px_60px_rgba(79,107,246,0.10)] backdrop-blur md:p-8"
+        >
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C7D2FE] bg-[#DDE8FC] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#4F6BF6]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Anxiety Support Module
+              </span>
+              <h1 className="text-4xl font-black tracking-tight text-[#1E2A5E] sm:text-5xl">
+                Breathe. Ground. Reset.
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-[#6B7BA8] sm:text-lg">
+                NeuroBridge gently watches for signs of tension and offers calm, evidence-based exercises
+                when you need them — never in the way, always ready.
+              </p>
             </div>
-            <div>
-              <h3 className="font-bold text-slate-900 group-hover:text-green-700 transition-colors">{title}</h3>
-              <p className="text-sm text-slate-500 mt-1">{desc}</p>
+            <div className="flex items-center gap-3 rounded-2xl border border-[#C7D2FE] bg-[#DDE8FC]/60 px-5 py-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#4F6BF6] shadow-sm">
+                <Wind className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#1E2A5E]">Passive & active</p>
+                <p className="text-xs text-[#6B7BA8]">Works in the background, or start a reset now.</p>
+              </div>
             </div>
-            <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-green-600 group-hover:text-green-700">Open Tool →</span>
-          </Link>
-        ))}
-      </div>
-    </div>
+          </div>
+        </motion.section>
+
+        <AdaptiveAnxietyEngine />
+      </SupportToolLayout>
+    </SupportToolThemeProvider>
   );
 }

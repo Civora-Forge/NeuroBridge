@@ -247,7 +247,7 @@ export default function DyslexiaDashboard() {
                 variant="outline"
                 className="h-12 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
               >
-                <Link to="/dyslexia/reading-module">
+                <Link to="/dyslexia/adaptive-reading">
                   <Sparkles className="h-4 w-4" />
                   New Reading Module
                 </Link>

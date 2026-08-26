@@ -1,0 +1,152 @@
+/**
+ * MicroActionExecution.jsx — Avoidance task activation and 2-minute micro-action component
+ */
+
+import { useState, useEffect, useRef } from "react";
+import { Zap, CheckCircle2, Play, Pause, ArrowRight, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+
+export default function MicroActionExecution({ initialTask = "", onComplete, onCancel }) {
+  const [taskName, setTaskName] = useState(initialTask);
+  const [microStep, setMicroStep] = useState("");
+  const [activated, setActivated] = useState(false);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(120);
+  const startedAtRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!timerRunning || secondsRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          setTimerRunning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning, secondsRemaining]);
+
+  const handleStartTimer = () => {
+    setActivated(true);
+    setTimerRunning(true);
+  };
+
+  const handleFinish = () => {
+    const durationSeconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
+    onComplete?.({
+      durationSeconds,
+      completed: true,
+      taskData: { taskName, microStep, timerCompleted: secondsRemaining === 0 },
+    });
+  };
+
+  const handleAbandon = () => {
+    const durationSeconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
+    onCancel?.({ durationSeconds, completed: false, abandoned: true });
+  };
+
+  const formatTimer = (s) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <Card className="border-[#C7D2FE] shadow-[6px_6px_0_#DDE8FC] rounded-2xl overflow-hidden">
+      <div className="h-2 bg-gradient-to-r from-[#4F6BF6] to-[#A5B4FC]" />
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-[#818CF8]/10 text-[#6366F1] flex items-center justify-center mb-2">
+          <Zap size={24} />
+        </div>
+        <CardTitle className="text-xl text-[#1E2A5E]">Avoidance Micro-Action</CardTitle>
+        <CardDescription className="text-[#6B7BA8]">
+          Overcome task paralysis by committing to just 2 minutes on the smallest physical starting action.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!activated ? (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[#1E2A5E]">What task are you feeling resistant to starting?</label>
+              <Input
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                placeholder="e.g., Working on the report / Cleaning the room / Sending the email"
+                className="border-[#C7D2FE] text-[#1E2A5E] placeholder:text-[#6B7BA8]/60 focus:border-[#4F6BF6]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[#1E2A5E]">What is the single smallest 2-minute starting action?</label>
+              <Input
+                value={microStep}
+                onChange={(e) => setMicroStep(e.target.value)}
+                placeholder="e.g., Open the document and write 1 sentence"
+                className="border-[#C7D2FE] text-[#1E2A5E] placeholder:text-[#6B7BA8]/60 focus:border-[#4F6BF6]"
+              />
+            </div>
+            <Button
+              className="w-full gap-2 mt-2 bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE] font-bold"
+              disabled={!taskName.trim() || !microStep.trim()}
+              onClick={handleStartTimer}
+            >
+              Start 2-Minute Focus Activation <ArrowRight size={16} />
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-[#DDE8FC] border border-[#C7D2FE] text-center space-y-1">
+              <p className="text-[11px] text-[#4F6BF6] font-semibold uppercase tracking-wider">Current Focus Action</p>
+              <p className="text-base font-bold text-[#1E2A5E]">{microStep}</p>
+              <p className="text-xs text-[#6B7BA8]">Task: {taskName}</p>
+            </div>
+
+            {/* Timer Display */}
+            <div className="text-center py-4 rounded-2xl border-2 border-[#C7D2FE] bg-[#F0F4FF]/60">
+              <div className="flex items-center justify-center gap-2 text-[#6B7BA8] text-xs uppercase tracking-widest font-medium mb-1">
+                <Clock size={14} /> 2-Minute Micro-Window
+              </div>
+              <span className="text-4xl font-black font-mono text-[#4F6BF6]">
+                {formatTimer(secondsRemaining)}
+              </span>
+            </div>
+
+            <Progress value={((120 - secondsRemaining) / 120) * 100} className="h-2 bg-[#C7D2FE] [&>[role=progressbar]]:bg-[#4F6BF6]" />
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={timerRunning ? "outline" : "default"}
+                onClick={() => setTimerRunning(!timerRunning)}
+                className={`gap-2 font-bold ${
+                  timerRunning
+                    ? "border-[#C7D2FE] text-[#4F6BF6] hover:border-[#4F6BF6]"
+                    : "bg-[#4F6BF6] text-white hover:bg-[#3B51D4] shadow-[2px_2px_0_#C7D2FE]"
+                }`}
+              >
+                {timerRunning ? <Pause size={16} /> : <Play size={16} />}
+                {timerRunning ? "Pause" : secondsRemaining > 0 ? "Resume" : "Restart"}
+              </Button>
+              <Button onClick={handleFinish} className="gap-2 bg-[#34D399] text-white hover:bg-[#059669] shadow-[2px_2px_0_#D1FAE5] font-bold">
+                <CheckCircle2 size={16} /> Done / Momentum Started
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleAbandon}
+            className="text-xs text-[#6B7BA8] hover:text-[#4F6BF6] underline underline-offset-4"
+          >
+            Cancel session
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

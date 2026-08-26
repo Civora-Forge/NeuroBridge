@@ -27,26 +27,64 @@ const ALLOWED_TRANSITIONS = {
     InterventionStatus.ACCEPTED,
     InterventionStatus.STARTED,
     InterventionStatus.DISMISSED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.BLOCKED,
     InterventionStatus.ESCALATED,
   ],
   [InterventionStatus.ACCEPTED]: [
     InterventionStatus.STARTED,
     InterventionStatus.DISMISSED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.BLOCKED,
     InterventionStatus.ESCALATED,
   ],
   [InterventionStatus.STARTED]: [
     InterventionStatus.PROGRESSED,
+    InterventionStatus.IN_PROGRESS,
+    InterventionStatus.PAUSED,
     InterventionStatus.COMPLETED,
+    InterventionStatus.PARTIALLY_COMPLETED,
     InterventionStatus.ABANDONED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.FAILED,
     InterventionStatus.ESCALATED,
   ],
   [InterventionStatus.PROGRESSED]: [
     InterventionStatus.PROGRESSED,
+    InterventionStatus.IN_PROGRESS,
+    InterventionStatus.PAUSED,
     InterventionStatus.COMPLETED,
+    InterventionStatus.PARTIALLY_COMPLETED,
     InterventionStatus.ABANDONED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.FAILED,
+    InterventionStatus.ESCALATED,
+  ],
+  [InterventionStatus.IN_PROGRESS]: [
+    InterventionStatus.IN_PROGRESS,
+    InterventionStatus.PROGRESSED,
+    InterventionStatus.PAUSED,
+    InterventionStatus.COMPLETED,
+    InterventionStatus.PARTIALLY_COMPLETED,
+    InterventionStatus.ABANDONED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.FAILED,
+    InterventionStatus.ESCALATED,
+  ],
+  [InterventionStatus.PAUSED]: [
+    InterventionStatus.IN_PROGRESS,
+    InterventionStatus.COMPLETED,
+    InterventionStatus.PARTIALLY_COMPLETED,
+    InterventionStatus.ABANDONED,
+    InterventionStatus.CANCELLED,
+    InterventionStatus.FAILED,
     InterventionStatus.ESCALATED,
   ],
   [InterventionStatus.COMPLETED]: [
+    InterventionStatus.RATED,
+    InterventionStatus.FOLLOW_UP_CREATED,
+  ],
+  [InterventionStatus.PARTIALLY_COMPLETED]: [
     InterventionStatus.RATED,
     InterventionStatus.FOLLOW_UP_CREATED,
   ],
@@ -54,6 +92,14 @@ const ALLOWED_TRANSITIONS = {
     InterventionStatus.RATED,
     InterventionStatus.FOLLOW_UP_CREATED,
   ],
+  [InterventionStatus.CANCELLED]: [
+    InterventionStatus.RATED,
+    InterventionStatus.FOLLOW_UP_CREATED,
+  ],
+  [InterventionStatus.FAILED]: [
+    InterventionStatus.FOLLOW_UP_CREATED,
+  ],
+  [InterventionStatus.BLOCKED]: [],
   [InterventionStatus.RATED]: [
     InterventionStatus.FOLLOW_UP_CREATED,
   ],
@@ -100,6 +146,14 @@ function createLifecycleEvent(userId, intervention, toStatus, options = {}) {
 
 export function getAllowedTransitions(status) {
   return [...(ALLOWED_TRANSITIONS[status] || [])];
+}
+
+export function getInterventionForUser(userId, interventionId) {
+  try {
+    return loadInterventionForUser(normalizeUserId(userId), interventionId);
+  } catch {
+    return null;
+  }
 }
 
 export function deliverIntervention(options = {}) {

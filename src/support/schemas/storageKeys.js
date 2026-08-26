@@ -9,6 +9,7 @@ export const ROLE4_COLLECTIONS = {
   REFLECTIONS: "reflections",
   MEMORIES: "memories",
   PERSONALIZATION_PROFILES: "personalization_profiles",
+  ADAPTATION_DECISIONS: "adaptation_decisions",
   MIGRATIONS: "migrations",
 };
 

@@ -1,0 +1,4 @@
+import { EVIDENCE_JOURNAL_CATEGORIES } from './evidenceJournalTypes';
+export const normalizeEvidenceCategory = (value) => EVIDENCE_JOURNAL_CATEGORIES.includes(value) ? value : 'survival';
+export const canSaveEvidenceEntry = (safety) => Boolean(safety?.allowed && safety.level === 'sensitive');
+export function buildEvidenceJournalOutcome({ created = 0, saved = 0, deleted = 0, categories = [], confirmed = false, startedAt } = {}) { return { completionStatus: confirmed ? 'completed' : 'partially_completed', durationMs: startedAt ? Math.max(0, Date.now() - startedAt) : 0, metrics: { entriesCreated: created, entriesSaved: saved, entriesDeleted: deleted, categoriesUsed: [...new Set(categories)], persistenceMode: saved ? 'user_scoped' : 'ephemeral', safetyLevel: 'sensitive', userConfirmedComplete: confirmed }, finalConfiguration: { allowedCategories: EVIDENCE_JOURNAL_CATEGORIES, retentionMode: saved ? 'user_scoped' : 'ephemeral', requiresSafetyCheck: true } }; }
