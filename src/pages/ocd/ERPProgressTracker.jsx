@@ -20,7 +20,7 @@ const cardVariants = {
 
 export default function ERPProgressTracker() {
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
-    queryKey: ['erp-sessions'],
+    queryKey: ['sessions'],
     queryFn: getSessions
   });
   
@@ -94,7 +94,7 @@ export default function ERPProgressTracker() {
 
   // Compute Compulsion Frequency by Subtype
   const subtypeFrequencyData = useMemo(() => {
-    const entries = journalEntries.slice(-50);
+    const entries = journalEntries.slice(0, 50);
     const counts = {};
     entries.forEach(e => {
       const subtype = e.obsession || e.trigger || 'Unspecified';

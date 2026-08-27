@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 const useAgentStore = create((set, get) => ({
   isOpen: false,
   messages: [],
@@ -22,7 +24,7 @@ const useAgentStore = create((set, get) => ({
     set({ isLoading: true });
 
     try {
-      const res = await fetch('http://localhost:8000/api/agent/chat', {
+      const res = await fetch(`${API_BASE_URL}/api/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,7 +60,7 @@ const useAgentStore = create((set, get) => ({
 
   loadHistory: async (convId) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/agent/conversations/${convId}`);
+      const res = await fetch(`${API_BASE_URL}/api/agent/conversations/${convId}`);
       if (!res.ok) throw new Error('Failed to load history');
       const data = await res.json();
       set({
