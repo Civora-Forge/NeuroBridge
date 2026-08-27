@@ -13,7 +13,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import styles from "./DyspraxiaModule.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || (import.meta.env.PROD ? "" : "http://localhost:5000");
 
 const LEVEL_LABELS = {
   anxiety: ["Calm", "Slight worry", "Noticeable", "Anxious", "Very anxious", "High anxiety", "Distressed", "Very distressed", "Overwhelmed", "Extreme"],

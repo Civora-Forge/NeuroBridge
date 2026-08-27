@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Assuming the FastAPI backend runs on localhost:8000 during development
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/ocd` : 'http://localhost:8000/api/ocd');
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/ocd` : (import.meta.env.PROD ? '/api/ocd' : 'http://localhost:8000/api/ocd'));
 
 const ocdApi = axios.create({
   baseURL: API_URL,
