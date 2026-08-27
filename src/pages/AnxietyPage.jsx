@@ -1,41 +1,49 @@
-import { ArrowRight, Heart, Sparkles, Wind, Leaf, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Heart, Sparkles, Wind, Leaf, ShieldCheck, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import AdaptiveGreeting from "@/components/neurobridge/AdaptiveGreeting";
 import SensorySettings from "@/components/neurobridge/SensorySettings";
 import AdaptiveAnxietyEngine from "@/components/anxiety/AdaptiveAnxietyEngine";
+import InterventionModal from "@/components/interventions/InterventionModal";
 
-const calmCards = [
+const anxietyInterventions = [
   {
+    id: "guided_breathing",
+    label: "Guided Breathing",
+    description: "4-4-4-4 Box Breathing with an expanding visual orb to center your body.",
     icon: Wind,
-    label: "Breathe",
-    description: "Gentle 4-4-4-4 breathing to slow things down.",
+    badge: "Box & 4-7-8",
     color: "from-[#93C5FD] to-[#60A5FA]",
     border: "border-[#bfdbfe]",
     bg: "from-white via-[#f0f7ff] to-[#e8f1ff]",
     accent: "text-[#3B82F6]",
-    hint: "Just one minute can help",
+    hint: "1 minute can help",
   },
   {
+    id: "grounding_exercise",
+    label: "5-4-3-2-1 Grounding",
+    description: "Engage your 5 senses with quick-tap cards to anchor in the present.",
     icon: Leaf,
-    label: "Ground",
-    description: "5-4-3-2-1 senses check to anchor you here.",
+    badge: "Senses Check",
     color: "from-[#86EFAC] to-[#34D399]",
     border: "border-[#bbf7d0]",
     bg: "from-white via-[#f0fdf4] to-[#e8faf0]",
     accent: "text-[#10B981]",
-    hint: "Your body knows the way",
+    hint: "Body knows the way",
   },
   {
-    icon: ShieldCheck,
-    label: "Reframe",
-    description: "Turn worried thoughts into kinder ones.",
+    id: "calm_space",
+    label: "Calm Space",
+    description: "A minimal, peaceful pause sanctuary with soft tone and no expectations.",
+    icon: Sun,
+    badge: "Sanctuary",
     color: "from-[#C4B5FD] to-[#A78BFA]",
     border: "border-[#ddd6fe]",
     bg: "from-white via-[#f5f3ff] to-[#ede9fe]",
     accent: "text-[#7C3AED]",
-    hint: "Thoughts are not facts",
+    hint: "Zero pressure",
   },
 ];
 
@@ -49,25 +57,42 @@ function CalmBubbles() {
   );
 }
 
-function CalmMiniCard({ icon: Icon, label, description, color, border, bg, accent, hint }) {
+function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, accent, hint, badge, onLaunch }) {
   return (
-    <div className={`relative overflow-hidden rounded-[22px] border ${border} bg-gradient-to-br ${bg} p-5 shadow-[3px_3px_0_#e0e7ff] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#ddd6fe]`}>
+    <div
+      onClick={() => onLaunch(id)}
+      className={`group relative overflow-hidden rounded-[22px] border ${border} bg-gradient-to-br ${bg} p-5 shadow-[3px_3px_0_#e0e7ff] transition-all duration-200 hover:-translate-y-1 hover:shadow-[5px_5px_0_#ddd6fe] cursor-pointer flex flex-col justify-between`}
+    >
       <CalmBubbles />
-      <div className="relative z-10">
-        <div className={`grid h-[44px] w-[44px] place-items-center rounded-[14px] bg-gradient-to-br ${color} text-white shadow-[0_5px_12px_rgba(50,50,100,.14)]`}>
-          <Icon size={22} strokeWidth={2.2} />
+      <div className="relative z-10 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className={`grid h-[44px] w-[44px] place-items-center rounded-[14px] bg-gradient-to-br ${color} text-white shadow-[0_5px_12px_rgba(50,50,100,.14)]`}>
+            <Icon size={22} strokeWidth={2.2} />
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/80 text-[#1E2A5E] border border-[#C7D2FE]">
+            {badge}
+          </span>
         </div>
-        <h3 className="mt-3 text-[18px] font-black tracking-[-0.03em] text-[#1E2A5E]">{label}</h3>
-        <p className="mt-1.5 text-[13px] leading-[1.5] text-[#6B7BA8]">{description}</p>
-        <p className="mt-2.5 flex items-center gap-1.5 text-[12px] font-medium text-[#8B95B8]">
+        <div>
+          <h3 className="text-[18px] font-black tracking-[-0.03em] text-[#1E2A5E]">{label}</h3>
+          <p className="mt-1 text-[13px] leading-[1.5] text-[#6B7BA8]">{description}</p>
+        </div>
+      </div>
+      <div className="relative z-10 mt-4 pt-3 border-t border-black/5 flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-[12px] font-medium text-[#8B95B8]">
           <Sparkles size={13} className={accent} />{hint}
         </p>
+        <span className={`text-xs font-bold ${accent} flex items-center gap-1 group-hover:gap-1.5 transition-all`}>
+          Start <ArrowRight size={13} />
+        </span>
       </div>
     </div>
   );
 }
 
 export default function AnxietyPage() {
+  const [activeIntervention, setActiveIntervention] = useState(null);
+
   return (
     <SupportToolThemeProvider theme="anxiety_calm">
       <SupportToolLayout title="Calming Support" description="Gentle, adaptive anxiety support — zero pressure, just calm.">
@@ -113,16 +138,33 @@ export default function AnxietyPage() {
               <Sparkles size={20} className="shrink-0 text-[#A5B4FC]" />
             </motion.div>
 
-            {/* ── Adaptive Anxiety Engine ── */}
+            {/* ── Interactive Anxiety Support (Role 3 Interventions) ── */}
             <section className="mt-10">
-              <AdaptiveAnxietyEngine />
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1E2A5E] flex items-center gap-2">
+                    <Sparkles className="text-[#4F6BF6]" size={22} /> Interactive Anxiety Support
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#6B7BA8] mt-0.5">
+                    Direct interactive grounding and breathing interventions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-3">
+                {anxietyInterventions.map((card) => (
+                  <CalmMiniCard
+                    key={card.id}
+                    {...card}
+                    onLaunch={(id) => setActiveIntervention(id)}
+                  />
+                ))}
+              </div>
             </section>
 
-            {/* ── Quick calm mini-cards ── */}
-            <section className="mt-10 grid gap-5 sm:grid-cols-3">
-              {calmCards.map((card) => (
-                <CalmMiniCard key={card.label} {...card} />
-              ))}
+            {/* ── Adaptive Anxiety Engine & Evaluator Tools ── */}
+            <section className="mt-10">
+              <AdaptiveAnxietyEngine />
             </section>
 
             {/* ── Sensory Settings ── */}
@@ -138,6 +180,14 @@ export default function AnxietyPage() {
             </footer>
           </div>
         </main>
+
+        {/* Role 3 Active Intervention Modal */}
+        <InterventionModal
+          isOpen={Boolean(activeIntervention)}
+          recommendationId={activeIntervention}
+          onClose={() => setActiveIntervention(null)}
+          onComplete={() => setActiveIntervention(null)}
+        />
       </SupportToolLayout>
     </SupportToolThemeProvider>
   );
