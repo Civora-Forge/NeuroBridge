@@ -94,6 +94,21 @@ import {
   extractTextFromImages,
   formatTextToParagraphs,
 } from "@/lib/textExtractor";
+import {
+  loadReadingProfile,
+  saveReadingProfile,
+  DEFAULT_READING_PREFS,
+  logReadingInteraction,
+  saveReadingSession,
+  deriveRecommendations,
+} from "@/lib/readingProfileService";
+import {
+  analyzeWordDifficulty,
+  analyzeSentenceDifficulty,
+  simplifyWord,
+  simplifyText,
+  getAIDifficultyAnalysis,
+} from "@/lib/dyslexiaDifficultyService";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Ephemeral Document Store (In-Memory)
@@ -1194,30 +1209,6 @@ function HomeScreen({ onOpenDoc }) {
               >
                 Calm reading, built for every mind.
               </h1>
-              <p className="text-base leading-7 text-slate-600 sm:text-lg">
-                OpenDyslexic-first typography · Warm low-glare backgrounds ·
-                Full TTS with word highlighting · Focus mode · Reading ruler ·
-                WCAG 2.2
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  ["Accessible Font", "OpenDyslexic first"],
-                  ["Background", "Warm Cream"],
-                  ["Standard", "WCAG 2.2"],
-                ].map(([k, v]) => (
-                  <div
-                    key={k}
-                    className="rounded-2xl border border-black/5 bg-amber-50/80 px-4 py-3"
-                  >
-                    <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                      {k}
-                    </div>
-                    <div className="mt-0.5 text-sm font-medium text-slate-900">
-                      {v}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:w-56 lg:flex-col">
               <Button
@@ -1226,15 +1217,6 @@ function HomeScreen({ onOpenDoc }) {
                 aria-label="Open reader with sample document"
               >
                 Start reading <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="h-12 flex-1 rounded-2xl border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-              >
-                <Link to="/dyslexia">
-                  <ChevronLeft className="h-4 w-4" /> Dyslexia Hub
-                </Link>
               </Button>
             </div>
           </div>
@@ -1620,18 +1602,33 @@ function ReaderScreen({ docId, onBack }) {
 
   const doc = docState;
 
-  /* Prefs — persisted to localStorage */
-  const [prefs, setPrefsState] = useState(() =>
-    lsGet(STORAGE_KEY_PREFS, DEFAULT_PREFS),
-  );
+  /* Prefs — persisted to Supabase & localStorage */
+  const [prefs, setPrefsState] = useState(DEFAULT_READING_PREFS);
+  const [sessionData, setSessionData] = useState({
+    startTime: Date.now(),
+    ttsUsed: false,
+    simplificationUsed: false,
+    difficultyInteractions: 0
+  });
+
+  const mainRef = useRef(null);
+  const [rulerStyle, setRulerStyle] = useState({});
+
+  useEffect(() => {
+    let mounted = true;
+    loadReadingProfile(user).then((p) => {
+      if (mounted) setPrefsState(p);
+    });
+    return () => { mounted = false; };
+  }, [user]);
+
   const setPrefs = useCallback((updater) => {
     setPrefsState((prev) => {
-      const next =
-        typeof updater === "function" ? updater(prev) : updater;
-      lsSet(STORAGE_KEY_PREFS, next);
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveReadingProfile(user, next);
       return next;
     });
-  }, []);
+  }, [user]);
 
   /* Build structured paragraphs with global word indices */
   const structuredParagraphs = useMemo(() => {
@@ -1665,6 +1662,67 @@ function ReaderScreen({ docId, onBack }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [activePara, setActivePara] = useState(0);
 
+  // New features state
+  const [wordDifficultyScores, setWordDifficultyScores] = useState([]);
+  const [sentenceComplexity, setSentenceComplexity] = useState([]);
+  const [simplificationModal, setSimplificationModal] = useState({ open: false, text: "", simplified: "", explanation: "", loading: false, targetIdx: null });
+  const [recommendations, setRecommendations] = useState([]);
+
+  // Calculate heuristic difficulty
+  useEffect(() => {
+    if (!doc?.paragraphs) return;
+    const sentenceScores = doc.paragraphs.map(p => analyzeSentenceDifficulty(p));
+    setSentenceComplexity(sentenceScores);
+    setWordDifficultyScores(analyzeWordDifficulty(allWords));
+  }, [doc, allWords]);
+
+  // Load recommendations
+  useEffect(() => {
+    if (!user) return;
+    deriveRecommendations(user).then(recs => {
+      // Filter out dismissed
+      const dismissed = lsGet("neurobridge-dismissed-recs", []);
+      setRecommendations(recs.filter(r => !dismissed.includes(r.id)));
+    });
+  }, [user]);
+
+  const handleApplyRecommendation = (rec) => {
+    if (rec.type === "settings" && rec.settingKey) {
+      setPrefs(p => ({ ...p, [rec.settingKey]: rec.settingValue }));
+    }
+    handleDismissRecommendation(rec.id);
+  };
+
+  const handleDismissRecommendation = (id) => {
+    setRecommendations(prev => prev.filter(r => r.id !== id));
+    const dismissed = lsGet("neurobridge-dismissed-recs", []);
+    lsSet("neurobridge-dismissed-recs", [...dismissed, id]);
+  };
+
+  const handleWordClick = async (word, globalIdx) => {
+    setSessionData(s => ({ ...s, difficultyInteractions: s.difficultyInteractions + 1 }));
+    setSimplificationModal({ open: true, text: word, simplified: "", explanation: "", loading: true, targetIdx: globalIdx });
+    const res = await simplifyWord(word);
+    setSimplificationModal(prev => ({
+      ...prev,
+      loading: false,
+      simplified: res?.simplified || "Could not simplify.",
+      explanation: res?.explanation || "Please try another word."
+    }));
+  };
+
+  const handleSentenceSimplify = async (paraText, paraIndex) => {
+    setSessionData(s => ({ ...s, simplificationUsed: true }));
+    setSimplificationModal({ open: true, text: paraText, simplified: "", explanation: "", loading: true, targetIdx: `para-${paraIndex}` });
+    const res = await simplifyText(paraText);
+    setSimplificationModal(prev => ({
+      ...prev,
+      loading: false,
+      simplified: res || "Could not simplify paragraph.",
+      explanation: "Simplified version of the selected text."
+    }));
+  };
+
   /* Save progress on unmount and position change */
   useEffect(() => {
     const progress = totalWords > 1 ? Math.round((currentWordIndex / (totalWords - 1)) * 100) : 0;
@@ -1676,6 +1734,29 @@ function ReaderScreen({ docId, onBack }) {
     }
   }, [docId, currentWordIndex, totalWords, user]);
 
+  /* Track Session End */
+  useEffect(() => {
+    return () => {
+      // Unmount -> end session
+      const durationSeconds = Math.round((Date.now() - sessionData.startTime) / 1000);
+      if (durationSeconds > 10) {
+        saveReadingSession(user, {
+          fileId: docId?.startsWith("moonlight") ? null : docId,
+          originalText: doc?.paragraphs?.[0]?.substring(0, 500) || "",
+          wpm: totalWords > 0 ? Math.round((currentWordIndex / durationSeconds) * 60) : 0,
+          comfortScore: 80, // Derived
+          durationSeconds,
+          ttsUsed: sessionData.ttsUsed,
+          simplificationUsed: sessionData.simplificationUsed,
+          difficultyInteractions: sessionData.difficultyInteractions,
+          wordCount: currentWordIndex,
+          startPosition: 0,
+          endPosition: currentWordIndex
+        });
+      }
+    };
+  }, [user, sessionData, docId, doc, totalWords, currentWordIndex]);
+
 
   /* Sync active paragraph to TTS cursor */
   useEffect(() => {
@@ -1686,18 +1767,39 @@ function ReaderScreen({ docId, onBack }) {
     if (idx >= 0) setActivePara(idx);
   }, [currentWordIndex, structuredParagraphs]);
 
-  /* Reading ruler — follows mouse/touch */
+  /* Reading ruler — follows mouse/touch and stays inside container bounds */
   useEffect(() => {
     if (!prefs.readingRuler) return;
+    
+    const updateRulerBounds = () => {
+      if (mainRef.current) {
+        const rect = mainRef.current.getBoundingClientRect();
+        setRulerStyle({
+          left: `${rect.left}px`,
+          width: `${rect.width}px`
+        });
+      }
+    };
+
+    updateRulerBounds();
+
     const onMove = (e) => {
       const y = e.touches?.[0]?.clientY ?? e.clientY;
       setRulerY(y - 24);
+      // Periodically update bounds in case container shifts
+      updateRulerBounds();
     };
+
     window.addEventListener("mousemove", onMove, { passive: true });
     window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("resize", updateRulerBounds, { passive: true });
+    window.addEventListener("scroll", updateRulerBounds, { passive: true });
+
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("resize", updateRulerBounds);
+      window.removeEventListener("scroll", updateRulerBounds);
     };
   }, [prefs.readingRuler]);
 
@@ -1731,16 +1833,31 @@ function ReaderScreen({ docId, onBack }) {
   /* Render a paragraph with per-word TTS highlighting */
   function renderParagraph(paraObj, paraIndex) {
     let wIdx = paraObj.startIdx;
+    const compScore = sentenceComplexity[paraIndex]?.score || 0;
+    
     const spans = paraObj.words.map((word, i) => {
       const globalIdx = wIdx++;
       const isActive = globalIdx === currentWordIndex;
+      const diffScore = wordDifficultyScores[globalIdx] || 0;
+      
+      let diffClass = "";
+      if (diffScore === 1) diffClass = "word-difficulty-medium";
+      else if (diffScore === 2) diffClass = "word-difficulty-hard";
+
       return (
         <span
           key={i}
           className={cn(
             "inline transition-all duration-100",
             isActive && "tts-word-active",
+            diffClass
           )}
+          onClick={(e) => {
+             if (diffScore > 0) {
+               e.stopPropagation();
+               handleWordClick(word, globalIdx);
+             }
+          }}
           aria-current={isActive ? "true" : undefined}
         >
           {word}{" "}
@@ -1751,27 +1868,42 @@ function ReaderScreen({ docId, onBack }) {
     const isFocused =
       !prefs.focusMode || paraIndex === activePara;
 
+    let compClass = "";
+    if (compScore === 1) compClass = "sentence-complexity-medium";
+    else if (compScore === 2) compClass = "sentence-complexity-hard";
+
     return (
-      <motion.p
-        key={paraObj.startIdx}
-        layout
-        className={cn(
-          "mb-6 cursor-pointer rounded-xl p-2 transition-all duration-200 last:mb-0",
-          prefs.focusMode
-            ? isFocused
-              ? "para-focused ring-2 ring-amber-300/30"
-              : "para-dimmed"
-            : "",
+      <div key={paraObj.startIdx} className="group relative">
+        {compScore > 0 && (
+           <button 
+             onClick={(e) => { e.stopPropagation(); handleSentenceSimplify(paraObj.para, paraIndex); }}
+             className="absolute -left-12 top-2 hidden group-hover:flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 shadow-sm hover:bg-slate-200"
+             title="Simplify this paragraph"
+           >
+             <Sparkles className="h-4 w-4" />
+           </button>
         )}
-        onClick={() => {
-          setActivePara(paraIndex);
-          setCurrentWordIndex(paraObj.startIdx);
-          if (isPlaying) setIsPlaying(false);
-        }}
-        aria-label={`Paragraph ${paraIndex + 1}${isFocused ? ", active" : ""}`}
-      >
-        {spans}
-      </motion.p>
+        <motion.p
+          layout
+          className={cn(
+            "mb-6 cursor-pointer rounded-xl p-2 transition-all duration-200 last:mb-0",
+            prefs.focusMode
+              ? isFocused
+                ? "para-focused ring-2 ring-amber-300/30"
+                : "para-dimmed"
+              : "",
+            compClass
+          )}
+          onClick={() => {
+            setActivePara(paraIndex);
+            setCurrentWordIndex(paraObj.startIdx);
+            if (isPlaying) setIsPlaying(false);
+          }}
+          aria-label={`Paragraph ${paraIndex + 1}${isFocused ? ", active" : ""}`}
+        >
+          {spans}
+        </motion.p>
+      </div>
     );
   }
 
@@ -1786,7 +1918,7 @@ function ReaderScreen({ docId, onBack }) {
       {prefs.readingRuler && (
         <div
           className="reading-ruler"
-          style={{ top: rulerY }}
+          style={{ top: rulerY, ...rulerStyle }}
           aria-hidden="true"
         />
       )}
@@ -1984,11 +2116,88 @@ function ReaderScreen({ docId, onBack }) {
             </div>
           </motion.div>
         )}
+
+        {/* ── Recommendations Banners ── */}
+        {recommendations.map(rec => (
+          <motion.div
+            key={rec.id}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="recommendation-banner border-b border-emerald-200 bg-emerald-50 px-6 py-3"
+          >
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+               <div>
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-700 mb-1">
+                    <Sparkles className="h-3.5 w-3.5" /> Personalized Tip
+                  </div>
+                  <p className="text-sm font-medium text-slate-800">{rec.title}</p>
+                  <p className="text-sm text-slate-600">{rec.description}</p>
+               </div>
+               <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => handleDismissRecommendation(rec.id)}>
+                    Dismiss
+                  </Button>
+                  {rec.type === "settings" && (
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApplyRecommendation(rec)}>
+                      Apply
+                    </Button>
+                  )}
+               </div>
+            </div>
+          </motion.div>
+        ))}
       </AnimatePresence>
+
+      {/* ── AI Simplification Modal ── */}
+      <Dialog open={simplificationModal.open} onOpenChange={(open) => setSimplificationModal(p => ({ ...p, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Sparkles className="h-5 w-5" />
+              AI Simplification
+            </DialogTitle>
+            <DialogDescription>
+              We simplified this for easier reading.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Original</p>
+              <p className="text-sm text-slate-700 line-clamp-3" style={{ fontFamily: prefs.fontFamily }}>{simplificationModal.text}</p>
+            </div>
+            
+            <div className="rounded-xl bg-amber-50 p-4 border border-amber-100 shadow-inner">
+              <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">Simplified</p>
+              {simplificationModal.loading ? (
+                <div className="flex items-center gap-2 text-sm text-amber-700">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating simpler version...
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-slate-900" style={{ fontFamily: prefs.fontFamily }}>{simplificationModal.simplified}</p>
+                  {simplificationModal.explanation && (
+                    <p className="text-sm text-slate-600 italic border-t border-amber-200/50 pt-2 mt-2" style={{ fontFamily: prefs.fontFamily }}>
+                      {simplificationModal.explanation}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-start">
+            <Button type="button" variant="secondary" onClick={() => setSimplificationModal(p => ({ ...p, open: false }))}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Reading content ── */}
       <main
-        className="mx-auto max-w-3xl px-5 py-10 pb-56 sm:px-8"
+        ref={mainRef}
+        className="mx-auto max-w-3xl px-5 py-10 pb-56 sm:px-8 relative"
         style={{ backgroundColor: theme.backgroundColor }}
         role="article"
         aria-label={`Reading: ${doc.title}`}

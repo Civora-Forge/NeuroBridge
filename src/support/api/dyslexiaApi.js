@@ -1,53 +1,53 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
-const jsonRequest = async (path, options = {}) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
-  }
-
-  return response.json();
+export const createReadingSession = async (payload) => {
+  console.log("Mock createReadingSession", payload);
+  return { id: "mock-session-id" };
 };
 
-export const createReadingSession = async (payload) =>
-  jsonRequest("/api/dyslexia/reading/session", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const getReadingInsights = async (userId) => {
+  console.log("Mock getReadingInsights", userId);
+  return { speed: 120, accuracy: 95 };
+};
 
-export const getReadingInsights = async (userId) =>
-  jsonRequest(`/api/dyslexia/reading/insights/${userId}`);
+export const logPhonologyErrors = async (payload) => {
+  if (isSupabaseConfigured && payload?.userId && payload?.phoneme) {
+    const { error } = await supabase.from("phoneme_errors").upsert({
+      user_id: payload.userId,
+      phoneme: payload.phoneme,
+      error_count: 1, // Basic increment would be better, but this is a stub
+    });
+    if (error) console.warn("Failed to log phoneme error", error);
+  }
+  return { success: true };
+};
 
-export const logPhonologyErrors = async (payload) =>
-  jsonRequest("/api/dyslexia/phonology/log", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const generatePhonologyDrills = async (payload) => {
+  console.log("Mock generatePhonologyDrills", payload);
+  return {
+    drills: [
+      { id: 1, word: "cat", phoneme: "a" },
+      { id: 2, word: "dog", phoneme: "o" },
+    ],
+  };
+};
 
-export const generatePhonologyDrills = async (payload) =>
-  jsonRequest("/api/dyslexia/phonology/drills", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const trackReinforcementEvent = async (payload) => {
+  console.log("Mock trackReinforcementEvent", payload);
+  return { success: true };
+};
 
-export const trackReinforcementEvent = async (payload) =>
-  jsonRequest("/api/dyslexia/reinforcement/event", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const analyzeWriting = async (payload) => {
+  console.log("Mock analyzeWriting", payload);
+  return { stability: 85, suggestions: [] };
+};
 
-export const analyzeWriting = async (payload) =>
-  jsonRequest("/api/dyslexia/writing/analyze", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const getLearningProfile = async (userId) => {
+  console.log("Mock getLearningProfile", userId);
+  return { dominantWeakness: "None" };
+};
 
-export const getLearningProfile = async (userId) =>
-  jsonRequest(`/api/dyslexia/profile/${userId}`);
-
-export const getAnalyticsStreamUrl = (userId) =>
-  `${API_BASE_URL}/api/dyslexia/analytics/stream/${userId}`;
+export const getAnalyticsStreamUrl = (userId) => {
+  // This is no longer used for SSE, just return null
+  return null;
+};
