@@ -182,8 +182,7 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/depression/social")).toBe("support.social_connection");
     expect(resolveCanonicalModuleId("/depression/evidence")).toBe("support.evidence_journal");
     expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading");
-    expect(resolveCanonicalModuleId("/dyscalculia/step-practice")).toBe("dyscalculia.step-practice");
-    expect(resolveCanonicalModuleId("/dyscalculia/calm-mode")).toBe("dyscalculia.calm-mode");
+
     expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
     expect(resolveCanonicalModuleId("/asd/social-scenarios")).toBe("asd.social-scenarios");
     expect(resolveCanonicalModuleId("/asd/sensory")).toBeNull();

@@ -6,11 +6,6 @@
 
 import React, { useState } from 'react';
 import {
-  CircleDot,
-  Footprints,
-  ShoppingCart,
-  HeartPulse,
-  Shapes,
   Play,
   ChevronDown,
   ChevronRight,
@@ -27,43 +22,7 @@ const TABS = [
   { key: 'progress', label: 'Progress' },
 ];
 
-const tools = [
-  {
-    to: '/dyscalculia/number-sense',
-    icon: CircleDot,
-    title: 'Number Sense Engine',
-    description: 'Convert abstract numbers into visual magnitude representations',
-    targetText: 'Recommended · 15 min',
-  },
-  {
-    to: '/dyscalculia/step-practice',
-    icon: Footprints,
-    title: 'Guided Step Practice',
-    description: 'Break calculations into micro-steps to reduce working memory load',
-    targetText: 'Beginner · 20 min',
-  },
-  {
-    to: '/dyscalculia/real-life-math',
-    icon: ShoppingCart,
-    title: 'Real-Life Math Simulator',
-    description: 'Build practical numerical confidence with everyday scenarios',
-    targetText: 'Practical · 25 min',
-  },
-  {
-    to: '/dyscalculia/calm-mode',
-    icon: HeartPulse,
-    title: 'Calm Mode',
-    description: 'Anxiety-aware system that adjusts presentation with supportive guidance',
-    targetText: 'Support · 10 min',
-  },
-  {
-    to: '/dyscalculia/patterns',
-    icon: Shapes,
-    title: 'Pattern Recognition Trainer',
-    description: 'Build pattern detection skills with sequences and visual exercises',
-    targetText: 'Intermediate · 15 min',
-  },
-];
+const tools = [];
 
 export default function DyscalculiaDashboard() {
   const [activeTab, setActiveTab] = useState('tools');

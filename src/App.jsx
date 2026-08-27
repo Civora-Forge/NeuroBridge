@@ -46,11 +46,6 @@ import DyslexiaWritingAssistant from "./pages/dyslexia/DyslexiaWritingAssistant"
 import AIPersonalLearningProfile from "./pages/dyslexia/AIPersonalLearningProfile";
 
 import DyscalculiaPage from "./pages/DyscalculiaPage";
-import NumberSenseEngine from "./pages/dyscalculia/NumberSenseEngine";
-import GuidedStepPractice from "./pages/dyscalculia/GuidedStepPractice";
-import RealLifeMathSimulator from "./pages/dyscalculia/RealLifeMathSimulator";
-import CalmMode from "./pages/dyscalculia/CalmMode";
-import PatternRecognitionTrainer from "./pages/dyscalculia/PatternRecognitionTrainer";
 
 import APDPage from "./pages/APDPage";
 import ADHDPage from "./pages/adhd/ADHDPage";
@@ -282,46 +277,6 @@ function ShellRoutes() {
           element={
             <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
               <DyscalculiaPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dyscalculia/number-sense"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
-              <NumberSenseEngine />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dyscalculia/step-practice"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
-              <GuidedStepPractice />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dyscalculia/real-life-math"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
-              <RealLifeMathSimulator />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dyscalculia/calm-mode"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
-              <CalmMode />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dyscalculia/patterns"
-          element={
-            <ProtectedRoute feature={FEATURES.DYSCALCULIA}>
-              <PatternRecognitionTrainer />
             </ProtectedRoute>
           }
         />
