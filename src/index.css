@@ -264,4 +264,50 @@
     opacity: 1;
     transition: opacity 0.2s ease;
   }
+
+  /* Word difficulty underlines */
+  .word-difficulty-medium {
+    text-decoration: underline;
+    text-decoration-color: rgba(251, 146, 60, 0.7);
+    text-decoration-style: wavy;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background-color 0.1s ease;
+  }
+  .word-difficulty-medium:hover {
+    background-color: rgba(251, 146, 60, 0.15);
+  }
+
+  .word-difficulty-hard {
+    text-decoration: underline;
+    text-decoration-color: rgba(239, 68, 68, 0.7);
+    text-decoration-style: wavy;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background-color 0.1s ease;
+  }
+  .word-difficulty-hard:hover {
+    background-color: rgba(239, 68, 68, 0.12);
+  }
+
+  /* Sentence complexity indicator */
+  .sentence-complexity-medium {
+    border-left: 3px solid rgba(251, 146, 60, 0.6);
+    padding-left: 8px;
+  }
+  .sentence-complexity-hard {
+    border-left: 3px solid rgba(239, 68, 68, 0.6);
+    padding-left: 8px;
+  }
+
+  /* Recommendation banner animation */
+  @keyframes slide-in-from-top {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .recommendation-banner {
+    animation: slide-in-from-top 0.22s ease forwards;
+  }
 }

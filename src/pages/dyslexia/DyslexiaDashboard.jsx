@@ -155,15 +155,6 @@ export default function DyslexiaDashboard() {
     };
   }, [user]);
 
-  const stats = useMemo(
-    () => [
-      { label: "Accessible font", value: "OpenDyslexic first" },
-      { label: "Reading mode", value: "Warm low-glare paper" },
-      { label: "Keyboard-ready", value: "WCAG 2.2 aligned" },
-    ],
-    [],
-  );
-
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(254,249,195,0.9),_rgba(250,243,160,0.5)_40%,_rgba(248,250,252,1)_78%)] pb-28 pt-6 sm:pt-8">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8">
@@ -189,21 +180,6 @@ export default function DyslexiaDashboard() {
                   paper tones, OpenDyslexic-first typography, and a lightweight
                   path from capture to focus to audio support.
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {stats.map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-2xl border border-black/5 bg-amber-50/80 px-4 py-3"
-                  >
-                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      {item.label}
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-slate-900">
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -237,7 +213,7 @@ export default function DyslexiaDashboard() {
                 asChild
                 className="h-12 rounded-2xl bg-slate-900 text-white hover:bg-slate-800"
               >
-                <Link to="/dyslexia/adaptive-reading?source=files&doc=moonlight-rail">
+                <Link to="/dyslexia/reading-module">
                   Start reading
                   <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -435,7 +411,7 @@ export default function DyslexiaDashboard() {
                 variant="secondary"
                 className="rounded-full bg-white text-slate-900 hover:bg-slate-100"
               >
-                <Link to="/dyslexia/adaptive-reading?source=settings&doc=moonlight-rail">
+                <Link to="/dyslexia/reading-module">
                   Open settings in reader
                 </Link>
               </Button>
