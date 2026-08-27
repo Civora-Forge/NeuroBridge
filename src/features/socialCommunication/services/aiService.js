@@ -31,9 +31,16 @@ const GEMINI_MODEL_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 export function getGeminiApiKey() {
-  return typeof import.meta !== "undefined" && import.meta?.env
+  const key = typeof import.meta !== "undefined" && import.meta?.env
     ? import.meta.env.VITE_GEMINI_API_KEY
     : undefined;
+    
+  if (!key && (import.meta.env?.PROD || typeof window !== 'undefined')) {
+    console.error(
+      "ERROR: VITE_GEMINI_API_KEY is missing! Live AI scenarios in ASD modules will not work and will fall back to local pools. Please set VITE_GEMINI_API_KEY in your production environment."
+    );
+  }
+  return key;
 }
 
 export function isGeminiAvailable() {
