@@ -65,9 +65,9 @@ function deriveSignals(adjustments = []) {
 }
 
 function scoreTone(score) {
-  if (score >= 75) return { label: "Great response", className: "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" };
-  if (score >= 50) return { label: "Good start", className: "border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300" };
-  return { label: "Keep practising", className: "border-orange-400 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300" };
+  if (score >= 75) return { label: "Great response", className: "border-[#34D399] bg-[#ECFDF5] text-[#059669]" };
+  if (score >= 50) return { label: "Good start", className: "border-[#FBBF24] bg-[#FFFBEB] text-[#D97706]" };
+  return { label: "Keep practising", className: "border-[#F97316] bg-[#FFF7ED] text-[#EA580C]" };
 }
 
 export default function SocialScenarioSimulatorCard() {
@@ -219,12 +219,13 @@ export default function SocialScenarioSimulatorCard() {
   const tone = result ? scoreTone(result.score) : null;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="border-[#B2DFDB] shadow-[6px_6px_0_#B2DFDB] rounded-2xl overflow-hidden">
+      <div className="h-2 bg-gradient-to-r from-[#0D9488] to-[#5EEAD4]" />
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <MessagesSquare size={20} /> Social Scenario Simulator
+        <CardTitle className="flex items-center gap-2 text-xl text-[#134E4A]">
+          <MessagesSquare size={20} className="text-[#0D9488]" /> Social Scenario Simulator
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-[#5F7A75]">
           Read one situation, then say or type how you would respond. You get kind, specific feedback each time.
         </CardDescription>
       </CardHeader>
@@ -285,12 +286,12 @@ export default function SocialScenarioSimulatorCard() {
 
         {/* Scenario */}
         {loading || !scenario ? (
-          <div className="rounded-2xl border-2 border-dashed p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border-2 border-dashed border-[#B2DFDB] p-6 text-center text-sm text-[#5F7A75]">
             Preparing a situation…
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-2xl border-2 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 p-5 space-y-3">
+            <div className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-5 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{getScenarioCategoryById(scenario.category)?.label ?? "Daily Life"}</Badge>
                 <Badge variant="secondary">{getScenarioDifficultyById(scenario.difficulty)?.label ?? "Easy"}</Badge>
@@ -303,7 +304,7 @@ export default function SocialScenarioSimulatorCard() {
               )}
 
               {showCues && Array.isArray(cuesToShow) && cuesToShow.length > 0 && (
-                <div className="rounded-xl bg-white/60 dark:bg-slate-900/40 p-3 space-y-1">
+                <div className="rounded-xl bg-white/60 p-3 space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cues to notice</p>
                   <ul className="list-disc list-inside space-y-0.5 text-sm">
                     {cuesToShow.map((cue) => (
@@ -350,7 +351,7 @@ export default function SocialScenarioSimulatorCard() {
                 <p className="text-xs text-amber-600" role="status">{voice.error}</p>
               )}
               {!result && (
-                <Button onClick={handleSubmit} disabled={!response.trim() || loading} className="gap-2">
+                <Button onClick={handleSubmit} disabled={!response.trim() || loading} className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold">
                   <CheckCircle2 size={16} /> Check my response
                 </Button>
               )}
@@ -411,7 +412,7 @@ export default function SocialScenarioSimulatorCard() {
                   <p className="text-xs text-muted-foreground">{result.speechNotes.note}</p>
                 )}
 
-                <Button className="mt-1 gap-2 w-full sm:w-auto" onClick={handleNext}>
+                <Button className="mt-1 gap-2 w-full sm:w-auto bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={handleNext}>
                   Next situation <ArrowRight size={16} />
                 </Button>
               </div>
@@ -450,7 +451,7 @@ export default function SocialScenarioSimulatorCard() {
             {adaptation.adjustments.map((adj) => (
               <span
                 key={adj.actionId ?? `${adj.target}:${adj.type}`}
-                className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-foreground"
+                className="rounded-full bg-[#D1FAE5] px-2 py-0.5 text-[11px] font-medium text-[#0D9488]"
               >
                 {adj.label}
               </span>

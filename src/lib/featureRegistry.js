@@ -47,7 +47,6 @@ export const FEATURES = /** @type {const} */ ({
   ADHD_EMOTION:   "adhd.emotion-coach",
   ADHD_TIMELINE:  "adhd.visual-timeline",
   ADHD_BREAKDOWN: "adhd.task-breakdown",
-  ADHD_SOUNDS:    "adhd.soundscapes",
   ADHD_DOUBLING:  "adhd.body-doubling",
 
   // ── Dyslexia sub-features ───────────────────
@@ -188,10 +187,6 @@ export const FEATURE_REGISTRY = {
   },
   [FEATURES.ADHD_BREAKDOWN]: {
     label: "Task Breakdown",
-    disorders: [DISORDERS.ADHD],
-  },
-  [FEATURES.ADHD_SOUNDS]: {
-    label: "Focus Soundscapes",
     disorders: [DISORDERS.ADHD],
   },
   [FEATURES.ADHD_DOUBLING]: {
@@ -353,6 +348,12 @@ export function resolveEnabledFeatures(input) {
       }
       if (FEATURE_REGISTRY[moduleId]) {
         enabled.add(moduleId);
+        if (moduleId.includes(".")) {
+          const rootModule = moduleId.split(".")[0];
+          if (FEATURE_REGISTRY[rootModule]) {
+            enabled.add(rootModule);
+          }
+        }
       }
     }
 

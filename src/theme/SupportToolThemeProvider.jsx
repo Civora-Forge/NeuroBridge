@@ -1,8 +1,20 @@
 import "./supportToolThemes.css";
+import { useEffect, useState } from "react";
 import { SUPPORT_TOOL_THEMES, resolveSupportToolTheme } from "./supportToolThemes";
+
+const ADHD_PREFERENCES_KEY = "neurobridge-adhd-display-preferences";
+
+function getAdhdPreferences() {
+  try {
+    return JSON.parse(localStorage.getItem(ADHD_PREFERENCES_KEY)) || { lowStimulation: false, reducedMotion: false, softColors: false };
+  } catch {
+    return { lowStimulation: false, reducedMotion: false, softColors: false };
+  }
+}
 
 export default function SupportToolThemeProvider({ theme, override, children }) {
   const resolvedTheme = resolveSupportToolTheme(theme, override);
+  const [adhdPreferences, setAdhdPreferences] = useState(getAdhdPreferences);
   const tokens = resolvedTheme ? SUPPORT_TOOL_THEMES[resolvedTheme] : null;
   const style = tokens ? {
     "--tool-background": tokens.background,
@@ -19,6 +31,46 @@ export default function SupportToolThemeProvider({ theme, override, children }) 
     "--tool-warning": tokens.warning,
     "--tool-danger": tokens.danger,
   } : undefined;
+  const updateAdhdPreference = (key) => {
+    setAdhdPreferences((current) => {
+      const next = { ...current, [key]: !current[key] };
+      localStorage.setItem(ADHD_PREFERENCES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const activePreferences = [
+    adhdPreferences.lowStimulation && "Quiet mode",
+    adhdPreferences.softColors && "Softer colors",
+    adhdPreferences.reducedMotion && "Reduce motion",
+  ].filter(Boolean);
 
-  return <div data-support-theme={resolvedTheme ?? "neutral"} className="support-tool-theme" style={style}>{children}</div>;
+  useEffect(() => {
+    if (resolvedTheme !== "adhd_focus") return undefined;
+    document.documentElement.dataset.adhdReducedMotion = adhdPreferences.reducedMotion ? "true" : "false";
+    return () => { delete document.documentElement.dataset.adhdReducedMotion; };
+  }, [adhdPreferences.reducedMotion, resolvedTheme]);
+
+  return (
+    <div
+      data-support-theme={resolvedTheme ?? "neutral"}
+      data-adhd-low-stimulation={resolvedTheme === "adhd_focus" && adhdPreferences.lowStimulation ? "true" : "false"}
+      data-adhd-soft-colors={resolvedTheme === "adhd_focus" && adhdPreferences.softColors ? "true" : "false"}
+      data-adhd-reduced-motion={resolvedTheme === "adhd_focus" && adhdPreferences.reducedMotion ? "true" : "false"}
+      className="support-tool-theme"
+      style={style}
+    >
+      {resolvedTheme === "adhd_focus" && (
+        <details className="adhd-display-controls">
+          <summary>Display options</summary>
+          <div>
+            <button type="button" aria-pressed={adhdPreferences.lowStimulation} onClick={() => updateAdhdPreference("lowStimulation")}>Quiet mode</button>
+            <button type="button" aria-pressed={adhdPreferences.softColors} onClick={() => updateAdhdPreference("softColors")}>Softer colors</button>
+            <button type="button" aria-pressed={adhdPreferences.reducedMotion} onClick={() => updateAdhdPreference("reducedMotion")}>Reduce motion</button>
+          </div>
+          <p className="adhd-display-status" aria-live="polite">{activePreferences.length ? `${activePreferences.join(" + ")} active` : "Standard display"}</p>
+        </details>
+      )}
+      {children}
+    </div>
+  );
 }

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Shield, Star, TrendingUp, Award, Heart } from "lucide-react";
+import { Shield, Star, TrendingUp, Award, Heart, ChevronDown, Search, Sparkles, Sprout, Trash2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
@@ -20,6 +19,10 @@ const evidenceCategories = {
   selfworth: { icon: <Star className="w-4 h-4" />, label: "Self-worth", hint: "I showed kindness to myself" }
 };
 
+function EvidenceCornerArt() {
+  return <img aria-hidden="true" src="/image.svg" alt="" className="pointer-events-none h-full w-full object-contain transition-transform duration-500 hover:scale-105" />;
+}
+
 export default function EvidenceFolder() {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
@@ -33,7 +36,20 @@ export default function EvidenceFolder() {
   const [sessionComplete, setSessionComplete] = useState(false);
   const [rated, setRated] = useState(false);
   const startedAtRef = useRef(null);
-  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: EVIDENCE_JOURNAL_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { allowedCategories: Object.keys(evidenceCategories), retentionMode: user?.id ? 'user_scoped' : 'ephemeral', requiresSafetyCheck: true } });
+  
+  const lifecycle = useInterventionLifecycle({ 
+    userId: user?.id ?? null, 
+    moduleId: EVIDENCE_JOURNAL_MODULE_ID, 
+    planId: null, 
+    contextSnapshotId: null, 
+    triggerSource: 'manual', 
+    selectionMode: 'explicit_request', 
+    configuration: { 
+      allowedCategories: Object.keys(evidenceCategories), 
+      retentionMode: user?.id ? 'user_scoped' : 'ephemeral', 
+      requiresSafetyCheck: true 
+    } 
+  });
 
   // load saved
   useEffect(() => {
@@ -47,12 +63,12 @@ export default function EvidenceFolder() {
     if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
     const now = new Date().toISOString();
     const entry = {
-        id: String(Date.now()), userId: user?.id,
-        text: input.trim(),
-        content: input.trim(), category: normalizeEvidenceCategory(selectedCategory),
-        createdAt: now,
-        updatedAt: now, starred: false, moduleId: EVIDENCE_JOURNAL_MODULE_ID, retentionMode: 'user_scoped', safetyLevel: 'sensitive'
-      };
+      id: String(Date.now()), userId: user?.id,
+      text: input.trim(),
+      content: input.trim(), category: normalizeEvidenceCategory(selectedCategory),
+      createdAt: now,
+      updatedAt: now, starred: false, moduleId: EVIDENCE_JOURNAL_MODULE_ID, retentionMode: 'user_scoped', safetyLevel: 'sensitive'
+    };
     const next = user?.id ? saveEvidenceJournalEntry(user.id, entry) : { ...entry, userId: null, retentionMode: 'ephemeral' };
     setItems([next, ...items]); setSavedCount((count) => count + 1); setCategoriesUsed((categories) => [...new Set([...categories, entry.category])]);
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'evidence_journal_saved', completedUnits: savedCount + 1, totalUnits: savedCount + 1, progressRatio: 1 });
@@ -67,6 +83,7 @@ export default function EvidenceFolder() {
     if (user?.id) deleteEvidenceJournalEntry(user.id, id);
     setItems(items.filter(i => i.id !== id)); setDeletedCount((count) => count + 1);
   };
+
   const outcome = (confirmed = false) => buildEvidenceJournalOutcome({ created: savedCount, saved: user?.id ? savedCount : 0, deleted: deletedCount, categories: categoriesUsed, confirmed, startedAt: startedAtRef.current });
   const completeSession = async () => { if (!savedCount || sessionComplete) return; if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(outcome(true)); setSessionComplete(true); };
   const discardSession = async () => { if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_discard', {}, outcome(false)); lifecycle.reset(); setSavedCount(0); setDeletedCount(0); setCategoriesUsed([]); setSessionComplete(false); setRated(false); setInput(''); };
@@ -78,240 +95,305 @@ export default function EvidenceFolder() {
     return matchesText && matchesCat;
   });
 
-  const total = items.length;
   const perCat = Object.keys(evidenceCategories).reduce((acc, key) => {
     acc[key] = items.filter(i => i.category === key).length;
     return acc;
   }, {});
-  const mostUsedCat = Object.entries(perCat).sort((a, b) => b[1] - a[1])[0]?.[0];
 
   return (
-    <SupportToolThemeProvider theme="depression_reflection">
-    <SupportToolLayout>
-      {/* Header */}
-      <motion.div
-        className="text-center space-y-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white px-7 py-3 rounded-3xl font-bold shadow-2xl">
-          <Brain className="w-5 h-5" />
-           Evidence Journal
-        </div>
-        <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-           Review the evidence
-        </h1>
-        <p className="text-gray-600 max-w-xl mx-auto text-sm md:text-base">
-           Keep a private record of moments, effort, and support that matter to you.
-        </p>
-      </motion.div>
+    <SupportToolThemeProvider theme="depression_reflection" override="neutral">
+      <SupportToolLayout className="!m-0 !w-full !max-w-none !gap-0 !p-0">
+        <main className="relative min-h-screen w-full overflow-hidden bg-[#faf8f5] text-[#2c3242] antialiased selection:bg-rose-200">
+          
+          {/* Subtle Ambient Background Gradients */}
+          <div className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-300/20 blur-3xl" />
 
-      {/* Stats strip */}
-      <motion.div
-        className="grid md:grid-cols-3 gap-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/60">
-          <div className="text-xs font-semibold text-gray-500 mb-1">Total evidence</div>
-          <div className="text-3xl font-black text-[hsl(142_72%_36%)]">{total}</div>
-        </div>
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 shadow-lg border border-emerald-100">
-          <div className="text-xs font-semibold text-emerald-700 mb-1">Strongest area</div>
-          <div className="text-sm font-bold text-emerald-900">
-            {mostUsedCat ? evidenceCategories[mostUsedCat].label : "Start logging"}
-          </div>
-        </div>
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/60">
-           <div className="text-xs font-semibold text-gray-500 mb-1">Starred entries</div>
-          <div className="text-3xl font-black text-yellow-500">
-            {items.filter(i => i.starred).length}
-          </div>
-        </div>
-      </motion.div>
+          <div className="relative mx-auto w-full max-w-[1200px] space-y-8 px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14">
+            <div className="rounded-[32px] border border-slate-200/80 bg-white/80 p-6 shadow-xl shadow-slate-900/[0.03] backdrop-blur-md sm:p-10 lg:p-12">
+              <div className="mx-auto max-w-[960px] space-y-8">
+            {/* Header Section */}
+            <header className="relative min-h-[145px]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-purple-200/60 bg-white/80 px-4 py-1.5 text-[12px] font-extrabold uppercase tracking-[.18em] text-purple-900 shadow-sm backdrop-blur-md">
+                Evidence Journal <Sparkles size={14} className="animate-pulse text-amber-500" />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <h1 className="text-[36px] font-black leading-tight tracking-[-.04em] text-slate-900 sm:text-[46px]">
+                  Review the evidence
+                </h1>
+                <div className="hidden h-[100px] w-[190px] shrink-0 sm:block md:h-[120px] md:w-[230px] lg:h-[140px] lg:w-[270px]">
+                  <EvidenceCornerArt />
+                </div>
+              </div>
+              <p className="mt-3 max-w-[640px] text-[16px] leading-relaxed text-slate-600 sm:text-[18px]">
+                Save moments of effort, support, or care that you may want to remember.
+              </p>
+            </header>
 
-      {/* Input + category */}
-      <motion.div
-        className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-2xl border border-[hsl(142_72%_36%)]/15 space-y-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-gray-500">
-            Log one tiny piece of evidence that your brain is underestimating you.
-          </span>
-        </div>
+            {/* Main Input & Logging Card */}
+            <section className="rounded-[24px] border border-sky-200/80 bg-sky-50/30 p-5 shadow-xl shadow-slate-900/[0.03] transition-all duration-300 hover:-translate-y-1 hover:shadow-md backdrop-blur-md sm:p-6">
+              <label htmlFor="evidence-entry" className="block text-[18px] font-black tracking-tight text-slate-900">
+                What would you like to keep?
+              </label>
 
-        <textarea
-          className="w-full fieldTextarea resize-none rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-sm md:text-base focus:border-[hsl(142_72%_36%)] focus:ring-4 focus:ring-[hsl(142_72%_36%)]/15 transition-all"
-          rows={3}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-           placeholder="I attended class even though it felt difficult."
-        />
+              {/* Textarea Container */}
+              <div className="relative mt-4 overflow-hidden rounded-2xl border border-emerald-200/80 bg-white/90 shadow-inner transition-all focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
+                <img 
+                  src="/evidence-sprout.svg" 
+                  alt="" 
+                  aria-hidden="true" 
+                  className="pointer-events-none absolute bottom-0 right-2 z-0 w-[115px] select-none object-contain object-bottom-right opacity-80 sm:w-[160px]" 
+                />
+                <textarea
+                  id="evidence-entry"
+                  className="relative z-10 min-h-[150px] w-full resize-none bg-transparent p-5 pb-[58px] pr-[135px] text-[16px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:outline-none sm:pb-[70px] sm:pr-[170px]"
+                  rows={3}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="I attended class even though it felt difficult."
+                />
+              </div>
 
-        <div className="grid md:grid-cols-[2fr,1fr] gap-3 items-center">
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(evidenceCategories).map(([key, cfg]) => (
+              {/* Category Selection */}
+              <div className="mt-6">
+                <p className="text-[15px] font-black tracking-tight text-slate-800">
+                  Choose the closest category
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2.5">
+                  {Object.entries(evidenceCategories).map(([key, cfg]) => {
+                    const isSelected = selectedCategory === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedCategory(key)}
+                        className={`flex min-h-[48px] items-center gap-2 rounded-xl border px-4 text-[14px] font-extrabold transition-all duration-200 active:scale-95 ${
+                          isSelected
+                            ? "border-emerald-600 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-950/10"
+                            : "border-slate-200 bg-white/70 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        {cfg.icon}
+                        <span>{cfg.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Button */}
               <button
-                key={key}
                 type="button"
-                onClick={() => setSelectedCategory(key)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-semibold transition-all ${
-                  selectedCategory === key
-                    ? "bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white border-[hsl(142_72%_36%)] shadow-lg"
-                    : "bg-white/80 text-gray-700 border-gray-200 hover:border-[hsl(142_72%_36%)]/40"
-                }`}
+                onClick={add}
+                disabled={!input.trim()}
+                className="mt-6 flex min-h-[58px] w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-[17px] font-black text-white shadow-lg shadow-emerald-950/10 transition-all duration-300 hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
               >
-                {cfg.icon}
-                <span>{cfg.label}</span>
+                <Sprout size={20} />
+                <span>Log evidence</span>
               </button>
-            ))}
-          </div>
 
-          <motion.button
-            type="button"
-            onClick={add}
-            disabled={!input.trim()}
-            className="primaryButton w-full bg-gradient-to-r from-[hsl(142_72%_36%)] to-[hsl(142_66%_42%)] text-white rounded-2xl py-3 text-sm md:text-base font-bold shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={input.trim() ? { y: -2, scale: 1.01 } : {}}
-            whileTap={input.trim() ? { scale: 0.97 } : {}}
-          >
-            Log evidence
-          </motion.button>
-        </div>
+              <p className="mt-3 text-[13px] font-medium leading-relaxed text-slate-500">
+                Small details count. Add an entry only when it feels useful.
+              </p>
+              {!user?.id && (
+                <p className="mt-1 text-[12px] font-semibold text-amber-700/80">
+                  Entries are local and temporary. Sign in to retain them in this browser under your account.
+                </p>
+              )}
 
-        <p className="text-[11px] text-gray-500">
-           Tip: Add an entry whenever it feels useful. Small details count.
-        </p>
-        {!user?.id && <p className="text-[11px] text-gray-500">Entries are local and temporary. Sign in to retain them in this browser under your account.</p>}
-        <div className="flex gap-3"><button type="button" onClick={completeSession} disabled={!savedCount || sessionComplete} className="secondaryButton px-4 py-2 text-xs disabled:opacity-50">Complete journal session</button><button type="button" onClick={discardSession} className="text-xs text-gray-500">Discard session</button>{items.length > 0 && <button type="button" onClick={clearAll} className="text-xs text-red-500">Clear all saved entries</button>}</div>
-        {sessionComplete && !rated && <div className="text-xs text-gray-600">How helpful was this journal session? {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={async () => { if (user?.id) { const result = await lifecycle.rate({ rating: value }); if (!result.ok) return; } setRated(true); }} className="ml-2 px-2 py-1 border rounded">{value}</button>)}</div>}
-      </motion.div>
-
-      {/* Filters */}
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center gap-3 justify-between"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="flex gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setFilterCat("all")}
-            className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
-              filterCat === "all"
-                ? "bg-[hsl(142_72%_36%)] text-white border-[hsl(142_72%_36%)]"
-                : "bg-white/80 text-gray-700 border-gray-200"
-            }`}
-          >
-            All
-          </button>
-          {Object.entries(evidenceCategories).map(([key, cfg]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilterCat(key)}
-              className={`px-3 py-1 rounded-2xl text-xs font-semibold border ${
-                filterCat === key
-                  ? "bg-[hsl(142_72%_36%)] text-white border-[hsl(142_72%_36%)]"
-                  : "bg-white/80 text-gray-700 border-gray-200"
-              }`}
-            >
-              {cfg.label} ({perCat[key] || 0})
-            </button>
-          ))}
-        </div>
-
-        <input
-          className="fieldInput w-full md:w-64 bg-white/90 border-2 border-gray-200 rounded-2xl px-3 py-2 text-xs md:text-sm focus:border-[hsl(142_72%_36%)] focus:ring-2 focus:ring-[hsl(142_72%_36%)]/20"
-           placeholder="Search entries"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </motion.div>
-
-      {/* List */}
-      <AnimatePresence>
-        {filtered.length === 0 ? (
-          <motion.div
-            key="empty"
-            className="text-center py-16 bg-white/70 rounded-3xl border border-dashed border-[hsl(142_72%_36%)]/30"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-[hsl(142_72%_36%)]/10 to-[hsl(142_66%_42%)]/10 flex items-center justify-center">
-              <Shield className="w-10 h-10 text-[hsl(142_72%_36%)]" />
-            </div>
-            <p className="text-sm text-gray-600 max-w-md mx-auto">
-               Add an entry when you want to remember something meaningful or helpful.
-            </p>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="list"
-            className="space-y-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {filtered.map((i) => {
-              const cfg = evidenceCategories[i.category];
-              return (
-                <motion.div
-                  key={i.id}
-                  className="group bg-white/95 backdrop-blur-sm rounded-3xl p-4 md:p-5 shadow-lg border border-white/70 hover:border-[hsl(142_72%_36%)]/35 hover:-translate-y-0.5 transition-all"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
+              {/* Session Controls */}
+              <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4 text-[13px]">
+                <button 
+                  type="button" 
+                  onClick={completeSession} 
+                  disabled={!savedCount || sessionComplete} 
+                  className="font-extrabold text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 flex-shrink-0">
-                      <div className="w-8 h-8 rounded-2xl bg-gradient-to-br from-[hsl(142_72%_36%)]/15 to-[hsl(142_66%_42%)]/10 flex items-center justify-center text-[hsl(142_72%_36%)]">
-                        {cfg?.icon}
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                          {cfg?.label}
-                        </span>
-                        <span className="text-[10px] text-gray-400">
-                           {new Date(i.createdAt).toLocaleDateString()} |{" "}
-                          {new Date(i.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                      <p className="text-sm md:text-base text-gray-800 leading-relaxed">
-                         {i.content}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {sessionComplete ? '✓ Journal session complete' : 'Complete journal session'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={discardSession} 
+                  className="font-bold text-slate-500 hover:text-slate-800 hover:underline"
+                >
+                  Discard session
+                </button>
+                {items.length > 0 && (
+                  <button 
+                    type="button" 
+                    onClick={clearAll} 
+                    className="ml-auto font-bold text-rose-600 hover:text-rose-800 hover:underline"
+                  >
+                    Clear all saved entries
+                  </button>
+                )}
+              </div>
+
+              {/* Session Rating Sub-card */}
+              {sessionComplete && !rated && (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-[13px] font-bold text-emerald-950 backdrop-blur-sm">
+                  <span>How helpful was this journal session?</span>
+                  <div className="flex items-center gap-1.5">
+                    {[1, 2, 3, 4, 5].map((value) => (
                       <button
+                        key={value}
                         type="button"
-                        onClick={() => toggleStar(i.id)}
-                        className="p-1 rounded-xl hover:bg-yellow-50"
+                        onClick={async () => {
+                          if (user?.id) {
+                            const result = await lifecycle.rate({ rating: value });
+                            if (!result.ok) return;
+                          }
+                          setRated(true);
+                        }}
+                        className="grid h-8 w-8 place-items-center rounded-lg border border-emerald-300 bg-white font-black text-emerald-800 shadow-sm transition-all hover:bg-emerald-600 hover:text-white"
                       >
-                        <Star
-                          className={`w-4 h-4 ${
-                            i.starred ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                          }`}
-                        />
+                        {value}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(i.id)}
-                        className="text-[11px] text-red-400 hover:text-red-500"
-                      >
-                        delete
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </SupportToolLayout>
+                </div>
+              )}
+            </section>
+
+            {/* Filtering Controls */}
+            <section className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-md">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterCat("all")}
+                    className={`rounded-xl px-3.5 py-1.5 text-[12px] font-extrabold transition-all ${
+                      filterCat === "all"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/80"
+                    }`}
+                  >
+                    All
+                  </button>
+                  {Object.entries(evidenceCategories).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFilterCat(key)}
+                      className={`rounded-xl px-3.5 py-1.5 text-[12px] font-extrabold transition-all ${
+                        filterCat === key
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/80"
+                      }`}
+                    >
+                      {cfg.label} ({perCat[key] || 0})
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative w-full sm:w-[260px]">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className="h-10 w-full rounded-xl border border-slate-200/80 bg-white pl-9 pr-4 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
+                    placeholder="Search entries..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Entries Display List */}
+            {filtered.length === 0 ? (
+              <div className="grid min-h-[200px] place-items-center rounded-[28px] border border-dashed border-emerald-200 bg-white/40 px-6 py-12 text-center backdrop-blur-sm">
+                <div>
+                  <Sprout className="mx-auto mb-3 text-emerald-600" size={28} />
+                  <p className="mx-auto max-w-md text-[16px] font-extrabold text-slate-700">
+                    Add an entry when you want to remember something meaningful or helpful.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((i) => {
+                  const cfg = evidenceCategories[i.category];
+                  return (
+                    <article
+                      key={i.id}
+                      className="group relative rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm transition-all duration-200 hover:border-emerald-200 hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="mt-0.5 shrink-0">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700 ring-4 ring-emerald-50/50">
+                            {cfg?.icon}
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800">
+                              {cfg?.label}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-400">
+                              • {new Date(i.createdAt).toLocaleDateString()} |{" "}
+                              {new Date(i.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="text-[15px] leading-relaxed font-medium text-slate-800">
+                            {i.content}
+                          </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleStar(i.id)}
+                            aria-label="Star entry"
+                            className="grid h-8 w-8 place-items-center rounded-lg hover:bg-slate-100 transition-colors"
+                          >
+                            <Star
+                              className={`h-4 w-4 transition-transform group-hover:scale-110 ${
+                                i.starred ? "fill-amber-400 text-amber-400" : "text-slate-300"
+                              }`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove(i.id)}
+                            aria-label="Delete entry"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Urgent Support Accordion Footer */}
+            <footer className="pt-4">
+              <details className="group rounded-2xl border border-slate-200/80 bg-white/80 px-6 text-[14px] leading-relaxed text-slate-600 shadow-sm backdrop-blur-md transition-all">
+                <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between font-extrabold text-slate-800 select-none">
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-100 text-rose-600">
+                      <Heart size={18} />
+                    </span>
+                    Need urgent support?
+                  </span>
+                  <ChevronDown size={18} className="text-slate-400 transition-transform duration-300 group-open:rotate-180" />
+                </summary>
+                <div className="border-t border-slate-100 pb-5 pt-4 text-[13px] leading-relaxed text-slate-600">
+                  <p>
+                    If you may act on thoughts of harming yourself or someone else, contact local emergency services now. If possible, also reach out to someone you trust and stay with them.
+                  </p>
+                </div>
+              </details>
+            </footer>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </SupportToolLayout>
     </SupportToolThemeProvider>
   );
 }

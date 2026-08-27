@@ -86,13 +86,12 @@ describe("AdaptiveEngineBridge (Phase 4 in-app wiring)", () => {
 
     const input = decideMock.mock.calls[0][0];
     expect(input.contextSnapshot).toBe(SNAPSHOT);
-    expect(input.role4Signals).toEqual({
-      interventions: [{ id: "int-live" }],
-      outcomes: [],
-      memories: [],
-    });
+    expect(input.role4Signals).not.toHaveProperty("interventions");
+    expect(input.role4Signals).not.toHaveProperty("outcomes");
+    expect(input.role4Signals).not.toHaveProperty("memories");
+    expect(input.role4Signals.supportEvidence?.modules?.[0]?.moduleId).toBe("support.focus_session");
     expect(input.moduleContext?.moduleId).toBe("support.focus_session");
-    expect(buildRole4SignalsMock).toHaveBeenCalledWith(USER);
+    expect(buildRole4SignalsMock).not.toHaveBeenCalled();
   });
 
   it("forwards userPreferences into decide() unchanged", async () => {

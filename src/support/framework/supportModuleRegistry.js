@@ -982,17 +982,7 @@ const rawSupportModules = [
     lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
     outcomeFields: ["attempts", "accuracy", "hints_used"],
   },
-  {
-    id: "dyslexia.adaptive-reading",
-    title: "Adaptive Reading",
-    description: "Practice guided reading with adaptive pacing.",
-    category: ModuleCategory.LEARNING,
-    interventionTypes: ["adaptive_reading", "reading_support"],
-    route: "/dyslexia/adaptive-reading",
-    tags: ["reading_fatigue", "focus", "processing_load"],
-    disorders: [DISORDERS.DYSLEXIA],
-    expectedOutcomeMetrics: ["read_time_ms", "struggles", "adjustments"],
-  },
+
   {
     id: FEATURES.DYSLEXIA_ADAPTIVE_READING,
     title: "Adaptive Reading Module",

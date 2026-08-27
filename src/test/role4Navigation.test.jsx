@@ -35,6 +35,7 @@ vi.mock("@/context/ContextProvider", () => ({
     processUserMessage: async () => ({}),
     refreshContext: async () => ({}),
   }),
+  useContextStateOptional: () => null,
   resolveModuleFromPath: () => "dashboard",
 }));
 
@@ -62,7 +63,6 @@ describe("Role 4 ADHD and depression navigation", () => {
 
     expect(screen.getByRole("heading", { name: "Focus and Planning" })).toBeInTheDocument();
     expect(screen.queryByText("ADHD Hub")).not.toBeInTheDocument();
-    expect(screen.queryByText("Soundscapes")).not.toBeInTheDocument();
     expect(ADHD_LANDING_TOOLS.map((tool) => tool.moduleId)).toEqual([
       "support.visual_timeline",
       "support.task_breakdown",
@@ -113,8 +113,7 @@ describe("Role 4 ADHD and depression navigation", () => {
     });
   });
 
-  it("does not advertise deferred modules through the home module registry", () => {
-    expect(MODULES_REGISTRY[FEATURES.ADHD_SOUNDS]).toBeUndefined();
+  it("keeps deferred modules hidden", () => {
     expect(MODULES_REGISTRY[FEATURES.DEPRESSION_PROOF]).toBeUndefined();
     expect(MODULES_REGISTRY[FEATURES.DEPRESSION_VOID]).toBeUndefined();
   });

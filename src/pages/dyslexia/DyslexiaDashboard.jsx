@@ -32,6 +32,9 @@ import {
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
+import { useAuth } from "@/context/AuthContext";
+import { fetchUserReadingHistory } from "@/lib/readingFilesService";
+
 const RECENT_STORAGE_KEY = "neurobridge-dyslexia-recents";
 
 const fallbackRecentDocuments = [
@@ -78,28 +81,28 @@ const quickStartOptions = [
     title: "From Files",
     description: "Open PDFs, docs, or saved reading packs.",
     icon: FileText,
-    to: "/dyslexia/adaptive-reading?source=files&doc=moonlight-rail",
+    to: "/dyslexia/reading-module",
     accent: "from-amber-50 to-amber-100",
   },
   {
     title: "Scan Text",
     description: "Capture a page and turn it into readable text.",
     icon: ScanText,
-    to: "/dyslexia/adaptive-reading?source=scan-text&doc=garden-notes",
+    to: "/dyslexia/reading-module",
     accent: "from-emerald-50 to-teal-100",
   },
   {
     title: "Scan Pages",
     description: "Multi-page OCR for textbooks and handouts.",
     icon: FileScan,
-    to: "/dyslexia/adaptive-reading?source=scan-pages&doc=city-story",
+    to: "/dyslexia/reading-module",
     accent: "from-sky-50 to-cyan-100",
   },
   {
     title: "From Gallery",
     description: "Pick a saved image or screenshot from your device.",
     icon: GalleryVerticalEnd,
-    to: "/dyslexia/adaptive-reading?source=gallery&doc=photo-caption",
+    to: "/dyslexia/reading-module",
     accent: "from-violet-50 to-fuchsia-100",
   },
 ];
@@ -107,28 +110,9 @@ const quickStartOptions = [
 const navItems = [
   { label: "Home", icon: Home, action: "top" },
   { label: "History", icon: History, action: "history" },
-  { label: "Tutor", icon: BookOpenText, to: "/dyslexia/adaptive-reading" },
+  { label: "Tutor", icon: BookOpenText, to: "/dyslexia/reading-module" },
   { label: "Settings", icon: Settings2, action: "settings" },
 ];
-
-function loadRecentDocuments() {
-  if (typeof window === "undefined") {
-    return fallbackRecentDocuments;
-  }
-
-  try {
-    const stored = window.localStorage.getItem(RECENT_STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : null;
-
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-  } catch {
-    return fallbackRecentDocuments;
-  }
-
-  return fallbackRecentDocuments;
-}
 
 function ProgressBar({ progress }) {
   return (
@@ -142,13 +126,34 @@ function ProgressBar({ progress }) {
 }
 
 export default function DyslexiaDashboard() {
-  const [recentDocuments, setRecentDocuments] = useState(
-    fallbackRecentDocuments,
-  );
+  const { user } = useAuth();
+  const [recentDocuments, setRecentDocuments] = useState(fallbackRecentDocuments);
 
   useEffect(() => {
-    setRecentDocuments(loadRecentDocuments());
-  }, []);
+    let mounted = true;
+    fetchUserReadingHistory(user)
+      .then((items) => {
+        if (!mounted) return;
+        if (Array.isArray(items) && items.length > 0) {
+          const formatted = items.map((item) => ({
+            id: item.id,
+            title: item.file_name,
+            timestamp: item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent",
+            progress: item.metadata?.progress ?? 0,
+            tag: item.page_count ? `${item.page_count} pg` : "Saved",
+            source: item.source,
+            thumb: item.preview_url || "from-amber-200 via-rose-200 to-sky-200",
+            preview_url: item.preview_url,
+          }));
+          setRecentDocuments(formatted);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const stats = useMemo(
     () => [
@@ -284,7 +289,7 @@ export default function DyslexiaDashboard() {
                     className="h-full"
                   >
                     <Link
-                      to={`/dyslexia/adaptive-reading?source=recent&doc=${encodeURIComponent(document.id)}`}
+                      to={`/dyslexia/reading-module?doc=${encodeURIComponent(document.id)}`}
                       className="group block h-full"
                     >
                       <Card className="h-full overflow-hidden border-white/60 bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_24px_50px_rgba(15,23,42,0.1)]">

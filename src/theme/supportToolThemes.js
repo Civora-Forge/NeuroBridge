@@ -1,21 +1,98 @@
 export const SUPPORT_TOOL_THEMES = {
   adhd_focus: {
-    background: "#F8F8F5", surface: "#FFFFFF", surfaceStrong: "#E7EDF4",
-    primary: "#406D9F", primaryHover: "#315881", accent: "#A96824",
-    text: "#202C36", textMuted: "#62707C", border: "#C6D0DB",
-    focusRing: "#235D98", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F8F4EC",
+    surface: "#FFFDF8",
+    surfaceStrong: "#F1ECE4",
+    primary: "#3D3A35",
+    primaryHover: "#272521",
+    accent: "#C0C0C0",
+    text: "#33302B",
+    textMuted: "#625E57",
+    border: "#DDD5C9",
+    focusRing: "#3D3A35",
+    success: "#6D9F46",
+    warning: "#946200",
+    danger: "#B42318",
   },
+
   depression_gentle: {
-    background: "#F7F6F2", surface: "#FFFFFF", surfaceStrong: "#E5EBEE",
-    primary: "#526F7E", primaryHover: "#405D6B", accent: "#A96846",
-    text: "#26343B", textMuted: "#64737A", border: "#CCD3D5",
-    focusRing: "#365F73", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F2FFF5",
+    surface: "#FFFFFF",
+    surfaceStrong: "#DCFCE7",
+    primary: "#15803D",
+    primaryHover: "#166534",
+    accent: "#86D89A",
+    text: "#173D26",
+    textMuted: "#466B50",
+    border: "#BDECC8",
+    focusRing: "#15803D",
+    success: "#15803D",
+    warning: "#946200",
+    danger: "#B42318",
   },
+
   depression_reflection: {
-    background: "#F6F4F7", surface: "#FFFFFF", surfaceStrong: "#EAE5EC",
-    primary: "#685B77", primaryHover: "#554864", accent: "#7A6652",
-    text: "#302A35", textMuted: "#6C6370", border: "#D3CAD7",
-    focusRing: "#5A4770", success: "#2F7A55", warning: "#946200", danger: "#B42318",
+    background: "#F2FFF5",
+    surface: "#FFFFFF",
+    surfaceStrong: "#DCFCE7",
+    primary: "#15803D",
+    primaryHover: "#166534",
+    accent: "#86D89A",
+    text: "#173D26",
+    textMuted: "#466B50",
+    border: "#BDECC8",
+    focusRing: "#15803D",
+    success: "#15803D",
+    warning: "#946200",
+    danger: "#B42318",
+  },
+
+  depression_support: {
+    background: "#FCF8F0",
+    surface: "#FFFEFB",
+    surfaceStrong: "#F0E7F5",
+    primary: "#70528A",
+    primaryHover: "#583D70",
+    accent: "#B58A60",
+    text: "#342841",
+    textMuted: "#62556B",
+    border: "#DDCEE7",
+    focusRing: "#70528A",
+    success: "#4E7B61",
+    warning: "#946200",
+    danger: "#B42318",
+  },
+
+  asd_social: {
+    background: "#F0FAF7",
+    surface: "#FFFFFF",
+    surfaceStrong: "#D5F5EC",
+    primary: "#0D9488",
+    primaryHover: "#0F766E",
+    accent: "#5EEAD4",
+    text: "#134E4A",
+    textMuted: "#5F8A87",
+    border: "#B2DFDB",
+    focusRing: "#0D9488",
+    success: "#10B981",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+  },
+
+  anxiety_calm: {
+    background: "#F0F4FF",
+    surface: "#FFFFFF",
+    surfaceStrong: "#DDE8FC",
+    primary: "#4F6BF6",
+    primaryHover: "#3B51D4",
+    accent: "#A5B4FC",
+    text: "#1E2A5E",
+    textMuted: "#6B7BA8",
+    border: "#C7D2FE",
+    focusRing: "#4F6BF6",
+    success: "#34D399",
+    warning: "#FBBF24",
+    danger: "#F87171",
   },
 };
 
@@ -25,26 +102,64 @@ export const SUPPORT_TOOL_THEME_BY_MODULE = {
   "support.visual_timeline": "adhd_focus",
   "support.mood_checkin": "adhd_focus",
   "support.accountability_session": "adhd_focus",
+
   "support.gentle_activity": "depression_gentle",
   "support.grounding": "depression_gentle",
   "support.social_connection": "depression_gentle",
   "support.cognitive_reframing": "depression_reflection",
   "support.evidence_journal": "depression_reflection",
+
+  "asd.social-scenarios": "asd_social",
+  "asd.emotion-decoder": "asd_social",
+  "asd.social-stories": "asd_social",
+  "asd.communication": "asd_social",
+  "asd.checkin": "asd_social",
+  "asd.vocabulary": "asd_social",
+  "asd.environment": "asd_social",
+  "asd.schedule-change": "asd_social",
+  "asd.safe-space": "asd_social",
+
+  "anxiety.breathing": "anxiety_calm",
+  "anxiety.grounding": "anxiety_calm",
+  "anxiety.reframe": "anxiety_calm",
+  "anxiety.micro-action": "anxiety_calm",
+  "anxiety.tracker": "anxiety_calm",
+  "anxiety.analyzer": "anxiety_calm",
+  "anxiety.panic": "anxiety_calm",
+  "anxiety.engine": "anxiety_calm",
 };
 
 export function resolveSupportToolTheme(recommendedTheme, override) {
   if (override === "neutral") return null;
-  return SUPPORT_TOOL_THEMES[override] ? override : SUPPORT_TOOL_THEMES[recommendedTheme] ? recommendedTheme : null;
+
+  return SUPPORT_TOOL_THEMES[override]
+    ? override
+    : SUPPORT_TOOL_THEMES[recommendedTheme]
+      ? recommendedTheme
+      : null;
 }
 
 function relativeLuminance(hex) {
-  const channels = hex.slice(1).match(/.{2}/g).map((value) => parseInt(value, 16) / 255);
-  const [red, green, blue] = channels.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  const channels = hex
+    .slice(1)
+    .match(/.{2}/g)
+    .map((value) => parseInt(value, 16) / 255);
+
+  const [red, green, blue] = channels.map((value) =>
+    value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4
+  );
+
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 export function contrastRatio(first, second) {
-  const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a);
+  const [lighter, darker] = [
+    relativeLuminance(first),
+    relativeLuminance(second),
+  ].sort((a, b) => b - a);
+
   return (lighter + 0.05) / (darker + 0.05);
 }
 

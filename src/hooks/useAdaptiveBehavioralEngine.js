@@ -34,7 +34,7 @@ import { isAdaptiveRuntimeEnabled } from "@backend/adaptive/engine/featureFlags"
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
 import { executeAdaptation } from "@backend/adaptive/engine/executor";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
-import { buildRole4Signals } from "@backend/adaptive/engine/role4Signals";
+import { getSupportEvidenceAsync } from "@/support/evidence/supportEvidence";
 
 const IDLE_DECISION = {
   plan: null,
@@ -111,7 +111,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
   }, []);
 
   const buildInput = useCallback(
-    (snapshot) => {
+    async (snapshot) => {
       const input = { contextSnapshot: snapshot ?? {} };
       if (moduleId) {
         try {
@@ -120,14 +120,16 @@ export function useAdaptiveBehavioralEngine(options = {}) {
           // Unknown module → generic engine fallback; the snapshot still flows.
         }
       }
-      const liveRole4Signals =
-        role4Signals !== undefined && role4Signals !== null
-          ? role4Signals
-          : userId
-            ? buildRole4Signals(userId)
-            : undefined;
+      const liveRole4Signals = role4Signals !== undefined && role4Signals !== null
+        ? { strategyEffectiveness: role4Signals.strategyEffectiveness, supportEvidence: role4Signals.supportEvidence }
+        : undefined;
       if (liveRole4Signals !== undefined) {
-        input.role4Signals = liveRole4Signals;
+        input.role4Signals = { ...liveRole4Signals };
+        if (moduleId === "support.focus_session" && userId) {
+          input.role4Signals.supportEvidence = await getSupportEvidenceAsync(userId, ["support.focus_session"]);
+        }
+      } else if (moduleId === "support.focus_session" && userId) {
+        input.role4Signals = { supportEvidence: await getSupportEvidenceAsync(userId, ["support.focus_session"]) };
       }
       if (userPreferences !== undefined && userPreferences !== null) {
         input.userPreferences = userPreferences;
@@ -149,7 +151,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
       try {
-        const outcome = decide(buildInput(snapshot), { userId });
+        const outcome = decide(await buildInput(snapshot), { userId });
         setDecision({
           plan: outcome.plan,
           trace: outcome.trace,
@@ -205,7 +207,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       // unbounded render → decide → render storm. Comparing the serialized
       // input content preserves the "re-decide on real change" contract while
       // ignoring identity churn.
-      const input = buildInput(snapshot);
+      const input = await buildInput(snapshot);
       const signature = signatureOf({ snapshot, input, userId });
       const last = lastRunRef.current;
       if (last && last.signature === signature) {
