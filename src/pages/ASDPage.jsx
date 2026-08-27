@@ -1,4 +1,5 @@
-import { ArrowRight, Heart, Sparkles, BookOpen, Smile, MessageCircle, MessagesSquare, Clock } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Heart, Sparkles, BookOpen, Smile, MessageCircle, MessagesSquare, Clock, Moon, Hand, RefreshCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
@@ -7,6 +8,7 @@ import AdaptiveGreeting from "@/components/neurobridge/AdaptiveGreeting";
 import SensorySettings from "@/components/neurobridge/SensorySettings";
 import { useASDData } from "@/hooks/useASDData";
 import { useAuth } from "@/context/AuthContext";
+import InterventionModal from "@/components/interventions/InterventionModal";
 
 const toolTones = {
   stories: { card: "border-[#b2dfdb] bg-gradient-to-br from-white via-[#f0faf7] to-[#e0f5ef]", icon: "bg-gradient-to-br from-[#2dd4a8] to-[#0d9488]", accent: "text-[#0d9488]" },
@@ -20,6 +22,36 @@ const quickActions = [
   { to: "/asd/emotion", icon: Smile, label: "Feelings", description: "Recognise and name emotions with kind feedback.", sticker: "calm-star", tone: "feelings", hint: "All feelings are welcome here" },
   { to: "/asd/social-scenarios", icon: MessageCircle, label: "Practice", description: "Try one social situation at a time.", sticker: "grounding-flower", tone: "practice", hint: "You set the pace" },
   { to: "/communication", icon: MessagesSquare, label: "Talk", description: "Practice conversations with one-tap phrases.", sticker: "focus-star", tone: "talk", hint: "One conversation, one step" },
+];
+
+const asdInterventions = [
+  {
+    id: "sensory_reset",
+    title: "Sensory Reset",
+    description: "Low-stimulation sanctuary with gentle pulse orb & quiet checklist.",
+    icon: Moon,
+    badge: "Low Stimulation",
+    color: "bg-[#134E4A]",
+    accent: "text-[#0D9488]",
+  },
+  {
+    id: "grounding_activity",
+    title: "Grounding Activity",
+    description: "5-step gentle regulation: Pause, Look around, Notice one thing.",
+    icon: Hand,
+    badge: "5-Step Check",
+    color: "bg-[#0D9488]",
+    accent: "text-[#0D9488]",
+  },
+  {
+    id: "transition_support",
+    title: "Transition Support",
+    description: "Now · Next · Then routine to make activity switching easy.",
+    icon: RefreshCcw,
+    badge: "Now-Next-Then",
+    color: "bg-[#2DD4BF]",
+    accent: "text-[#0F766E]",
+  },
 ];
 
 function ASDToolArt({ tone }) {
@@ -115,6 +147,9 @@ export default function ASDPage() {
   const { routines, loading: routinesLoading } = useASDData();
   const nextRoutineTask = routines?.find((r) => !r.completed) || null;
 
+  // Active Role 3 Intervention Modal State
+  const [activeIntervention, setActiveIntervention] = useState(null);
+
   return (
     <SupportToolThemeProvider theme="asd_social">
       <SupportToolLayout title="Social & Emotional Support" description="A calm space to practise emotions, conversations, and social stories.">
@@ -132,7 +167,7 @@ export default function ASDPage() {
                 </h1>
                 <span className="sr-only">Feelings and Friends</span>
                 <p className="mt-5 max-w-[610px] text-[17px] leading-[1.55] text-[#5F8A87] sm:text-[19px]">
-                  Choose one gentle tool for emotions, stories, social practice, or conversations.
+                  Choose one gentle tool for emotions, stories, social practice, or sensory support.
                 </p>
                 <AdaptiveGreeting responseTier={0} seed={0} />
               </div>
@@ -165,7 +200,53 @@ export default function ASDPage() {
               </motion.div>
             )}
 
-            {/* ── Tool Grid ── */}
+            {/* ── Interactive ASD Support (Role 3 Interventions) ── */}
+            <section className="mt-10">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#134E4A] flex items-center gap-2">
+                    <Sparkles className="text-[#0D9488]" size={22} /> Interactive ASD Support
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#5F8A87] mt-0.5">
+                    Gentle, sensory-friendly support interventions powered by the Adaptive Engine.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                {asdInterventions.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setActiveIntervention(item.id)}
+                      className="group relative overflow-hidden rounded-[22px] border border-[#B2DFDB] bg-white p-5 shadow-[4px_4px_0_#D5F5EC] transition-all duration-200 hover:-translate-y-1 hover:shadow-[6px_6px_0_#B2DFDB] cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className={`w-10 h-10 rounded-xl ${item.color} text-white flex items-center justify-center shadow-sm`}>
+                            <Icon size={20} />
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FAF7] text-[#0D9488] border border-[#B2DFDB]">
+                            {item.badge}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-[#134E4A]">{item.title}</h3>
+                          <p className="text-xs text-[#5F8A87] mt-1 leading-relaxed">{item.description}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-[#F0FAF7] flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#0D9488] group-hover:underline">Start Exercise</span>
+                        <ArrowRight size={14} className="text-[#0D9488]" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* ── Main Tool Grid ── */}
             <section className="mt-10 grid gap-5 sm:grid-cols-2">
               {quickActions.map((tool) => (
                 <ASDToolCard key={tool.to} tool={tool} />
@@ -185,6 +266,14 @@ export default function ASDPage() {
             </footer>
           </div>
         </main>
+
+        {/* Role 3 Active Intervention Modal */}
+        <InterventionModal
+          isOpen={Boolean(activeIntervention)}
+          recommendationId={activeIntervention}
+          onClose={() => setActiveIntervention(null)}
+          onComplete={() => setActiveIntervention(null)}
+        />
       </SupportToolLayout>
     </SupportToolThemeProvider>
   );

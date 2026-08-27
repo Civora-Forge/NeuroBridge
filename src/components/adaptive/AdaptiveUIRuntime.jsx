@@ -1,5 +1,5 @@
 /**
- * AdaptiveUIRuntime.jsx — App-level Adaptive Engine UI execution shell
+ * AdaptiveUIRuntime.jsx — App-level Adaptive Engine UI execution shell & Role 3 Bridge
  * (Phase 4, Stage C equivalent WITHOUT touching the engine or its flags)
  *
  * The Adaptive Engine produces UI actions as `{ type: "MODIFY", target:
@@ -10,15 +10,10 @@
  * the app genuinely adapts (reduced motion, reduced color, focus chrome,
  * guided-mode outlines, simplified navigation).
  *
- * Design rules:
- *   - Decision-only input: consumes `plan` from `useAdaptiveRuntime` (the
- *     documented public contract). It never calls the engine, never modifies
- *     `backend/adaptive`, and never touches the `uiExecution` flag.
- *   - Scope + reversibility: effects live on the wrapper element and are
- *     removed on unmount or revert. The status chip offers a one-tap revert;
- *     a genuinely different future decision re-applies adaptation.
- *   - Graceful degradation: no plan (flag OFF / insufficient data) renders
- *     children unchanged with no attributes and no chip.
+ * Role 3 Integration:
+ *   - Derives intervention recommendations from the active plan
+ *   - Renders the AdaptiveRecommendationPopup ("Let's make things a little easier")
+ *   - Opens the InterventionModal on "Start Support" with full interactive flow
  *
  * Ownership: Adaptive Experience Engineer
  */
@@ -27,6 +22,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
+import AdaptiveRecommendationPopup from "@/components/interventions/AdaptiveRecommendationPopup";
+import InterventionModal from "@/components/interventions/InterventionModal";
 
 /** Human-readable labels for the engine's UI modes. */
 export const MODE_LABELS = {
@@ -59,15 +56,6 @@ function boolFlag(value) {
 
 /**
  * Fold a validated AdaptationPlan into the effective UI state.
- *
- * - The first UI `MODIFY` action (planner precedence order) whose parameters
- *   carry a supported `mode` becomes the primary mode.
- * - Granular flags are merged from every UI action's parameters (preference
- *   actions such as `reduceMotion` carry no mode and only contribute flags).
- * - Non-UI / non-MODIFY actions are ignored.
- *
- * @param {object|null} plan - Public AdaptationPlan (`plan` from the hook).
- * @returns {{ mode: string, flags: object, actionId: string|null, ruleLabel: string|null, confidence: number, reason: string|null, active: boolean }}
  */
 export function deriveUIModeFromPlan(plan) {
   if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
@@ -121,10 +109,94 @@ export function deriveUIModeFromPlan(plan) {
   };
 }
 
-function flagsEqual(left, right) {
-  return Object.keys(NORMAL_STATE.flags).every(
-    (key) => left?.[key] === right?.[key],
-  );
+/**
+ * Derive intervention recommendation for Role 3 popup from the Adaptive plan
+ */
+export function deriveInterventionRecommendation(plan) {
+  if (!plan) return null;
+
+  // 1. Check explicit module / action triggers
+  if (Array.isArray(plan.actions)) {
+    for (const action of plan.actions) {
+      const params = action?.parameters || {};
+      if (params.guidedBreathing) {
+        return {
+          id: "guided_breathing",
+          title: "Guided Breathing",
+          description: "Follow a gentle breathing rhythm to slow things down.",
+          reason: action.reason || "Paced breathing recommended to reduce tension.",
+        };
+      }
+      if (params.mode === "low_stimulation" || params.mode === "overwhelm" || params.reduceColorIntensity) {
+        return {
+          id: "sensory_reset",
+          title: "Sensory Reset",
+          description: "Rest your eyes and mind in a low-stimulation sanctuary.",
+          reason: action.reason || "Sensory reset recommended to relieve overwhelm.",
+        };
+      }
+      if (params.calmLayout || params.lowPressure || params.longerPauses) {
+        return {
+          id: "calm_space",
+          title: "Calm Space",
+          description: "A peaceful pause space with zero expectations.",
+          reason: action.reason || "Calm space recommended to reset comfortably.",
+        };
+      }
+      if (params.stepSize || params.shorterSteps || params.showOneStep) {
+        return {
+          id: "transition_support",
+          title: "Now · Next · Then",
+          description: "Step-by-step guidance to make transitions clear and predictable.",
+          reason: action.reason || "Transition routine recommended to reduce uncertainty.",
+        };
+      }
+      if (params.showCuesFirst || params.guidedPrompts) {
+        return {
+          id: "grounding_activity",
+          title: "Grounding Activity",
+          description: "A gentle 5-step pause to bring your attention back to your space.",
+          reason: action.reason || "Grounding check-in recommended.",
+        };
+      }
+    }
+  }
+
+  // 2. Check situation
+  if (plan.situation === "urgent_overload") {
+    return {
+      id: "sensory_reset",
+      title: "Sensory Reset",
+      description: "A quiet, low-stimulation space to rest your senses.",
+      reason: "Urgent overload detected. Let's take a peaceful reset.",
+    };
+  }
+  if (plan.situation === "emotional_distress") {
+    return {
+      id: "guided_breathing",
+      title: "Guided Breathing",
+      description: "Take a short pause and breathe at a calming pace.",
+      reason: "Emotional tension detected. A quick breath cycle can help.",
+    };
+  }
+  if (plan.situation === "cognitive_overload") {
+    return {
+      id: "transition_support",
+      title: "Now · Next · Then",
+      description: "Break your current activity into clear, manageable steps.",
+      reason: "High cognitive load detected.",
+    };
+  }
+  if (plan.situation === "attention_fragmentation") {
+    return {
+      id: "grounding_exercise",
+      title: "5-4-3-2-1 Grounding",
+      description: "Use your senses to bring focus back to the present.",
+      reason: "Scattered attention detected.",
+    };
+  }
+
+  return null;
 }
 
 /** Human-readable labels for module-targeted engine actions. */
@@ -148,13 +220,7 @@ const MODULE_ACTION_LABELS = {
 };
 
 /**
- * Fold a validated AdaptationPlan into the module-scoped adaptations the
- * engine decided for the current support module. Only non-UI actions (which
- * originate exclusively from module policies) are collected, deduped by
- * target+type, and labelled for the status chip.
- *
- * @param {object|null} plan - Public AdaptationPlan (`plan` from the hook).
- * @returns {Array<{ target: string, type: string, actionId: string|null, reason: string|null, label: string }>}
+ * Fold a validated AdaptationPlan into the module-scoped adaptations
  */
 export function deriveModuleAdjustments(plan) {
   if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
@@ -189,10 +255,16 @@ export default function AdaptiveUIRuntime({ children }) {
     () => deriveModuleAdjustments(runtime.plan),
     [runtime.plan],
   );
+  const recommendation = useMemo(
+    () => deriveInterventionRecommendation(runtime.plan),
+    [runtime.plan],
+  );
+
   const [override, setOverride] = useState(null);
-  // A genuinely different future decision lifts the user's manual revert so
-  // the engine can adapt again. An identical decision keeps the revert, and a
-  // fresh decision that matches the reverted (normal) state changes nothing.
+  const [popupDismissed, setPopupDismissed] = useState(false);
+  const [activeInterventionModal, setActiveInterventionModal] = useState(null);
+
+  // A genuinely different future decision lifts the user's manual revert
   const prevModeRef = useRef(derived.mode);
   useEffect(() => {
     const previous = prevModeRef.current;
@@ -205,6 +277,15 @@ export default function AdaptiveUIRuntime({ children }) {
       setOverride(null);
     }
   }, [derived.mode, override]);
+
+  // Reset popup dismissal when recommendation changes
+  const prevRecommendationId = useRef(recommendation?.id);
+  useEffect(() => {
+    if (recommendation?.id && recommendation.id !== prevRecommendationId.current) {
+      prevRecommendationId.current = recommendation.id;
+      setPopupDismissed(false);
+    }
+  }, [recommendation?.id]);
 
   const effective = override ?? derived;
 
@@ -222,17 +303,50 @@ export default function AdaptiveUIRuntime({ children }) {
   const showDetails = effective.active && effective.reason != null;
   const visibleAdjustments = override ? [] : adjustments;
 
+  const showRecommendationPopup = Boolean(
+    recommendation &&
+    !popupDismissed &&
+    !activeInterventionModal &&
+    (effective.active || recommendation.id !== "fallback")
+  );
+
   return (
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
+      {/* Role 3: Adaptive Recommendation Popup */}
+      {showRecommendationPopup && (
+        <AdaptiveRecommendationPopup
+          recommendationId={recommendation.id}
+          titleOverride={recommendation.title}
+          descriptionOverride={recommendation.description}
+          onStartSupport={(recId) => {
+            setPopupDismissed(true);
+            setActiveInterventionModal(recId);
+          }}
+          onDismiss={() => setPopupDismissed(true)}
+        />
+      )}
+
+      {/* Role 3: Active Intervention Modal */}
+      <InterventionModal
+        isOpen={Boolean(activeInterventionModal)}
+        recommendationId={activeInterventionModal}
+        onClose={() => setActiveInterventionModal(null)}
+        onComplete={() => {
+          setActiveInterventionModal(null);
+          setPopupDismissed(true);
+        }}
+      />
+
+      {/* Adaptive Status Chip (always available for one-tap revert) */}
       {showChip && (
         <div
           className="fixed bottom-4 right-4 z-[90] max-w-xs"
           role="status"
           aria-live="polite"
         >
-          <div className="neuro-card p-3 flex flex-col gap-2">
+          <div className="neuro-card p-3 flex flex-col gap-2 shadow-lg">
             <div className="flex items-start gap-2">
               <Sparkles className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
               <div className="flex-1 min-w-0">
@@ -261,13 +375,24 @@ export default function AdaptiveUIRuntime({ children }) {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setOverride(NORMAL_STATE)}
-              className="neuro-btn-outline text-xs py-1.5"
-            >
-              Revert to default
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setOverride(NORMAL_STATE)}
+                className="neuro-btn-outline text-xs py-1.5 flex-1"
+              >
+                Revert to default
+              </button>
+              {recommendation && (
+                <button
+                  type="button"
+                  onClick={() => setActiveInterventionModal(recommendation.id)}
+                  className="px-2.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm"
+                >
+                  Start Support
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
