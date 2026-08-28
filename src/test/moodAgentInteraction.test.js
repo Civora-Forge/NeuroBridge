@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { contextStore } from "@/adaptive/context/contextStore";
 import {
   handleInteractionSignal,
@@ -23,6 +23,10 @@ beforeEach(() => {
   resetMoodAgent();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("moodAgent interaction burst inference", () => {
   it("infers and persists a stressed mood while a rapid-movement burst is active", () => {
     const result = handleInteractionSignal(burstSnapshot);
@@ -41,16 +45,41 @@ describe("moodAgent interaction burst inference", () => {
     expect(handleInteractionSignal(null)).toBeNull();
   });
 
-  it("restores the pre-burst mood once the burst ends", () => {
-    handleInteractionSignal(burstSnapshot);
-    expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
+  it("holds the stressed mood through the burst-easing grace period, then restores baseline", () => {
+    vi.useFakeTimers();
+    try {
+      handleInteractionSignal(burstSnapshot);
+      expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
 
-    const restored = handleInteractionSignal({
-      behavior: { movementBurst: { active: false } },
-    });
-    expect(restored).not.toBeNull();
-    expect(restored.value).toBe("neutral");
-    expect(contextStore.getContext().mood.primaryMood).toBe("neutral");
+      // Burst ends: the signal must persist so the recommendation stays
+      // actionable instead of evaporating within ~1s of the last move.
+      expect(
+        handleInteractionSignal({ behavior: { movementBurst: { active: false } } }),
+      ).toBeNull();
+      expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
+
+      // Once the grace cooldown expires, the pre-burst baseline is restored.
+      vi.advanceTimersByTime(20_001);
+      expect(contextStore.getContext().mood.primaryMood).toBe("neutral");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a new burst during the grace period cancels the pending restore and keeps the signal", () => {
+    vi.useFakeTimers();
+    try {
+      handleInteractionSignal(burstSnapshot);
+      handleInteractionSignal({ behavior: { movementBurst: { active: false } } });
+      expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
+
+      // New burst re-activates inside the grace window.
+      handleInteractionSignal(burstSnapshot);
+      vi.advanceTimersByTime(30_000);
+      expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("treats the interaction signal via inferMood with the same priority", () => {
