@@ -142,6 +142,21 @@ function inferFromActivity(activityData) {
 }
 
 /**
+ * Infer mood value from interaction signals (rapid pointer-movement bursts).
+ * The tracker only reports the observable movement metrics; this mapping turns
+ * a sustained rapid-movement burst into a coarse, non-clinical stress signal.
+ * @param {object} interactionData
+ * @returns {{ value: string, confidence: number }}
+ */
+function inferFromInteraction(interactionData) {
+  const burst = interactionData?.behavior?.movementBurst;
+  if (!burst || burst.active !== true) {
+    return { value: "unknown", confidence: 0.0 };
+  }
+  return { value: "stressed", confidence: 0.55 };
+}
+
+/**
  * Primary Mood / Emotion Inference Function.
  *
  * Implements priority hierarchy:
@@ -167,6 +182,7 @@ export function inferMood(inputs = {}) {
 
   let explicitCandidate = null;
   let conversationCandidate = null;
+  let interactionCandidate = null;
   let activityCandidate = null;
   let previousCandidate = null;
 
@@ -192,6 +208,15 @@ export function inferMood(inputs = {}) {
   }
 
   // 3. Recent Interaction Signals (Priority 3)
+  if (inputs.interaction) {
+    const interactionInference = inferFromInteraction(inputs.interaction);
+    if (interactionInference.value !== "unknown") {
+      interactionCandidate = interactionInference;
+      sources.push("interaction");
+    }
+  }
+
+  // 4. Recent Activity Signals (Priority 3)
   if (currentAct) {
     const actInference = inferFromActivity(currentAct);
     if (actInference.value !== "unknown") {
@@ -200,7 +225,7 @@ export function inferMood(inputs = {}) {
     }
   }
 
-  // 4. Previous Recent Mood (Priority 4)
+  // 5. Previous Recent Mood (Priority 4)
   if (_lastInferredMood && _lastInferredMood.value !== "unknown") {
     // Apply temporal decay to previous mood
     const ageSeconds = (Date.now() - new Date(_lastInferredMood.timestamp).getTime()) / 1000;
@@ -236,6 +261,9 @@ export function inferMood(inputs = {}) {
       // Conflict between conversation and activity reduces confidence
       finalConfidence = Math.max(0.4, finalConfidence - 0.2);
     }
+  } else if (interactionCandidate) {
+    finalValue = interactionCandidate.value;
+    finalConfidence = interactionCandidate.confidence;
   } else if (activityCandidate) {
     finalValue = activityCandidate.value;
     finalConfidence = activityCandidate.confidence;
@@ -262,6 +290,19 @@ export function inferMood(inputs = {}) {
 
   const persist = inputs.persist !== false;
 
+  if (!persist) {
+    return result;
+  }
+
+  return commitMood(result);
+}
+
+/**
+ * Persist an inferred mood into the context store and broadcast the typed
+ * perception events (MOOD_UPDATED + SIGNAL_RECEIVED).
+ * @param {{ value: string, confidence: number, sources: string[], timestamp: string }} result
+ */
+function commitMood(result) {
   const storeMoodData = {
     primaryMood: result.value,
     valence: result.value === "positive" || result.value === "calm" ? 0.8 : result.value === "neutral" ? 0.5 : 0.25,
@@ -271,10 +312,6 @@ export function inferMood(inputs = {}) {
     confidence: result.confidence,
     sources: result.sources,
   };
-
-  if (!persist) {
-    return result;
-  }
 
   contextStore.updateContext("mood", storeMoodData, "moodAgent", result.confidence);
 
@@ -290,12 +327,82 @@ export function inferMood(inputs = {}) {
   contextEventBus.emit(ContextEvents.MOOD_UPDATED, {
     mood: result,
     signal,
-    timestamp: now,
+    timestamp: result.timestamp,
   });
 
   contextEventBus.emit(ContextEvents.SIGNAL_RECEIVED, signal);
 
   return result;
+}
+
+const HIGH_AROUSAL_MOODS = new Set([
+  "stressed",
+  "overwhelmed",
+  "frustrated",
+  "panicked",
+  "anxious",
+]);
+
+let _interactionBurstActive = false;
+let _moodBeforeInteractionBurst = null;
+
+/**
+ * React to live interaction snapshots emitted by the interaction tracker.
+ *
+ * While a rapid pointer-movement burst is active the current mood is inferred
+ * as "stressed" (a coarse, non-clinical signal only — never a diagnosis). When
+ * the burst ends, the pre-burst mood is restored so the burst does not
+ * permanently label the session, and a "neutral" baseline is written when the
+ * pre-burst mood was itself high-arousal (the burst has eased, not asserted).
+ *
+ * @param {object} [interactionSnapshot]
+ * @returns {object|null} The committed/restored mood result, or null when the
+ *   snapshot carries no movement-burst signal.
+ */
+export function handleInteractionSignal(interactionSnapshot) {
+  const burst = interactionSnapshot?.behavior?.movementBurst;
+  if (!burst) return null;
+
+  if (burst.active === true) {
+    if (!_interactionBurstActive) {
+      const current = contextStore.getContext().mood;
+      const currentMood =
+        current && typeof current.primaryMood === "string"
+          ? current.primaryMood
+          : "neutral";
+      _moodBeforeInteractionBurst = {
+        value: HIGH_AROUSAL_MOODS.has(currentMood) ? "neutral" : currentMood,
+        confidence:
+          current && typeof current.confidence === "number"
+            ? Math.max(0.35, current.confidence)
+            : 0.4,
+      };
+      _interactionBurstActive = true;
+      return inferMood({ interaction: interactionSnapshot, persist: true });
+    }
+    // Burst continues while already inferred — no mood churn.
+    return null;
+  }
+
+  if (_interactionBurstActive) {
+    _interactionBurstActive = false;
+    const before = _moodBeforeInteractionBurst || {
+      value: "neutral",
+      confidence: 0.4,
+    };
+    _moodBeforeInteractionBurst = null;
+    const restored = {
+      value: normalizeMoodValue(before.value),
+      confidence: Math.max(0.35, before.confidence || 0.4),
+      sources: ["interaction_burst_recovery"],
+      timestamp: new Date().toISOString(),
+    };
+    if (restored.value !== "unknown") {
+      return commitMood(restored);
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -325,4 +432,6 @@ export function resetMoodAgent() {
     sources: [],
     timestamp: new Date().toISOString(),
   };
+  _interactionBurstActive = false;
+  _moodBeforeInteractionBurst = null;
 }

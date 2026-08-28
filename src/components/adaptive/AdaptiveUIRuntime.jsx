@@ -12,18 +12,22 @@
  *
  * Role 3 Integration:
  *   - Derives intervention recommendations from the active plan
- *   - Renders the AdaptiveRecommendationPopup ("Let's make things a little easier")
+ *   - Renders the persistent, non-intrusive AdaptiveSupportCard
  *   - Opens the InterventionModal on "Start Support" with full interactive flow
+ *
+ * Dismissal semantics: dismissing (or starting) a recommendation keeps the card
+ * visible in its neutral state and suppresses only that same recommendation; a
+ * genuinely different future recommendation appears normally.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
-import AdaptiveRecommendationPopup from "@/components/interventions/AdaptiveRecommendationPopup";
 import InterventionModal from "@/components/interventions/InterventionModal";
+import AdaptiveSupportCard from "./AdaptiveSupportCard.jsx";
+import { getInterventionMeta } from "@/components/interventions/InterventionResolver";
 
 /** Human-readable labels for the engine's UI modes. */
 export const MODE_LABELS = {
@@ -251,82 +255,75 @@ export function deriveModuleAdjustments(plan) {
 export default function AdaptiveUIRuntime({ children }) {
   const runtime = useAdaptiveRuntime();
   const derived = useMemo(() => deriveUIModeFromPlan(runtime.plan), [runtime.plan]);
-  const adjustments = useMemo(
-    () => deriveModuleAdjustments(runtime.plan),
-    [runtime.plan],
-  );
   const recommendation = useMemo(
     () => deriveInterventionRecommendation(runtime.plan),
     [runtime.plan],
   );
 
-  const [override, setOverride] = useState(null);
-  const [popupDismissed, setPopupDismissed] = useState(false);
+  // Session-scoped dismissal: suppressing one recommendation keeps the card in
+  // its neutral state and never blocks a genuinely different future offer.
+  const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
+    () => new Set(),
+  );
   const [activeInterventionModal, setActiveInterventionModal] = useState(null);
 
-  // A genuinely different future decision lifts the user's manual revert
-  const prevModeRef = useRef(derived.mode);
-  useEffect(() => {
-    const previous = prevModeRef.current;
-    prevModeRef.current = derived.mode;
-    if (
-      override &&
-      previous !== derived.mode &&
-      override.mode !== derived.mode
-    ) {
-      setOverride(null);
-    }
-  }, [derived.mode, override]);
+  const dismissRecommendation = (id) => {
+    if (!id) return;
+    setDismissedRecommendationIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
 
-  // Reset popup dismissal when recommendation changes
-  const prevRecommendationId = useRef(recommendation?.id);
-  useEffect(() => {
-    if (recommendation?.id && recommendation.id !== prevRecommendationId.current) {
-      prevRecommendationId.current = recommendation.id;
-      setPopupDismissed(false);
-    }
-  }, [recommendation?.id]);
-
-  const effective = override ?? derived;
+  const activeRecommendation =
+    recommendation &&
+    recommendation.id &&
+    !dismissedRecommendationIds.has(recommendation.id)
+      ? recommendation
+      : null;
 
   const wrapperProps = {
     "data-adaptive-root": "true",
-    "data-adaptive-mode": effective.mode,
-    "data-adaptive-reduce-motion": String(effective.flags.reduceMotion),
-    "data-adaptive-reduce-color": String(effective.flags.reduceColor),
-    "data-adaptive-focus": String(effective.flags.focus),
-    "data-adaptive-guide": String(effective.flags.guide),
-    "data-adaptive-simplify-nav": String(effective.flags.simplifyNav),
+    "data-adaptive-mode": derived.mode,
+    "data-adaptive-reduce-motion": String(derived.flags.reduceMotion),
+    "data-adaptive-reduce-color": String(derived.flags.reduceColor),
+    "data-adaptive-focus": String(derived.flags.focus),
+    "data-adaptive-guide": String(derived.flags.guide),
+    "data-adaptive-simplify-nav": String(derived.flags.simplifyNav),
   };
 
-  const showChip = effective.active || (!override && adjustments.length > 0);
-  const showDetails = effective.active && effective.reason != null;
-  const visibleAdjustments = override ? [] : adjustments;
+  if (!runtime.enabled) {
+    return <div {...wrapperProps}>{children}</div>;
+  }
 
-  const showRecommendationPopup = Boolean(
-    recommendation &&
-    !popupDismissed &&
-    !activeInterventionModal &&
-    (effective.active || recommendation.id !== "fallback")
-  );
+  const meta = activeRecommendation
+    ? getInterventionMeta(activeRecommendation.id)
+    : null;
+  const cardRecommendation =
+    activeRecommendation && meta
+      ? {
+          id: activeRecommendation.id,
+          title: activeRecommendation.title || meta.title,
+          description: activeRecommendation.description || meta.description,
+        }
+      : null;
 
   return (
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
-      {/* Role 3: Adaptive Recommendation Popup */}
-      {showRecommendationPopup && (
-        <AdaptiveRecommendationPopup
-          recommendationId={recommendation.id}
-          titleOverride={recommendation.title}
-          descriptionOverride={recommendation.description}
-          onStartSupport={(recId) => {
-            setPopupDismissed(true);
-            setActiveInterventionModal(recId);
-          }}
-          onDismiss={() => setPopupDismissed(true)}
-        />
-      )}
+      {/* Role 3: Persistent, non-intrusive Adaptive Support Card */}
+      <AdaptiveSupportCard
+        recommendation={cardRecommendation}
+        onStartSupport={(id) => {
+          // Start Support opens the intervention and suppresses the same offer.
+          dismissRecommendation(id);
+          setActiveInterventionModal(id);
+        }}
+        onDismiss={(id) => dismissRecommendation(id)}
+      />
 
       {/* Role 3: Active Intervention Modal */}
       <InterventionModal
@@ -335,67 +332,12 @@ export default function AdaptiveUIRuntime({ children }) {
         onClose={() => setActiveInterventionModal(null)}
         onComplete={() => {
           setActiveInterventionModal(null);
-          setPopupDismissed(true);
+          if (activeInterventionModal) {
+            dismissRecommendation(activeInterventionModal);
+          }
         }}
+        autoStart
       />
-
-      {/* Adaptive Status Chip (always available for one-tap revert) */}
-      {showChip && (
-        <div
-          className="fixed bottom-4 right-4 z-[90] max-w-xs"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="neuro-card p-3 flex flex-col gap-2 shadow-lg">
-            <div className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold">Adapted for you</p>
-                <p className="text-sm text-foreground">{effective.ruleLabel}</p>
-                {showDetails && (
-                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                    {effective.reason}
-                  </p>
-                )}
-                {visibleAdjustments.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {visibleAdjustments.map((adj) => (
-                      <span
-                        key={adj.actionId ?? `${adj.target}:${adj.type}`}
-                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                      >
-                        {adj.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Adaptive Engine · confidence{" "}
-                  {Math.round((effective.confidence ?? 0) * 100)}%
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setOverride(NORMAL_STATE)}
-                className="neuro-btn-outline text-xs py-1.5 flex-1"
-              >
-                Revert to default
-              </button>
-              {recommendation && (
-                <button
-                  type="button"
-                  onClick={() => setActiveInterventionModal(recommendation.id)}
-                  className="px-2.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm"
-                >
-                  Start Support
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -59,6 +59,7 @@ export {
 
 export {
   inferMood,
+  handleInteractionSignal,
   detectMoodShift,
   resetMoodAgent,
   MOOD_VOCABULARY,
