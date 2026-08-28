@@ -794,6 +794,37 @@ const moduleAdaptationSets = {
       },
     ],
   },
+  "anxiety.hub": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.TASK,
+      AdaptationDimension.PACING,
+    ],
+    modulePolicies: [
+      {
+        id: "anxiety.breathing_on_stress",
+        scope: PolicyScope.MODULE,
+        tier: PriorityTier.CURRENT_STATE,
+        priority: 95,
+        triggerGroups: [
+          {
+            operator: TriggerGroupOperator.AND,
+            triggers: [
+              {
+                dimension: "stressLevel",
+                condition: TriggerCondition.IN,
+                value: ["high", "acute"],
+              },
+            ],
+          },
+        ],
+        action: {
+          type: AdaptationActionType.GUIDE,
+          target: AdaptationDimension.TASK,
+          parameters: { guidedBreathing: true },
+        },
+      },
+    ],
+  },
 };
 
 const rawSupportModules = [
@@ -981,6 +1012,29 @@ const rawSupportModules = [
     launchPolicy: "user_initiated",
     lifecycleEvents: ["shown", "started", "progressed", "completed", "abandoned"],
     outcomeFields: ["attempts", "accuracy", "hints_used"],
+  },
+
+  {
+    id: "anxiety.hub",
+    moduleId: "anxiety.hub",
+    title: "Anxiety Support Hub",
+    description: "Explore anxiety support tools: guided breathing, grounding exercises and calm spaces.",
+    category: ModuleCategory.EMOTIONAL,
+    interventionTypes: ["guided_breathing", "grounding_exercise", "calm_space"],
+    route: "/anxiety",
+    tags: ["anxiety", "stress", "overwhelm", "regulation"],
+    disorders: [DISORDERS.ANXIETY, DISORDERS.ASD],
+    expectedOutcomeMetrics: ["duration_ms", "rating", "intervention_type"],
+    safetyLevel: SafetyLevel.CAUTION,
+    developmentDomain: "anxiety",
+    supportedNeeds: ["anxiety_reduction", "stress_reduction", "emotional_regulation"],
+    potentiallyRelevantDomains: ["anxiety", "asd", "general"],
+    actions: ["select_intervention", "start", "complete", "abandon", "rate"],
+    configurableParameters: { technique: true, durationMinutes: true },
+    launchPolicy: "user_initiated",
+    lifecycleEvents: ["shown", "started", "completed", "abandoned", "rated"],
+    outcomeFields: ["duration_ms", "rating", "intervention_type"],
+    legacyIds: [],
   },
 
   {

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
-export default function GuidedBreathingIntervention({ onComplete, onCancel }) {
+export default function GuidedBreathingIntervention({ onComplete, onCancel, autoStart = false }) {
   const [mode, setMode] = useState("box"); // "box" (4-4-4-4) or "relax" (4-7-8)
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -24,6 +24,14 @@ export default function GuidedBreathingIntervention({ onComplete, onCancel }) {
   const [feedback, setFeedback] = useState(null);
   const targetCycles = 4;
   const startedAtRef = useRef(Date.now());
+
+  // Auto-start when opened from the Adaptive "Start Support" entry point.
+  useEffect(() => {
+    if (autoStart) {
+      startedAtRef.current = Date.now();
+      setRunning(true);
+    }
+  }, [autoStart]);
 
   // Timing constants
   const cycleDuration = mode === "box" ? 16 : 19; // Box = 4+4+4+4=16s, 4-7-8 = 4+7+8=19s

@@ -144,7 +144,7 @@ export function getInterventionMeta(recommendationId) {
 /**
  * Component Resolver — Renders the resolved intervention
  */
-export default function InterventionResolver({ recommendationId, onComplete, onCancel }) {
+export default function InterventionResolver({ recommendationId, onComplete, onCancel, autoStart = false }) {
   const definition = resolveInterventionDefinition(recommendationId);
   const Component = definition.component;
 
@@ -152,6 +152,7 @@ export default function InterventionResolver({ recommendationId, onComplete, onC
     <Component
       onComplete={onComplete}
       onCancel={onCancel}
+      autoStart={autoStart}
     />
   );
 }

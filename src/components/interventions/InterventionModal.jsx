@@ -14,6 +14,7 @@ export default function InterventionModal({
   recommendationId,
   onClose,
   onComplete,
+  autoStart = false,
 }) {
   const overlayRef = useRef(null);
 
@@ -57,6 +58,7 @@ export default function InterventionModal({
             onClose?.();
           }}
           onCancel={onClose}
+          autoStart={autoStart}
         />
       </div>
     </div>

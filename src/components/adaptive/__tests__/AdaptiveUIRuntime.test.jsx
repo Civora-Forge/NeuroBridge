@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import AdaptiveUIRuntime, {
+  deriveInterventionRecommendation,
   deriveModuleAdjustments,
   deriveUIModeFromPlan,
   MODE_LABELS,
@@ -15,6 +16,16 @@ import {
 } from "@/support/schemas/supportSchemas";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
+
+vi.mock("@/components/interventions/InterventionModal", () => ({
+  __esModule: true,
+  default: ({ isOpen, recommendationId, autoStart, onComplete, onClose }) =>
+    isOpen ? (
+      <div data-testid="intervention-modal" data-auto-start={String(Boolean(autoStart))}>
+        {recommendationId}
+      </div>
+    ) : null,
+}));
 
 function planWith(actions, extra = {}) {
   return {
@@ -53,6 +64,17 @@ function Harness({ runtimeValue, children = <div>content</div> }) {
 function rootAttr(container) {
   return container.querySelector('[data-adaptive-root="true"]');
 }
+
+function card(container) {
+  return container.querySelector('[data-adaptive-support-card="true"]');
+}
+
+const guidedBreathingPlan = () =>
+  planWith([uiAction("a-breath", { guidedBreathing: true })]);
+const sensoryResetPlan = () =>
+  planWith([
+    uiAction("a-stim", { mode: "overwhelm", reduceColorIntensity: true }),
+  ]);
 
 describe("deriveUIModeFromPlan", () => {
   it("returns an inactive normal state for a null / empty plan", () => {
@@ -106,6 +128,28 @@ describe("deriveUIModeFromPlan", () => {
     expect(state.mode).toBe("focus");
     expect(state.flags.focus).toBe(true);
     expect(state.flags.guide).toBe(true);
+  });
+});
+
+describe("deriveInterventionRecommendation", () => {
+  it("yields null for a null / empty plan", () => {
+    for (const plan of [null, undefined, {}, { actions: [], situation: "stable" }]) {
+      expect(deriveInterventionRecommendation(plan)).toBeNull();
+    }
+  });
+
+  it("returns guided_breathing when any action carries guidedBreathing", () => {
+    const rec = deriveInterventionRecommendation(guidedBreathingPlan());
+    expect(rec).not.toBeNull();
+    expect(rec.id).toBe("guided_breathing");
+  });
+
+  it("falls back to the situation when no action parameters match", () => {
+    const rec = deriveInterventionRecommendation(
+      planWith([], { situation: "emotional_distress" }),
+    );
+    expect(rec.id).toBe("guided_breathing");
+    expect(rec.title).toBe("Guided Breathing");
   });
 });
 
@@ -181,12 +225,17 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/depression/reality")).toBe("support.cognitive_reframing");
     expect(resolveCanonicalModuleId("/depression/social")).toBe("support.social_connection");
     expect(resolveCanonicalModuleId("/depression/evidence")).toBe("support.evidence_journal");
-    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading");
+    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading-module");
 
     expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
     expect(resolveCanonicalModuleId("/asd/social-scenarios")).toBe("asd.social-scenarios");
     expect(resolveCanonicalModuleId("/asd/sensory")).toBeNull();
     expect(resolveCanonicalModuleId("/asd/meltdown")).toBeNull();
+  });
+
+  it("resolves the anxiety hub route to the anxiety.hub module", () => {
+    expect(resolveCanonicalModuleId("/anxiety")).toBe("anxiety.hub");
+    expect(resolveCanonicalModuleId("/anxiety?tab=breathing")).toBe("anxiety.hub");
   });
 
   it("handles queries, root, and unknown routes", () => {
@@ -197,7 +246,7 @@ describe("resolveCanonicalModuleId", () => {
   });
 });
 
-describe("AdaptiveUIRuntime", () => {
+describe("AdaptiveUIRuntime card behavior", () => {
   it("end-to-end: decide() on an anxious state yields a UI action the shell applies", () => {
     const outcome = decide(
       {
@@ -224,6 +273,25 @@ describe("AdaptiveUIRuntime", () => {
     expect(state.reason).toMatch(/low_stimulation/);
   });
 
+  it("end-to-end: the anxiety.hub module policy surfaces a guided breathing recommendation", () => {
+    const outcome = decide(
+      {
+        contextSnapshot: {
+          timestamp: new Date().toISOString(),
+          mood: { primaryMood: "anxious", confidence: 0.9 },
+          behavior: { taskSwitchFrequency: 0.05 },
+          activity: { activity: "breathing_practice" },
+        },
+        moduleContext: buildModuleContext("anxiety.hub"),
+      },
+      { now: () => 1750000000000 },
+    );
+
+    const adjustment = deriveInterventionRecommendation(outcome.plan);
+    expect(adjustment).not.toBeNull();
+    expect(adjustment.id).toBe("guided_breathing");
+  });
+
   it("end-to-end: registered module policies fire through the engine on a support module context", () => {
     const outcome = decide(
       {
@@ -231,9 +299,9 @@ describe("AdaptiveUIRuntime", () => {
           timestamp: new Date().toISOString(),
           mood: { primaryMood: "anxious", confidence: 0.9 },
           behavior: { taskSwitchFrequency: 0.05 },
-          activity: { activity: "social_scenario_practice" },
+          activity: { activity: "regulation_practice" },
         },
-        moduleContext: buildModuleContext("dyslexia.adaptive-reading"),
+        moduleContext: buildModuleContext("support.grounding"),
       },
       { now: () => 1750000000000 },
     );
@@ -243,20 +311,44 @@ describe("AdaptiveUIRuntime", () => {
     );
     expect(moduleActions.length).toBeGreaterThan(0);
 
-    const adjustments = deriveModuleAdjustments(outcome.plan);
-    expect(adjustments.some((a) => a.label === "Simplified content")).toBe(true);
+    const adjustment = deriveInterventionRecommendation(outcome.plan);
+    // low_stimulation (UI, priority 90) sorts ahead of the grounding GUIDE
+    // action (priority 50), so a sensory reset recommendation surfaces here.
+    expect(adjustment.id).toBe("sensory_reset");
   });
 
   const inertValue = { plan: null, trace: null, enabled: false, active: false };
 
-  it("renders children unchanged with no chip when there is no plan", () => {
+  it("renders children unchanged with no card when the runtime is disabled", () => {
     const { container } = render(<Harness runtimeValue={inertValue} />);
     expect(screen.getByText("content")).toBeInTheDocument();
     expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("normal");
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(card(container)).toBeNull();
   });
 
-  it("applies the derived mode to the wrapper and shows the status chip", () => {
+  it("persists a neutral support card when enabled without a recommendation", () => {
+    const { container } = render(
+      <Harness runtimeValue={{ plan: planWith([]), trace: null, enabled: true, active: false }} />,
+    );
+
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
+    expect(screen.getByText("Adaptive Support")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /start support/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the recommendation state with a headline, meta and Start Support", () => {
+    const { container } = render(
+      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
+    );
+
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+    expect(screen.getByText("Personalized Support")).toBeInTheDocument();
+    expect(screen.getByText(/A short pause might help/)).toBeInTheDocument();
+    expect(screen.getByText(/Guided Breathing/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start support/i })).toBeInTheDocument();
+  });
+
+  it("still applies the derived UI mode to the wrapper alongside the card", () => {
     const plan = planWith([
       uiAction("a-anxious", {
         mode: "low_stimulation",
@@ -272,50 +364,48 @@ describe("AdaptiveUIRuntime", () => {
     expect(rootAttr(container).getAttribute("data-adaptive-reduce-motion")).toBe("true");
     expect(rootAttr(container).getAttribute("data-adaptive-reduce-color")).toBe("true");
 
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Adapted for you")).toBeInTheDocument();
-    expect(screen.getByText(MODE_LABELS.low_stimulation)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /revert/i })).toBeInTheDocument();
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
   });
 
-  it("shows module adaptation tags even when the UI mode is normal", () => {
-    const plan = planWith([
-      {
-        actionId: "a-content",
-        type: AdaptationActionType.REDUCE,
-        target: AdaptationDimension.CONTENT,
-        parameters: { sentenceChunks: "short" },
-        confidence: 0.8,
-        reason: "Policy fired",
-      },
-    ]);
+  it("opens the intervention modal on Start Support and returns the card to neutral", () => {
     const { container } = render(
-      <Harness runtimeValue={{ plan, trace: null, enabled: true, active: true }} />,
+      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
     );
 
-    expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("normal");
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Simplified content")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /revert/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /start support/i }));
+
+    const modal = screen.getByTestId("intervention-modal");
+    expect(modal).toBeInTheDocument();
+    expect(modal.getAttribute("data-auto-start")).toBe("true");
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
   });
 
-  it("reverts to the default interface when the user dismisses the chip", () => {
-    const plan = planWith([uiAction("a-guide", { mode: "guided" })]);
+  it("dismissing a recommendation keeps the card visible in its neutral state", () => {
+    const { container } = render(
+      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
+    );
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss support/i }));
+
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
+    expect(screen.queryByRole("button", { name: /start support/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Adaptive Support")).toBeInTheDocument();
+  });
+
+  it("a genuinely different recommendation reappears after dismissing the previous one", () => {
     const { container, rerender } = render(
-      <Harness runtimeValue={{ plan, trace: null, enabled: true, active: true }} />,
+      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /revert/i }));
+    fireEvent.click(screen.getByRole("button", { name: /dismiss support/i }));
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
 
-    expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("normal");
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-    // A different future decision re-applies adaptation.
-    const escalated = planWith([uiAction("a-overwhelm", { mode: "overwhelm" })]);
     rerender(
-      <Harness runtimeValue={{ plan: escalated, trace: null, enabled: true, active: true }} />,
+      <Harness runtimeValue={{ plan: sensoryResetPlan(), trace: null, enabled: true, active: true }} />,
     );
-    expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("overwhelm");
-  });
 
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+    expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
+  });
 });

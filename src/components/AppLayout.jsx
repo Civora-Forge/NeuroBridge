@@ -6,7 +6,6 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
 import AgentChat from "./AgentChat";
-import AmbientAnxietyPrompt from "./anxiety/AmbientAnxietyPrompt";
 
 // featureKey: null means always visible (Home)
 const USER_NAV = [
@@ -173,9 +172,6 @@ export default function AppLayout({ children }) {
       
       {/* Agent Chat Widget (visible for authenticated users) */}
       {isAuthenticated && role === "user" && <AgentChat />}
-
-      {/* Ambient Anxiety Support Indicator */}
-      {isAuthenticated && role === "user" && <AmbientAnxietyPrompt />}
     </div>
   );
 }

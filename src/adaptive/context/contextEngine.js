@@ -33,6 +33,7 @@ import {
 } from "./contextPipeline.js";
 import { toContextSnapshot } from "./contextSnapshotAdapter.js";
 import { recordNavigationSignal } from "./contextInteractionTracker.js";
+import { handleInteractionSignal } from "./moodAgent.js";
 
 class ContextEngine {
   constructor() {
@@ -69,6 +70,16 @@ class ContextEngine {
 
     initContextLogger();
 
+    // 5. Live interaction signals → mood interpretation (Role 1). The engine
+    //    registers this subscription during init so it evaluates before UI
+    //    subscribers when they rebuild snapshots on the same event.
+    this._interactionUnsub = contextEventBus.subscribe(
+      ContextEvents.INTERACTION_UPDATED,
+      (payload) => {
+        handleInteractionSignal(payload?.interaction || null);
+      },
+    );
+
     this.isInitialized = true;
 
     // Emit initial ContextUpdated event
@@ -89,6 +100,10 @@ class ContextEngine {
    * Stop Context Engine monitoring and timers.
    */
   stop() {
+    if (typeof this._interactionUnsub === "function") {
+      this._interactionUnsub();
+      this._interactionUnsub = undefined;
+    }
     stopEnvironmentMonitoring();
     this.isInitialized = false;
   }

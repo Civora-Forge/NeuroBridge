@@ -13,6 +13,17 @@ const DEFAULT_SOURCE = "interactionTracker";
 const NAVIGATION_WINDOW_MS = 5 * 60 * 1000;
 const FAST_TYPING_GAP_MS = 2000;
 
+// Rapid pointer-movement ("mouse shake") burst detection. Bursts are a
+// pure observable signal: the tracker only reports the movement metrics, it
+// never infers emotion or intent (that interpretation lives in moodAgent).
+const POINTER_SAMPLE_MIN_GAP_MS = 24;
+const POINTER_BURST_WINDOW_MS = 900;
+const POINTER_BURST_MIN_SAMPLES = 5;
+const POINTER_BURST_MIN_DISTANCE_PX = 420;
+const POINTER_BURST_MIN_SPEED_PPS = 800;
+const POINTER_BURST_MIN_REVERSALS = 4;
+const POINTER_BURST_DECAY_MS = 1200;
+
 let _isTracking = false;
 let _listeners = [];
 let _emitTimer = null;
@@ -33,6 +44,14 @@ let _typingCorrectionCount = 0;
 let _scrollEvents = [];
 let _lastScrollTop = null;
 let _lastScrollAt = null;
+
+let _pointerMoveSamples = [];
+let _lastPointerSampleAt = null;
+let _lastPointerX = null;
+let _lastPointerY = null;
+let _lastPointerMoveAt = null;
+let _movementBurstActive = false;
+let _burstEndTimer = null;
 
 let _explicitRequest = {
   requestType: null,
@@ -96,6 +115,110 @@ function recordInteraction({ countLatency = true } = {}) {
     !_firstInteractionAfterNavigationAt
   ) {
     _firstInteractionAfterNavigationAt = now;
+  }
+}
+
+/** Rolling rapid pointer-movement metrics over a short time window. */
+function computeMovementBurst(now) {
+  const recent = _pointerMoveSamples.filter(
+    (sample) => now - sample.t <= POINTER_BURST_WINDOW_MS,
+  );
+  if (recent.length < POINTER_BURST_MIN_SAMPLES) {
+    return null;
+  }
+
+  const elapsedSeconds = Math.max(
+    0.05,
+    (recent[recent.length - 1].t - recent[0].t) / 1000,
+  );
+  const distance = recent.reduce((sum, sample) => sum + sample.d, 0);
+  const intensity = Math.round(distance / elapsedSeconds);
+
+  let reversals = 0;
+  for (let i = 2; i < recent.length; i += 1) {
+    const prev = recent[i - 1].xDir;
+    const cur = recent[i].xDir;
+    if (prev !== 0 && cur !== 0 && prev !== cur) {
+      reversals += 1;
+    }
+  }
+
+  const active =
+    now - (_lastPointerMoveAt ?? 0) <= POINTER_BURST_DECAY_MS &&
+    recent.length >= POINTER_BURST_MIN_SAMPLES &&
+    distance >= POINTER_BURST_MIN_DISTANCE_PX &&
+    intensity >= POINTER_BURST_MIN_SPEED_PPS &&
+    reversals >= POINTER_BURST_MIN_REVERSALS;
+
+  return {
+    active,
+    intensity,
+    distance: Math.round(distance),
+    samples: recent.length,
+    reversals,
+    timestamp: nowIso(),
+  };
+}
+
+/** Check that a detected burst has ended so consumers can restore baseline. */
+function scheduleBurstEndCheck() {
+  if (!_movementBurstActive) return;
+  if (_burstEndTimer) clearTimeout(_burstEndTimer);
+  _burstEndTimer = window.setTimeout(() => {
+    _burstEndTimer = null;
+    const burst = computeMovementBurst(getNowMs());
+    if (!(burst?.active ?? false) && _movementBurstActive) {
+      _movementBurstActive = false;
+      scheduleEmit("movement_burst_end");
+    } else if (_movementBurstActive) {
+      scheduleBurstEndCheck();
+    }
+  }, POINTER_BURST_DECAY_MS + 60);
+}
+
+function recordPointerMove(event) {
+  if (typeof window === "undefined") return;
+  // Only physical pointers (mouse / pen); ignore scrolling gestures.
+  if (event.pointerType === "touch") return;
+
+  const now = getNowMs();
+  if (
+    _lastPointerSampleAt != null &&
+    now - _lastPointerSampleAt < POINTER_SAMPLE_MIN_GAP_MS
+  ) {
+    return;
+  }
+
+  const x = event.clientX ?? 0;
+  const y = event.clientY ?? 0;
+  const dx = x - (_lastPointerX ?? x);
+  const dy = y - (_lastPointerY ?? y);
+  const xDir = dx === 0 ? 0 : dx > 0 ? 1 : -1;
+
+  _lastPointerX = x;
+  _lastPointerY = y;
+  _lastPointerSampleAt = now;
+
+  if (dx === 0 && dy === 0) return;
+
+  _lastPointerMoveAt = now;
+  _pointerMoveSamples.push({ t: now, d: Math.hypot(dx, dy), xDir });
+  _pointerMoveSamples = _pointerMoveSamples.filter(
+    (sample) => now - sample.t <= POINTER_BURST_WINDOW_MS,
+  );
+
+  const burst = computeMovementBurst(now);
+  const isActive = burst?.active ?? false;
+
+  if (isActive && !_movementBurstActive) {
+    _movementBurstActive = true;
+    scheduleEmit("movement_burst");
+    scheduleBurstEndCheck();
+  } else if (isActive) {
+    scheduleEmit("movement_burst");
+  } else if (_movementBurstActive) {
+    _movementBurstActive = false;
+    scheduleEmit("movement_burst_end");
   }
 }
 
@@ -225,6 +348,7 @@ export function startInteractionTracking() {
     recordInteraction();
     scheduleEmit("pointer");
   };
+  const pointerMoveHandler = (event) => recordPointerMove(event);
   const visibilityHandler = () => {
     if (document.hidden) {
       recordFocusInterrupt();
@@ -239,6 +363,7 @@ export function startInteractionTracking() {
   window.addEventListener("beforeinput", beforeInputHandler, true);
   window.addEventListener("scroll", scrollHandler, { passive: true });
   window.addEventListener("pointerdown", pointerHandler, true);
+  window.addEventListener("pointermove", pointerMoveHandler, { passive: true });
   window.addEventListener("blur", blurHandler, true);
   window.addEventListener("focus", focusHandler, true);
   document.addEventListener("visibilitychange", visibilityHandler, true);
@@ -248,6 +373,7 @@ export function startInteractionTracking() {
     ["beforeinput", beforeInputHandler, true],
     ["scroll", scrollHandler, { passive: true }],
     ["pointerdown", pointerHandler, true],
+    ["pointermove", pointerMoveHandler, { passive: true }],
     ["blur", blurHandler, true],
     ["focus", focusHandler, true],
     ["visibilitychange", visibilityHandler, true],
@@ -275,6 +401,10 @@ export function stopInteractionTracking() {
   if (_emitTimer) {
     clearTimeout(_emitTimer);
     _emitTimer = null;
+  }
+  if (_burstEndTimer) {
+    clearTimeout(_burstEndTimer);
+    _burstEndTimer = null;
   }
 }
 
@@ -378,12 +508,14 @@ export function getInteractionSnapshot() {
 
   const typingMetrics = computeTypingMetrics(now);
   const scrollBehavior = computeScrollBehavior(now);
+  const movementBurst = computeMovementBurst(now);
 
   const behaviorConfidence =
     [
       typingMetrics.typingSpeed,
       typingMetrics.correctionRate,
       scrollBehavior,
+      movementBurst?.active === true,
     ].filter(Boolean).length > 0
       ? 0.7
       : 0.0;
@@ -406,6 +538,8 @@ export function getInteractionSnapshot() {
       scrollBehavior,
       readingSpeed: scrollBehavior?.readingSpeed ?? null,
       interactionLatency,
+      movementIntensity: movementBurst?.intensity ?? null,
+      movementBurst,
       timestamp: nowIso(),
       confidence: behaviorConfidence,
       source: DEFAULT_SOURCE,
@@ -463,6 +597,16 @@ export function resetInteractionTracker() {
   _scrollEvents = [];
   _lastScrollTop = null;
   _lastScrollAt = null;
+  _pointerMoveSamples = [];
+  _lastPointerSampleAt = null;
+  _lastPointerX = null;
+  _lastPointerY = null;
+  _lastPointerMoveAt = null;
+  _movementBurstActive = false;
+  if (_burstEndTimer) {
+    clearTimeout(_burstEndTimer);
+    _burstEndTimer = null;
+  }
   _explicitRequest = {
     requestType: null,
     inputMode: null,
