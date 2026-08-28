@@ -107,7 +107,7 @@ export default function ContextInspector() {
   return (
     <div
       className={cn(
-        "fixed bottom-4 right-4 z-[9999] w-[min(420px,calc(100vw-2rem))]",
+        "fixed bottom-4 left-4 z-[9999] w-[min(420px,calc(100vw-2rem))]",
         "rounded-lg border bg-background/95 shadow-xl backdrop-blur"
       )}
     >

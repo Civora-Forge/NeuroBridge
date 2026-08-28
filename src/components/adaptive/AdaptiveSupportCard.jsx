@@ -32,10 +32,10 @@ export const RECOMMENDATION_HEADLINES = {
 
 /** Display-only time hints per recommendation type. */
 const RECOMMENDATION_DURATIONS = {
-  guided_breathing: "~2 min",
-  sensory_reset: "~2 min",
-  grounding_exercise: "~2 min",
-  grounding_activity: "~2 min",
+  guided_breathing: "2 min",
+  sensory_reset: "2 min",
+  grounding_exercise: "2 min",
+  grounding_activity: "2 min",
 };
 
 /**
@@ -102,7 +102,7 @@ export default function AdaptiveSupportCard({
             ) : (
               <div className="mt-1">
                 <p className="text-sm font-semibold text-foreground leading-snug">
-                  &ldquo;{copy.headline}&rdquo;
+                  {copy.headline}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 leading-snug">
                   {copy.title}
