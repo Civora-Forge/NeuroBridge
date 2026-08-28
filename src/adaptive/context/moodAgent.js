@@ -345,19 +345,79 @@ const HIGH_AROUSAL_MOODS = new Set([
 
 let _interactionBurstActive = false;
 let _moodBeforeInteractionBurst = null;
+let _burstRestoreTimer = null;
+
+/**
+ * Quiet-period before easing an interaction burst back to baseline, so the
+ * adaptive UI and its recommendation stay actionable after the user stops the
+ * rapid movement (instead of disappearing within ~1s of the last move).
+ */
+const BURST_RESTORE_COOLDOWN_MS = 20_000;
+
+function safeSetTimeout(handler, ms) {
+  return typeof window !== "undefined"
+    ? window.setTimeout(handler, ms)
+    : setTimeout(handler, ms);
+}
+
+function safeClearTimeout(timer) {
+  if (typeof window !== "undefined") {
+    window.clearTimeout(timer);
+  } else {
+    clearTimeout(timer);
+  }
+}
+
+/** Ease the burst-driven mood back to the pre-burst baseline. */
+function restoreFromInteractionBurst() {
+  _interactionBurstActive = false;
+  const before = _moodBeforeInteractionBurst || {
+    value: "neutral",
+    confidence: 0.4,
+  };
+  _moodBeforeInteractionBurst = null;
+  const restored = {
+    value: normalizeMoodValue(before.value),
+    confidence: Math.max(0.35, before.confidence || 0.4),
+    sources: ["interaction_burst_recovery"],
+    timestamp: new Date().toISOString(),
+  };
+  if (restored.value !== "unknown") {
+    return commitMood(restored);
+  }
+  return null;
+}
+
+/** After the burst ends, hold the signal for a short grace period then ease it. */
+function scheduleBurstRestore() {
+  if (_burstRestoreTimer) return;
+  _burstRestoreTimer = safeSetTimeout(() => {
+    _burstRestoreTimer = null;
+    restoreFromInteractionBurst();
+  }, BURST_RESTORE_COOLDOWN_MS);
+}
+
+function cancelBurstRestore() {
+  if (_burstRestoreTimer) {
+    safeClearTimeout(_burstRestoreTimer);
+    _burstRestoreTimer = null;
+  }
+}
 
 /**
  * React to live interaction snapshots emitted by the interaction tracker.
  *
  * While a rapid pointer-movement burst is active the current mood is inferred
  * as "stressed" (a coarse, non-clinical signal only — never a diagnosis). When
- * the burst ends, the pre-burst mood is restored so the burst does not
- * permanently label the session, and a "neutral" baseline is written when the
- * pre-burst mood was itself high-arousal (the burst has eased, not asserted).
+ * the burst ends the elevated signal is held for a short grace period so the
+ * recommendation stays actionable, then the pre-burst mood is restored so the
+ * burst does not permanently label the session; a "neutral" baseline is
+ * written when the pre-burst mood was itself high-arousal (the burst eased,
+ * not asserted).
  *
  * @param {object} [interactionSnapshot]
  * @returns {object|null} The committed/restored mood result, or null when the
- *   snapshot carries no movement-burst signal.
+ *   snapshot carries no movement-burst signal (or the burst is still easing).
  */
 export function handleInteractionSignal(interactionSnapshot) {
   const burst = interactionSnapshot?.behavior?.movementBurst;
@@ -365,6 +425,7 @@ export function handleInteractionSignal(interactionSnapshot) {
 
   if (burst.active === true) {
     if (!_interactionBurstActive) {
+      cancelBurstRestore();
       const current = contextStore.getContext().mood;
       const currentMood =
         current && typeof current.primaryMood === "string"
@@ -386,20 +447,7 @@ export function handleInteractionSignal(interactionSnapshot) {
 
   if (_interactionBurstActive) {
     _interactionBurstActive = false;
-    const before = _moodBeforeInteractionBurst || {
-      value: "neutral",
-      confidence: 0.4,
-    };
-    _moodBeforeInteractionBurst = null;
-    const restored = {
-      value: normalizeMoodValue(before.value),
-      confidence: Math.max(0.35, before.confidence || 0.4),
-      sources: ["interaction_burst_recovery"],
-      timestamp: new Date().toISOString(),
-    };
-    if (restored.value !== "unknown") {
-      return commitMood(restored);
-    }
+    scheduleBurstRestore();
   }
 
   return null;
@@ -426,6 +474,7 @@ export function detectMoodShift(currentMood, previousMood) {
  * Reset mood agent state (useful for testing).
  */
 export function resetMoodAgent() {
+  cancelBurstRestore();
   _lastInferredMood = {
     value: "unknown",
     confidence: 0.0,
