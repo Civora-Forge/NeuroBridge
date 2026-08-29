@@ -169,7 +169,7 @@ function FeatureCard({ card, count, index, reduced, gentle }) {
       whileHover={reduced ? undefined : { y: -5 }}
       transition={{ duration: gentle ? 0.3 : 0.45, delay: reduced ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <AsdCard href={card.to} tone={card.tone} className="group flex h-full flex-col p-5" aria-label={`Open ${card.title}`}>
+      <AsdCard to={card.to} tone={card.tone} className="group flex h-full flex-col p-5" aria-label={`Open ${card.title}`}>
         <div className="flex items-start justify-between gap-3">
           <span className={`grid h-12 w-12 place-items-center rounded-[14px] bg-gradient-to-br ${card.tone === "teal" ? "from-[#2DD4A8] to-[#0D9488]" : card.tone === "amber" ? "from-[#FCD34D] to-[#F59E0B]" : card.tone === "violet" ? "from-[#C4B5FD] to-[#7C3AED]" : "from-[#67E8F9] to-[#0891B2]"} text-white shadow-[2px_2px_0_#D5F5EC] transition-transform duration-300 group-hover:scale-110`}>
             <card.icon size={22} strokeWidth={2} />

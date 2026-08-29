@@ -9,6 +9,7 @@
  */
 
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const TONE_TEXT = Object.freeze({
   teal: "text-[#0D9488]",
@@ -29,19 +30,23 @@ export function AsdCard({
   children,
   tone = "teal",
   href,
+  to,
   onClick,
   className = "",
   actionLabel,
   "aria-label": ariaLabel,
 }) {
-  const interactive = Boolean(href || onClick);
-  const Tag = href ? "a" : interactive ? "button" : "section";
+  const interactive = Boolean(href || to || onClick);
+  const Tag = href ? "a" : to ? Link : interactive ? "button" : "section";
   const props = {};
   if (href) props.href = href;
+  if (to) props.to = to;
   if (onClick) props.onClick = onClick;
   if (interactive) {
-    props.type = "button";
     props["aria-label"] = ariaLabel ?? actionLabel ?? "Open";
+  }
+  if (!href && !to) {
+    props.type = "button";
   }
   const toneText = asdToneText(tone);
 
