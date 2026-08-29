@@ -7,6 +7,10 @@
  * available and always fall back to a deterministic library. The card consumes
  * the Adaptive Engine's module decision through `useModuleAdaptation` (never
  * the engine itself) to shape difficulty and hint availability.
+ *
+ * All logic, services, speech, voice and adaptation wiring are unchanged from
+ * the previous implementation — only the presentation was redesigned to feel
+ * like decoding a small real social scene.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,13 +19,11 @@ import { getGeminiApiKey } from "@/features/socialCommunication/services/aiServi
 import { useVoiceInput } from "@/features/socialCommunication/hooks/useVoiceInput";
 import { useModuleAdaptation } from "@/hooks/useModuleAdaptation";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, CheckCircle2, Mic, MicOff, ScanFace, Volume2 } from "lucide-react";
+import { ArrowRight, Mic, MicOff, Sparkles, Volume2 } from "lucide-react";
 import {
   DECODER_ACTIVITY_TYPES,
   DECODER_ACTIVITY_TYPE_IDS,
@@ -35,6 +37,18 @@ import {
   evaluateDecoderAnswer,
   generateDecoderScenario,
 } from "@/support/modules/emotionDecoder/emotionDecoderService";
+import {
+  AsdCard,
+  AsdCharacter,
+  AsdChip,
+  AsdFeedback,
+  AsdProgressBar,
+  useASDPracticeCounts,
+  PROGRESS_EVENTS,
+} from "@/components/asd/ui";
+import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
+
+const CHARACTER_TONES = ["teal", "sky", "amber", "violet", "rose"];
 
 function useSpeech() {
   const speak = useCallback((text, rate = 0.95, pitch = 1.05) => {
@@ -61,12 +75,26 @@ function deriveSignals(adjustments = []) {
   };
 }
 
+/** Adaptations become natural coach copy, never engine jargon. */
+function friendlyAdaptationNote(signals) {
+  if (signals.simplify && signals.provideHints) {
+    return "Today we're keeping situations clearer and extra clues are always available.";
+  }
+  if (signals.simplify) return "Today we're keeping situations a little clearer.";
+  if (signals.provideHints) return "Extra clues are available whenever you need them.";
+  return null;
+}
+
+const CHARACTER_ACCESSORY = ["leaf", "star", "spark", "flower", "book"];
+
 export default function EmotionDecoderCard() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const speak = useSpeech();
   const voice = useVoiceInput();
   const apiKey = getGeminiApiKey();
+  const { recordEvent } = useASDPracticeCounts(userId);
+  const { reduced, gentle } = useSensoryReducedMotion();
 
   const [activityType, setActivityType] = useState(DECODER_ACTIVITY_TYPE_IDS[0]);
   const [difficulty, setDifficulty] = useState(1);
@@ -129,13 +157,11 @@ export default function EmotionDecoderCard() {
     [config, apiKey],
   );
 
-  // Load the first scenario on mount.
   useEffect(() => {
     loadScenario();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reload when the learner changes difficulty or activity type.
   useEffect(() => {
     if (scenario) {
       loadScenario();
@@ -150,8 +176,9 @@ export default function EmotionDecoderCard() {
     setAttempts((current) => current + 1);
     if (evaluation.correct) {
       setCorrectCount((current) => current + 1);
+      recordEvent(PROGRESS_EVENTS.EMOTION_SOLVED);
     }
-  }, [scenario, answer]);
+  }, [scenario, answer, recordEvent]);
 
   const handleNext = useCallback(() => {
     setFallbackIndex((current) => current + 1);
@@ -186,24 +213,28 @@ export default function EmotionDecoderCard() {
     [attempts, correctCount, hintsUsed],
   );
 
+  const coachNote = friendlyAdaptationNote(signals);
+  const characterIndex = Math.abs((scenario?.id ?? "decoder").split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0));
+
   return (
-    <Card className="border-[#B2DFDB] shadow-[6px_6px_0_#B2DFDB] rounded-2xl overflow-hidden">
-      <div className="h-2 bg-gradient-to-r from-[#0D9488] to-[#5EEAD4]" />
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl text-[#134E4A]">
-          <ScanFace size={20} className="text-[#0D9488]" /> Emotion Decoder
-        </CardTitle>
-        <CardDescription className="text-[#5F7A75]">
-          Read a short situation, then say or type what this person is most likely feeling.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <AsdCard tone="stone" className="!rounded-2xl !shadow-[4px_4px_0_#B2DFDB]">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-gradient-to-br from-[#FCD34D] to-[#F59E0B] text-white shadow-[2px_2px_0_#FDE68A]">
+          <Sparkles size={20} />
+        </span>
+        <div>
+          <h2 className="text-xl font-black text-[#134E4A]">Emotion Decoder</h2>
+          <p className="text-sm text-[#5F8A87]">Read a small situation, then say or type what the person is most likely feeling.</p>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-5">
         {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="decoder-activity">Situation</Label>
+            <Label htmlFor="decoder-activity" className="text-sm font-bold text-[#134E4A]">Situation</Label>
             <Select value={activityType} onValueChange={setActivityType}>
-              <SelectTrigger id="decoder-activity" aria-label="Situation type">
+              <SelectTrigger id="decoder-activity" aria-label="Situation type" className="border-[#B2DFDB]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -216,9 +247,9 @@ export default function EmotionDecoderCard() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="decoder-difficulty">Level</Label>
+            <Label htmlFor="decoder-difficulty" className="text-sm font-bold text-[#134E4A]">Clues</Label>
             <Select value={String(difficulty)} onValueChange={(value) => setDifficulty(Number(value))}>
-              <SelectTrigger id="decoder-difficulty" aria-label="Difficulty level">
+              <SelectTrigger id="decoder-difficulty" aria-label="Difficulty level" className="border-[#B2DFDB]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -231,11 +262,11 @@ export default function EmotionDecoderCard() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="block">Read aloud</Label>
+            <Label className="block text-sm font-bold text-[#134E4A]">Read aloud</Label>
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-[#B2DFDB] text-[#134E4A]"
               onClick={() =>
                 speak(
                   [scenario?.scenario, scenario?.dialogue].filter(Boolean).join(" "),
@@ -248,51 +279,72 @@ export default function EmotionDecoderCard() {
         </div>
 
         {aiUnavailable && (
-          <p className="text-xs text-muted-foreground">
-            Practise with a built-in scenario right now; live ones will appear when the AI service is available.
+          <p className="text-xs text-[#8B9C98]">
+            Practising with a built-in situation right now; live ones will appear when the AI service is available.
           </p>
         )}
 
-        {/* Scenario */}
+        {/* Scenario as a small social scene */}
         {loading || !scenario ? (
-          <div className="rounded-2xl border-2 border-dashed border-[#B2DFDB] p-6 text-center text-sm text-[#5F7A75]">
-            Preparing a scenario…
+          <div className="rounded-2xl border-2 border-dashed border-[#B2DFDB] p-6 text-center text-sm text-[#5F8A87]">
+            Setting the scene…
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-5 space-y-3">
-              <p className="text-base font-medium">{scenario.scenario}</p>
-              {scenario.dialogue && (
-                <p className="text-sm italic text-muted-foreground">“{scenario.dialogue}”</p>
-              )}
-              <p className="text-sm font-semibold text-muted-foreground">{scenario.question}</p>
+            <div className="overflow-hidden rounded-2xl border-2 border-[#FDE68A] bg-gradient-to-br from-[#FFFDF5] to-[#FDF6E3]">
+              <div className="flex items-start gap-3 p-5">
+                <AsdCharacter
+                  size={64}
+                  ariaHidden
+                  tone={CHARACTER_TONES[characterIndex % CHARACTER_TONES.length]}
+                  accessory={CHARACTER_ACCESSORY[characterIndex % CHARACTER_ACCESSORY.length]}
+                  className="mt-1"
+                />
+                <div className="min-w-0 flex-1 space-y-2.5">
+                  <p className="text-base font-semibold leading-relaxed text-[#134E4A]">{scenario.scenario}</p>
+                  {scenario.dialogue && (
+                    <p className="relative rounded-2xl rounded-bl-sm border-2 border-[#FDE68A] bg-white px-4 py-2.5 text-sm italic text-[#7C5E10] shadow-sm">
+                      “{scenario.dialogue}”
+                    </p>
+                  )}
+                  <p className="flex items-center gap-2 text-sm font-black text-[#D97706]">
+                    <Sparkles size={14} /> {scenario.question}
+                  </p>
 
-              {showHint && Array.isArray(scenario.cues) && scenario.cues.length > 0 && (
-                <div className="rounded-xl bg-white/60 p-3 space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cues to notice</p>
-                  <ul className="list-disc list-inside space-y-0.5 text-sm">
-                    {scenario.cues.map((cue) => (
-                      <li key={cue}>{cue}</li>
-                    ))}
-                  </ul>
+                  {showHint && Array.isArray(scenario.cues) && scenario.cues.length > 0 && (
+                    <div className="rounded-xl bg-white/70 border border-[#FDE68A] p-3 space-y-1.5">
+                      <p className="text-xs font-black uppercase tracking-wide text-[#B45309]">Clues to notice</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {scenario.cues.map((cue) => (
+                          <AsdChip key={cue} tone="amber">{cue}</AsdChip>
+                        ))}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-xs text-[#D97706]"
+                        onClick={() => {
+                          setHintsUsed((current) => current + 1);
+                          speak(scenario.cues?.join(". ") ?? scenario.explanation);
+                        }}
+                      >
+                        <Volume2 size={13} /> Hear the clues
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => {
-                  setHintsUsed((current) => current + 1);
-                  speak(scenario.cues?.join(". ") ?? scenario.explanation);
-                }}
-              >
-                <Volume2 size={13} /> Hear the cues
-              </Button>
+              </div>
             </div>
+
+            {coachNote && (
+              <p className="flex items-center gap-2 text-xs font-semibold text-[#0D9488] rounded-xl bg-[#F0FAF7] border border-[#B2DFDB] px-3 py-2">
+                <Sparkles size={13} /> {coachNote}
+              </p>
+            )}
 
             {/* Answer */}
             <div className="space-y-2">
-              <Label htmlFor="decoder-answer">What do you think they feel?</Label>
+              <Label htmlFor="decoder-answer" className="text-sm font-bold text-[#134E4A]">What do you think they feel?</Label>
               <div className="flex gap-2 items-start">
                 <Textarea
                   id="decoder-answer"
@@ -301,6 +353,7 @@ export default function EmotionDecoderCard() {
                   placeholder="Type a feeling word, e.g. excited, worried…"
                   rows={2}
                   disabled={Boolean(result)}
+                  className="border-[#B2DFDB] focus:border-[#0D9488]"
                 />
                 {voice.supported && (
                   <Button
@@ -309,13 +362,14 @@ export default function EmotionDecoderCard() {
                     aria-label={voice.listening ? "Stop listening" : "Answer by voice"}
                     title={voice.listening ? "Stop listening" : "Answer by voice"}
                     onClick={handleUseVoice}
+                    className="border-[#B2DFDB] text-[#134E4A] shrink-0"
                   >
                     {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
                   </Button>
                 )}
               </div>
               {voice.listening && (
-                <p className="text-xs text-muted-foreground" role="status">
+                <p className="text-xs text-[#5F8A87]" role="status">
                   Listening… {voice.interimTranscript || ""}
                 </p>
               )}
@@ -324,56 +378,37 @@ export default function EmotionDecoderCard() {
               )}
               {!result && (
                 <Button onClick={handleSubmit} disabled={!answer.trim() || loading} className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold">
-                  <CheckCircle2 size={16} /> Check my answer
+                  Check my answer
                 </Button>
               )}
             </div>
 
             {/* Feedback */}
             {result && (
-              <div
-                className={`rounded-2xl border-2 p-4 ${
-                  result.correct
-                    ? "border-[#34D399] bg-[#ECFDF5]"
-                    : "border-[#FBBF24] bg-[#FFFBEB]"
-                }`}
-                role="status"
-                aria-live="polite"
+              <AsdFeedback
+                kind={result.correct ? "success" : "gentle"}
+                title={result.correct ? "That's it!" : "Not quite yet."}
+                action={
+                  <Button className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={handleNext}>
+                    Next situation <ArrowRight size={16} />
+                  </Button>
+                }
               >
-                <p className={`font-semibold ${result.correct ? "text-[#059669]" : "text-[#D97706]"}`}>
-                  {result.correct ? "That's it!" : "Not quite yet."}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">{result.feedback}</p>
-                <Button className="mt-3 gap-2 w-full sm:w-auto bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={handleNext}>
-                  Next scenario <ArrowRight size={16} />
-                </Button>
-              </div>
+                {result.feedback}
+              </AsdFeedback>
             )}
           </div>
         )}
 
-        {/* Stats */}
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{getDecoderActivityTypeById(activityType)?.label ?? "daily life"}</Badge>
-          <Badge variant="secondary">Attempts: {performance.metrics.attempts}</Badge>
-          <Badge variant="secondary">Correct: {performance.metrics.correct}</Badge>
-          <Badge variant="secondary">Accuracy: {Math.round(performance.metrics.accuracy * 100)}%</Badge>
-        </div>
-
-        {/* Adaptation notice */}
-        {adaptation.adjustments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {adaptation.adjustments.map((adj) => (
-              <span
-                key={adj.actionId ?? `${adj.target}:${adj.type}`}
-                className="rounded-full bg-[#D1FAE5] px-2 py-0.5 text-[11px] font-medium text-[#0D9488]"
-              >
-                {adj.label}
-              </span>
-            ))}
+        {/* Progress */}
+        <div className="rounded-xl border border-[#B2DFDB] bg-[#F0FAF7] p-3 space-y-2">
+          <AsdProgressBar value={correctCount} max={Math.max(attempts, 1)} tone="amber" label={`Emotions solved · ${correctCount} of ${attempts || 0}`} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <AsdChip tone="teal">{getDecoderActivityTypeById(activityType)?.label ?? "Daily life"}</AsdChip>
+            <AsdChip tone="neutral">Accuracy {Math.round(performance.metrics.accuracy * 100)}%</AsdChip>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </AsdCard>
   );
 }

@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Volume2 } from "lucide-react";
+import { ArrowLeft, MessagesSquare, Volume2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import { useSocialCommunication, COMMUNICATION_VIEWS } from "../hooks/useSocialCommunication";
 import ActivitySetup from "./ActivitySetup";
 import ScenarioBrief from "./ScenarioBrief";
@@ -32,60 +32,65 @@ export default function SocialCommunicationPage() {
   })();
 
   return (
-    <div
-      className={`min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 ${
-        engine.a11y.reduceMotion ? "[&_*]:transition-none" : ""
-      }`}
-    >
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/"
-              aria-label="Back to home"
-              className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-violet-600 hover:border-violet-200 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className={`font-black text-slate-900 ${engine.a11y.largeText ? "text-2xl" : "text-xl"}`}>
-                Conversation Practice
-              </h1>
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <Volume2 className="w-3.5 h-3.5" /> Speak or type — your way.
-              </p>
+    <SupportToolThemeProvider theme="asd_social">
+      <div
+        className={`support-tool-page min-h-screen bg-gradient-to-br from-[#F0FAF7] via-[#DDF6F0] to-[#E0F2FE] ${
+          engine.a11y.reduceMotion ? "[&_*]:transition-none" : ""
+        }`}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Link
+                to="/asd"
+                aria-label="Back to the ASD hub"
+                className="w-9 h-9 rounded-[10px] bg-white border-2 border-[#B2DFDB] flex items-center justify-center text-[#5F8A87] shadow-[2px_2px_0_#D5F5EC] hover:text-[#0D9488] hover:border-[#0D9488] transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-gradient-to-br from-[#67E8F9] to-[#0891B2] text-white shadow-[2px_2px_0_#A5F3FC]">
+                <MessagesSquare size={16} />
+              </span>
+              <div>
+                <h1 className={`font-black text-[#134E4A] ${engine.a11y.largeText ? "text-2xl" : "text-xl"}`}>
+                  Conversation Practice
+                </h1>
+                <p className="text-sm text-[#5F8A87] flex items-center gap-1">
+                  <Volume2 className="w-3.5 h-3.5" /> Speak or type — your way.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="a11y-large" className="text-xs text-slate-600">Large text</Label>
-              <Switch
-                id="a11y-large"
-                checked={engine.a11y.largeText}
-                onCheckedChange={(checked) => engine.updateA11y({ largeText: checked })}
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="a11y-large" className="text-xs text-[#5F8A87]">Large text</Label>
+                <Switch
+                  id="a11y-large"
+                  checked={engine.a11y.largeText}
+                  onCheckedChange={(checked) => engine.updateA11y({ largeText: checked })}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="a11y-motion" className="text-xs text-[#5F8A87]">Reduce motion</Label>
+                <Switch
+                  id="a11y-motion"
+                  checked={engine.a11y.reduceMotion}
+                  onCheckedChange={(checked) => engine.updateA11y({ reduceMotion: checked })}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="a11y-motion" className="text-xs text-slate-600">Reduce motion</Label>
-              <Switch
-                id="a11y-motion"
-                checked={engine.a11y.reduceMotion}
-                onCheckedChange={(checked) => engine.updateA11y({ reduceMotion: checked })}
-              />
+          </header>
+
+          {engine.aiUnavailable && (
+            <div className="mb-4 rounded-xl border-2 border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-sm text-[#B45309]">
+              Online scenario generation is unavailable right now — using a built-in practice
+              scenario instead. Everything else works the same.
             </div>
-          </div>
-        </header>
+          )}
 
-        {engine.aiUnavailable && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Online scenario generation is unavailable right now — using a built-in practice
-            scenario instead. Everything else works the same.
-          </div>
-        )}
-
-        <main className="flex items-start justify-center">{content}</main>
+          <main className="flex items-start justify-center">{content}</main>
+        </div>
       </div>
-    </div>
+    </SupportToolThemeProvider>
   );
 }

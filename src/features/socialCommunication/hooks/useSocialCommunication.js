@@ -33,6 +33,7 @@ import {
 } from "../services/sessionHistory";
 import { useCommunicationAdaptation } from "./useCommunicationAdaptation";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import { useASDPracticeCounts, PROGRESS_EVENTS } from "@/components/asd/ui";
 
 export const COMMUNICATION_VIEWS = Object.freeze({
   LAUNCH: "launch",
@@ -66,6 +67,7 @@ export function useSocialCommunication() {
   const [history, setHistory] = useState([]);
   const [historyStats, setHistoryStats] = useState(null);
   const [a11y, setA11y] = useState(loadA11y);
+  const { recordEvent: recordPracticeEvent } = useASDPracticeCounts(userId);
 
   const userPreferences = useMemo(
     () => buildUserPreferencesFragment(user),
@@ -186,6 +188,7 @@ export function useSocialCommunication() {
       }
       const completed = completeSession(finished, evaluation);
       setSession(completed);
+      recordPracticeEvent(PROGRESS_EVENTS.CONVERSATION_FINISHED);
       if (userId) {
         await saveSessionOutcome({ userId, session: completed });
         clearActiveSession(userId);
@@ -193,7 +196,7 @@ export function useSocialCommunication() {
       }
       setView(COMMUNICATION_VIEWS.FEEDBACK);
     },
-    [apiKey, userId, refreshHistory],
+    [apiKey, userId, refreshHistory, recordPracticeEvent],
   );
 
   const submitReply = useCallback(

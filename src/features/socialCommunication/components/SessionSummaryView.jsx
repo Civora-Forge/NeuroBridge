@@ -11,8 +11,8 @@ export default function SessionSummaryView({ engine }) {
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-5">
-      <div className="rounded-2xl bg-white border border-violet-100 shadow-sm p-6 text-center">
-        <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[3px_3px_0_#D5F5EC] p-6 text-center">
+        <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#0D9488] to-[#06B6D4] flex items-center justify-center">
           <TrendingUp className="w-7 h-7 text-white" />
         </div>
         <h2 className="font-black text-slate-900">Practice complete</h2>
@@ -22,7 +22,7 @@ export default function SessionSummaryView({ engine }) {
           {session.turnCount} exchanges
         </p>
         {evaluation && (
-          <p className="mt-3 text-3xl font-black text-violet-600">{evaluation.overallScore}<span className="text-base text-slate-400 font-semibold">/100</span></p>
+          <p className="mt-3 text-3xl font-black text-[#0D9488]">{evaluation.overallScore}<span className="text-base text-slate-400 font-semibold">/100</span></p>
         )}
       </div>
 

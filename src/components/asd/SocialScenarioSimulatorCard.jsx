@@ -6,22 +6,23 @@
  * improvements, detected cues, an optional suggested response and honest speech
  * notes). Scenarios come from Gemini when available and otherwise fall back to
  * a deterministic rotating library. The card consumes the Adaptive Engine's
- * module decision through `useModuleAdaptation` (never the engine itself).
+ * module decision through `useModuleAdaptation` (never the engine itself), and
+ * that decision only shows up as natural coach copy — e.g. "Let's try a
+ * simpler situation." It is visually distinct from Conversation Practice: one
+ * immersive situation, one response, then an evaluation of how well it fit.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getGeminiApiKey } from "@/features/socialCommunication/services/aiService";
 import { useVoiceInput } from "@/features/socialCommunication/hooks/useVoiceInput";
 import { useModuleAdaptation } from "@/hooks/useModuleAdaptation";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, CheckCircle2, Mic, MicOff, MessagesSquare, Volume2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Mic, MicOff, Sparkles, Volume2 } from "lucide-react";
 import {
   SCENARIO_CATEGORIES,
   SCENARIO_DIFFICULTIES,
@@ -37,6 +38,16 @@ import {
   recordScenarioAttempt,
 } from "@/support/modules/socialScenarioSimulator/scenarioService";
 import { evaluateResponse } from "@/support/modules/socialScenarioSimulator/evaluationService";
+import {
+  AsdCard,
+  AsdCharacter,
+  AsdChip,
+  AsdFeedback,
+  AsdProgressBar,
+  useASDPracticeCounts,
+  PROGRESS_EVENTS,
+} from "@/components/asd/ui";
+import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
 function useSpeech() {
   const speak = useCallback((text, rate = 0.95, pitch = 1.05) => {
@@ -64,11 +75,30 @@ function deriveSignals(adjustments = []) {
   };
 }
 
-function scoreTone(score) {
-  if (score >= 75) return { label: "Great response", className: "border-[#34D399] bg-[#ECFDF5] text-[#059669]" };
-  if (score >= 50) return { label: "Good start", className: "border-[#FBBF24] bg-[#FFFBEB] text-[#D97706]" };
-  return { label: "Keep practising", className: "border-[#F97316] bg-[#FFF7ED] text-[#EA580C]" };
+/** Adaptations become natural coach copy, never engine jargon. */
+function friendlyAdaptationNote(signals) {
+  if (signals.simplify) return "Let's try a simpler situation.";
+  if (signals.slowPace) return "We'll take this one slowly — no rush.";
+  if (signals.provideHints) return "Clues are switched on for now.";
+  return null;
 }
+
+const STAGE_GRADIENTS = [
+  "radial-gradient(120% 120% at 15% 10%, #EDE9FE 0%, #DDD6FE 55%, #C4B5FD 100%)",
+  "radial-gradient(120% 120% at 85% 10%, #E0F2FE 0%, #BAE6FD 55%, #A5B4FC 100%)",
+  "radial-gradient(120% 120% at 50% 0%, #FDE8FF 0%, #F5D0FE 55%, #C4B5FD 100%)",
+];
+
+const NPC_TONES = ["violet", "sky", "rose", "teal"];
+const NPC_ACCESSORIES = ["spark", "cloud", "star", "book"];
+
+function scoreTone(score) {
+  if (score >= 75) return { kind: "success", label: "Great response" };
+  if (score >= 50) return { kind: "gentle", label: "Good start" };
+  return { kind: "neutral", label: "Keep practising" };
+}
+
+const hashOf = (value) => String(value).split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
 
 export default function SocialScenarioSimulatorCard() {
   const { user } = useAuth();
@@ -76,6 +106,8 @@ export default function SocialScenarioSimulatorCard() {
   const speak = useSpeech();
   const voice = useVoiceInput();
   const apiKey = getGeminiApiKey();
+  const { recordEvent } = useASDPracticeCounts(userId);
+  const { reduced, gentle } = useSensoryReducedMotion();
 
   const [category, setCategory] = useState("daily_life");
   const [difficulty, setDifficulty] = useState("easy");
@@ -206,8 +238,9 @@ export default function SocialScenarioSimulatorCard() {
       response,
       voiceUsed: Boolean(voiceCapture),
     });
+    recordEvent(PROGRESS_EVENTS.SCENARIO_PRACTISED);
     refreshStats();
-  }, [scenario, response, voiceCapture, config, apiKey, userId, refreshStats]);
+  }, [scenario, response, voiceCapture, config, apiKey, userId, refreshStats, recordEvent]);
 
   const showCues = config.hintsEnabled || result;
   const cuesToShow = showCues
@@ -217,25 +250,31 @@ export default function SocialScenarioSimulatorCard() {
     : [];
 
   const tone = result ? scoreTone(result.score) : null;
+  const coachNote = friendlyAdaptationNote(signals);
+  const stageSeed = hashOf(scenario?.id ?? "stage");
+  const stageKind = stageSeed % STAGE_GRADIENTS.length;
+  const npcTone = NPC_TONES[stageSeed % NPC_TONES.length];
+  const npcAccessory = NPC_ACCESSORIES[stageSeed % NPC_ACCESSORIES.length];
 
   return (
-    <Card className="border-[#B2DFDB] shadow-[6px_6px_0_#B2DFDB] rounded-2xl overflow-hidden">
-      <div className="h-2 bg-gradient-to-r from-[#0D9488] to-[#5EEAD4]" />
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl text-[#134E4A]">
-          <MessagesSquare size={20} className="text-[#0D9488]" /> Social Scenario Simulator
-        </CardTitle>
-        <CardDescription className="text-[#5F7A75]">
-          Read one situation, then say or type how you would respond. You get kind, specific feedback each time.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <AsdCard tone="stone" className="!rounded-2xl !shadow-[4px_4px_0_#C4B5FD]">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-gradient-to-br from-[#C4B5FD] to-[#7C3AED] text-white shadow-[2px_2px_0_#EDE9FE]">
+          <Sparkles size={20} />
+        </span>
+        <div>
+          <h2 className="text-xl font-black text-[#134E4A]">Social Scenario Simulator</h2>
+          <p className="text-sm text-[#5F8A87]">Step into one situation, respond once, then see how well it fit.</p>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-5">
         {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="scenario-category">Area</Label>
+            <Label htmlFor="scenario-category" className="text-sm font-bold text-[#134E4A]">Area</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="scenario-category" aria-label="Scenario area">
+              <SelectTrigger id="scenario-category" aria-label="Scenario area" className="border-[#DDD6FE]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -248,9 +287,9 @@ export default function SocialScenarioSimulatorCard() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="scenario-difficulty">Level</Label>
+            <Label htmlFor="scenario-difficulty" className="text-sm font-bold text-[#134E4A]">Level</Label>
             <Select value={difficulty} onValueChange={setDifficulty}>
-              <SelectTrigger id="scenario-difficulty" aria-label="Difficulty level">
+              <SelectTrigger id="scenario-difficulty" aria-label="Difficulty level" className="border-[#DDD6FE]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -263,14 +302,12 @@ export default function SocialScenarioSimulatorCard() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="block">Read aloud</Label>
+            <Label className="block text-sm font-bold text-[#134E4A]">Read aloud</Label>
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
-              onClick={() =>
-                speak([scenario?.situation, scenario?.question].filter(Boolean).join(" "))
-              }
+              className="gap-2 border-[#DDD6FE] text-[#6D28D9]"
+              onClick={() => speak([scenario?.situation, scenario?.question].filter(Boolean).join(" "))}
               disabled={!scenario}
             >
               <Volume2 size={14} /> Listen
@@ -279,48 +316,74 @@ export default function SocialScenarioSimulatorCard() {
         </div>
 
         {aiUnavailable && (
-          <p className="text-xs text-muted-foreground">
-            Practise with a built-in situation right now; live ones will appear when the AI service is available.
+          <p className="text-xs text-[#8B9C98]">
+            Practising with a built-in situation right now; live ones will appear when the AI service is available.
           </p>
         )}
 
-        {/* Scenario */}
+        {/* The stage — one immersive situation */}
         {loading || !scenario ? (
-          <div className="rounded-2xl border-2 border-dashed border-[#B2DFDB] p-6 text-center text-sm text-[#5F7A75]">
-            Preparing a situation…
+          <div className="rounded-2xl border-2 border-dashed border-[#DDD6FE] p-6 text-center text-sm text-[#5F8A87]">
+            Setting the scene…
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-5 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{getScenarioCategoryById(scenario.category)?.label ?? "Daily Life"}</Badge>
-                <Badge variant="secondary">{getScenarioDifficultyById(scenario.difficulty)?.label ?? "Easy"}</Badge>
-              </div>
-              {scenario.title && <p className="text-sm font-semibold text-muted-foreground">{scenario.title}</p>}
-              <p className="text-base font-medium">{scenario.situation}</p>
-              {scenario.role && <p className="text-sm italic text-muted-foreground">Your role: {scenario.role}</p>}
-              {scenario.question && (
-                <p className="text-sm font-semibold">“{scenario.question}”</p>
-              )}
-
-              {showCues && Array.isArray(cuesToShow) && cuesToShow.length > 0 && (
-                <div className="rounded-xl bg-white/60 p-3 space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cues to notice</p>
-                  <ul className="list-disc list-inside space-y-0.5 text-sm">
-                    {cuesToShow.map((cue) => (
-                      <li key={cue}>{cue}</li>
-                    ))}
-                  </ul>
+            <div className="overflow-hidden rounded-2xl border-2 border-[#DDD6FE]" style={{ background: STAGE_GRADIENTS[stageKind] }}>
+              <div className="flex items-start gap-3 p-5">
+                <div className="flex flex-col items-center gap-1.5">
+                  <AsdCharacter
+                    size={68}
+                    ariaHidden
+                    tone={npcTone}
+                    accessory={npcAccessory}
+                    className="drop-shadow-[0_6px_12px_rgba(109,40,217,0.25)]"
+                  />
+                  <AsdChip tone="violet">NPC</AsdChip>
                 </div>
-              )}
-              {showCues && scenario.hint && (
-                <p className="text-xs italic text-muted-foreground">Hint: {scenario.hint}</p>
-              )}
+                <div className="min-w-0 flex-1 space-y-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <AsdChip tone="violet">{getScenarioCategoryById(scenario.category)?.label ?? "Daily life"}</AsdChip>
+                    <AsdChip tone="neutral">{getScenarioDifficultyById(scenario.difficulty)?.label ?? "Easy"}</AsdChip>
+                  </div>
+                  {scenario.title && <p className="text-xs font-bold uppercase tracking-wide text-[#5B21B6]">{scenario.title}</p>}
+                  <p className="relative rounded-2xl rounded-bl-sm border-2 border-white/70 bg-white/95 px-4 py-3 text-base font-semibold leading-relaxed text-[#312E81] shadow-sm">
+                    {scenario.situation}
+                  </p>
+                  {scenario.role && (
+                    <p className="text-sm italic text-[#6B7280]">Your role: {scenario.role}</p>
+                  )}
+                  {scenario.question && (
+                    <p className="relative ml-8 rounded-2xl rounded-br-sm border-2 border-[#A78BFA] bg-white px-4 py-2.5 text-sm font-bold text-[#5B21B6] shadow-sm">
+                      <span className="mr-1.5" aria-hidden="true">🗨️</span>“{scenario.question}”
+                    </p>
+                  )}
+
+                  {showCues && Array.isArray(cuesToShow) && cuesToShow.length > 0 && (
+                    <div className="rounded-xl bg-white/70 border border-[#DDD6FE] p-3 space-y-1.5">
+                      <p className="text-xs font-black uppercase tracking-wide text-[#6D28D9]">Cues to notice</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cuesToShow.map((cue) => (
+                          <AsdChip key={cue} tone="violet">{cue}</AsdChip>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {showCues && scenario.hint && (
+                    <p className="text-xs italic text-[#6D28D9]">Hint: {scenario.hint}</p>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {coachNote && (
+              <p className="flex items-center gap-2 text-xs font-semibold text-[#7C3AED] rounded-xl bg-[#F5F3FF] border border-[#DDD6FE] px-3 py-2">
+                <Sparkles size={13} /> {coachNote}
+              </p>
+            )}
 
             {/* Response */}
             <div className="space-y-2">
-              <Label htmlFor="scenario-response">How would you respond?</Label>
+              <Label htmlFor="scenario-response" className="text-sm font-bold text-[#134E4A]">How would you respond?</Label>
               <div className="flex gap-2 items-start">
                 <Textarea
                   id="scenario-response"
@@ -329,6 +392,7 @@ export default function SocialScenarioSimulatorCard() {
                   placeholder="Type your reply, or use the microphone…"
                   rows={2}
                   disabled={Boolean(result)}
+                  className="border-[#DDD6FE] focus:border-[#7C3AED]"
                 />
                 {voice.supported && (
                   <Button
@@ -337,13 +401,14 @@ export default function SocialScenarioSimulatorCard() {
                     aria-label={voice.listening ? "Stop listening" : "Respond by voice"}
                     title={voice.listening ? "Stop listening" : "Respond by voice"}
                     onClick={handleUseVoice}
+                    className="border-[#DDD6FE] text-[#6D28D9] shrink-0"
                   >
                     {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
                   </Button>
                 )}
               </div>
               {voice.listening && (
-                <p className="text-xs text-muted-foreground" role="status">
+                <p className="text-xs text-[#5F8A87]" role="status">
                   Listening… {voice.interimTranscript || ""}
                 </p>
               )}
@@ -351,7 +416,7 @@ export default function SocialScenarioSimulatorCard() {
                 <p className="text-xs text-amber-600" role="status">{voice.error}</p>
               )}
               {!result && (
-                <Button onClick={handleSubmit} disabled={!response.trim() || loading} className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold">
+                <Button onClick={handleSubmit} disabled={!response.trim() || loading} className="gap-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] shadow-[2px_2px_0_#C4B5FD] font-bold">
                   <CheckCircle2 size={16} /> Check my response
                 </Button>
               )}
@@ -359,84 +424,83 @@ export default function SocialScenarioSimulatorCard() {
 
             {/* Feedback */}
             {result && tone && (
-              <div className={`rounded-2xl border-2 p-4 space-y-3 ${tone.className}`} role="status" aria-live="polite">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold">{tone.label} — score {result.score}/100</p>
-                  {result.usedAi && (
-                    <span className="text-[11px] font-medium text-muted-foreground">AI-enhanced feedback</span>
-                  )}
-                </div>
-                {result.reasoning && <p className="text-sm text-muted-foreground">{result.reasoning}</p>}
+              <AsdFeedback
+                kind={tone.kind}
+                title={`${tone.label} · ${result.score}/100`}
+                action={
+                  <Button className="gap-2 w-full sm:w-auto bg-[#7C3AED] text-white hover:bg-[#6D28D9] shadow-[2px_2px_0_#C4B5FD] font-bold" onClick={handleNext}>
+                    Next situation <ArrowRight size={16} />
+                  </Button>
+                }
+              >
+                {result.usedAi && <p className="text-xs font-semibold text-[#6D28D9]">AI-enhanced feedback</p>}
+                {result.reasoning && <p className="text-sm text-[#5F8A87]">{result.reasoning}</p>}
 
                 {Array.isArray(result.strengths) && result.strengths.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">What went well</p>
-                    <ul className="list-disc list-inside space-y-0.5 text-sm">
-                      {result.strengths.map((strength) => (
-                        <li key={strength}>{strength}</li>
-                      ))}
+                    <p className="text-xs font-black uppercase tracking-wide text-[#5F8A87]">What went well</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-sm text-[#134E4A]">
+                      {result.strengths.map((strength) => <li key={strength}>{strength}</li>)}
                     </ul>
                   </div>
                 )}
 
                 {Array.isArray(result.improvements) && result.improvements.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">To try next time</p>
-                    <ul className="list-disc list-inside space-y-0.5 text-sm">
-                      {result.improvements.map((improvement) => (
-                        <li key={improvement}>{improvement}</li>
-                      ))}
+                    <p className="text-xs font-black uppercase tracking-wide text-[#5F8A87]">To try next time</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-sm text-[#134E4A]">
+                      {result.improvements.map((improvement) => <li key={improvement}>{improvement}</li>)}
                     </ul>
                   </div>
                 )}
 
                 {Array.isArray(result.detectedCues) && result.detectedCues.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cues you noticed</p>
+                    <p className="text-xs font-black uppercase tracking-wide text-[#5F8A87]">Cues you noticed</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {result.detectedCues.map((cue) => (
-                        <Badge key={cue} variant="secondary">{cue}</Badge>
-                      ))}
+                      {result.detectedCues.map((cue) => <AsdChip key={cue} tone="violet">{cue}</AsdChip>)}
                     </div>
                   </div>
                 )}
 
                 {result.suggestedResponse && (
-                  <p className="text-sm">
+                  <p className="text-sm text-[#134E4A]">
                     <span className="font-semibold">Another way to put it: </span>
                     <span className="italic">“{result.suggestedResponse}”</span>
                   </p>
                 )}
 
                 {result.speechNotes?.available && (
-                  <p className="text-xs text-muted-foreground">{result.speechNotes.note}</p>
+                  <p className="text-xs text-[#5F8A87]">{result.speechNotes.note}</p>
                 )}
-
-                <Button className="mt-1 gap-2 w-full sm:w-auto bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={handleNext}>
-                  Next situation <ArrowRight size={16} />
-                </Button>
-              </div>
+              </AsdFeedback>
             )}
           </div>
         )}
 
-        {/* Stats */}
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">Attempts: {stats.totalAttempts}</Badge>
-          {Number.isFinite(stats.averageScore) && (
-            <Badge variant="secondary">Average score: {stats.averageScore}</Badge>
-          )}
+        {/* Progress */}
+        <div className="rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] p-3 space-y-2">
+          <AsdProgressBar
+            value={Math.round(stats.averageScore ?? 0)}
+            max={100}
+            tone="violet"
+            label="Average response score"
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <AsdChip tone="violet">Attempts: {stats.totalAttempts}</AsdChip>
+            {Number.isFinite(stats.averageScore) && <AsdChip tone="neutral">Average score: {stats.averageScore}</AsdChip>}
+          </div>
         </div>
 
         {/* Recent attempts */}
         {recentAttempts.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent practice</p>
-            <ul className="space-y-1 text-sm">
+          <div className="space-y-1.5">
+            <p className="text-xs font-black uppercase tracking-wide text-[#5F8A87]">Recent practice</p>
+            <ul className="space-y-1.5">
               {recentAttempts.map((attempt) => (
-                <li key={attempt.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{attempt.title}</span>
-                  <span className="shrink-0 text-muted-foreground">
+                <li key={attempt.id} className="flex items-center justify-between gap-2 rounded-xl border border-[#DDD6FE] bg-white/70 px-3 py-2">
+                  <span className="truncate text-sm font-medium text-[#134E4A]">{attempt.title}</span>
+                  <span className="shrink-0 text-sm text-[#5F8A87]">
                     {Number.isFinite(attempt.score) ? `${attempt.score}/100` : "—"}
                   </span>
                 </li>
@@ -444,21 +508,7 @@ export default function SocialScenarioSimulatorCard() {
             </ul>
           </div>
         )}
-
-        {/* Adaptation notice */}
-        {adaptation.adjustments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {adaptation.adjustments.map((adj) => (
-              <span
-                key={adj.actionId ?? `${adj.target}:${adj.type}`}
-                className="rounded-full bg-[#D1FAE5] px-2 py-0.5 text-[11px] font-medium text-[#0D9488]"
-              >
-                {adj.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </AsdCard>
   );
 }

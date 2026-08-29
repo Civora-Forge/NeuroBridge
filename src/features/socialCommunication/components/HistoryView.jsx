@@ -30,7 +30,7 @@ export default function HistoryView({ engine }) {
           <p className="text-xs text-slate-500">Day streak</p>
         </div>
         <div className="rounded-xl bg-white border border-slate-200 p-4">
-          <BarChart3 className="w-5 h-5 text-violet-500 mx-auto mb-1" />
+          <BarChart3 className="w-5 h-5 text-[#14B8A6] mx-auto mb-1" />
           <p className="text-2xl font-black text-slate-800">{historyStats?.averageScore ?? "—"}</p>
           <p className="text-xs text-slate-500">Average score</p>
         </div>
@@ -63,7 +63,7 @@ export default function HistoryView({ engine }) {
                       {formatDate(outcome?.createdAt)} · {outcome?.metrics?.turnCount ?? 0} exchanges
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-lg bg-violet-50 text-violet-700 font-bold px-3 py-1.5 text-sm">
+                  <span className="shrink-0 rounded-lg bg-[#F0FAF7] text-[#0F766E] font-bold px-3 py-1.5 text-sm border border-[#B2DFDB]">
                     {outcome?.metrics?.communicationScore ?? "—"}
                   </span>
                 </li>

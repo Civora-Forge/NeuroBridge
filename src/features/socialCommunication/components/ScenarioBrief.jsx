@@ -1,6 +1,7 @@
-import { ArrowLeft, MessageCircle, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, MessageCircle, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDomainById, DIFFICULTY_LEVELS } from "../types/communicationTypes";
+import { AsdCharacter } from "@/components/asd/ui";
 
 export default function ScenarioBrief({ engine }) {
   const session = engine.session;
@@ -20,8 +21,8 @@ export default function ScenarioBrief({ engine }) {
         <ArrowLeft className="w-4 h-4" /> Change topic
       </button>
 
-      <div className="rounded-2xl bg-white border border-violet-100 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-violet-500 to-cyan-500 px-6 py-4 text-white">
+      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[4px_4px_0_#D5F5EC] overflow-hidden">
+        <div className="bg-gradient-to-r from-[#0D9488] to-[#06B6D4] px-6 py-4 text-white">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-black text-lg">{scenario.title}</h2>
             <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
@@ -42,8 +43,8 @@ export default function ScenarioBrief({ engine }) {
             <p className="text-slate-800">{scenario.goal}</p>
           </div>
 
-          <div className="flex items-start gap-3 rounded-xl bg-slate-50 border border-slate-100 p-4">
-            <UserRound className="w-5 h-5 text-violet-500 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 rounded-xl bg-[#F0FAF7] border border-[#B2DFDB] p-4">
+            <AsdCharacter size={40} ariaHidden tone="cyan" accessory="spark" className="mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-slate-800">{scenario.npc?.name}</p>
               <p className="text-sm text-slate-500">{scenario.npc?.role} — {scenario.npc?.personality}</p>
@@ -55,7 +56,7 @@ export default function ScenarioBrief({ engine }) {
             <p className="text-slate-800 italic">“{scenario.openingLine}”</p>
           </div>
 
-          <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 text-sm text-violet-800 flex items-start gap-2">
+          <div className="rounded-xl bg-[#F0FAF7] border border-[#A7F3D0] p-4 text-sm text-[#0F766E] flex items-start gap-2">
             <MessageCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
               You can reply by voice or by typing. There is no right or wrong answer — the goal

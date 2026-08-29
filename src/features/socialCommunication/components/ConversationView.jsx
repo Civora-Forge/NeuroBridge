@@ -1,25 +1,35 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Lightbulb, Mic, MicOff, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
+import { Lightbulb, Mic, MicOff, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SESSION_STATUS, SPEAKER, RESPONSE_SOURCE } from "../types/communicationTypes";
 import { extractSpeechFeatures } from "../services/speechAnalysis";
 import { useVoiceInput } from "../hooks/useVoiceInput";
+import { AsdCharacter, AsdChip } from "@/components/asd/ui";
 
-function MessageBubble({ turn, largeText }) {
+function MessageBubble({ turn, largeText, kind = "teal" }) {
   const isUser = turn.speaker === SPEAKER.USER;
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+      {!isUser && (
+        <AsdCharacter
+          size={34}
+          ariaHidden
+          tone={kind}
+          accessory="spark"
+          className="mb-0.5"
+        />
+      )}
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
           isUser
-            ? "bg-violet-600 text-white rounded-br-sm"
-            : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+            ? "bg-gradient-to-r from-[#0D9488] to-[#14B8A6] text-white rounded-br-sm shadow-[2px_2px_0_#B2DFDB]"
+            : "bg-white border-2 border-[#B2DFDB] text-[#134E4A] rounded-bl-sm"
         } ${largeText ? "text-base" : ""}`}
       >
         <p>{turn.text}</p>
         {turn.source === RESPONSE_SOURCE.VOICE && (
-          <p className={`text-[11px] mt-1 ${isUser ? "text-violet-200" : "text-slate-400"}`}>
+          <p className={`text-[11px] mt-1 ${isUser ? "text-teal-100" : "text-[#5F8A87]"}`}>
             Spoken reply
           </p>
         )}
@@ -86,50 +96,56 @@ export default function ConversationView({ engine }) {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="font-black text-slate-900">{scenario?.title}</h2>
-          <p className="text-sm text-slate-500">
-            Turn {Math.min(session?.turnCount ?? 0, session?.turnLimit ?? 1)} of {session?.turnLimit}
-          </p>
+        <div className="flex items-center gap-2">
+          <AsdCharacter size={44} ariaHidden tone="cyan" accessory="cloud" />
+          <div>
+            <h2 className="font-black text-[#134E4A]">{scenario?.title}</h2>
+            <p className="text-sm text-[#5F8A87]">
+              Turn {Math.min(session?.turnCount ?? 0, session?.turnLimit ?? 1)} of {session?.turnLimit}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={isPaused ? engine.resume : engine.pause}>
+          <Button variant="outline" size="sm" className="border-[#B2DFDB] text-[#134E4A]" onClick={isPaused ? engine.resume : engine.pause}>
             {isPaused ? <Play className="w-3.5 h-3.5 mr-1.5" /> : <Pause className="w-3.5 h-3.5 mr-1.5" />}
             {isPaused ? "Resume" : "Pause"}
           </Button>
-          <Button variant="outline" size="sm" onClick={engine.endEarly}>
+          <Button variant="outline" size="sm" className="border-[#B2DFDB] text-[#134E4A]" onClick={engine.endEarly}>
             <Square className="w-3.5 h-3.5 mr-1.5" /> End practice
           </Button>
         </div>
       </div>
 
       {engine.adaptation.active && (
-        <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm text-teal-800">
-          Gentle mode is on — {engine.adaptation.signals.slowPace ? "taking it at a relaxed pace. " : ""}
+        <div className="rounded-xl border-2 border-[#B2DFDB] bg-[#F0FAF7] px-4 py-2.5 text-sm text-[#0F766E]">
+          <span className="font-black text-[#0D9488]">Support is on — </span>
+          {engine.adaptation.signals.slowPace ? "taking it at a relaxed pace. " : ""}
           {engine.adaptation.signals.provideHints ? "Hints are available. " : ""}
           {engine.adaptation.signals.reduceDistractions ? "Distractions are reduced. " : ""}
-          You can always adjust settings on the setup screen.
+          You can adjust settings on the setup screen any time.
         </div>
       )}
 
       <div
         ref={scrollRef}
-        className="h-[420px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3"
+        className="h-[420px] overflow-y-auto rounded-2xl border-2 border-[#B2DFDB] bg-gradient-to-b from-[#F0FAF7] to-[#E6F7F2] p-4 space-y-3"
       >
-        <div className="flex justify-start">
-          <div className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm bg-white border border-slate-200 text-slate-800">
+        <div className="flex items-end gap-2 justify-start">
+          <AsdCharacter size={34} ariaHidden tone="cyan" accessory="spark" className="mb-0.5" />
+          <div className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm bg-white border-2 border-[#B2DFDB] text-[#134E4A] rounded-bl-sm">
             <p className="italic">“{scenario?.openingLine}”</p>
-            <p className="text-[11px] text-slate-400 mt-1">{npcName} started the conversation.</p>
+            <p className="text-[11px] text-[#5F8A87] mt-1">{npcName} started the conversation.</p>
           </div>
         </div>
 
         {(session?.turns ?? []).map((turn) => (
-          <MessageBubble key={turn.id} turn={turn} largeText={engine.a11y.largeText} />
+          <MessageBubble key={turn.id} turn={turn} largeText={engine.a11y.largeText} kind="cyan" />
         ))}
 
         {engine.busy && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl px-4 py-2.5 bg-white border border-slate-200 text-slate-400 text-sm animate-pulse">
+          <div className="flex items-end gap-2 justify-start">
+            <AsdCharacter size={34} ariaHidden tone="cyan" accessory="spark" className="mb-0.5" />
+            <div className="rounded-2xl px-4 py-2.5 bg-white border-2 border-[#B2DFDB] text-[#5F8A87] text-sm animate-pulse">
               {npcName} is thinking…
             </div>
           </div>
@@ -137,23 +153,23 @@ export default function ConversationView({ engine }) {
       </div>
 
       {voice.supported && voice.error && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+        <div className="rounded-xl border-2 border-[#FDE68A] bg-[#FFFBEB] px-4 py-2.5 text-sm text-[#B45309]">
           {voice.error}
         </div>
       )}
 
-      <div className="rounded-2xl bg-white border border-slate-200 p-3">
+      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[2px_2px_0_#D5F5EC] p-3">
         {hintsAvailable && (
           <div className="mb-3">
             <button
               type="button"
               onClick={() => setShowHint((value) => !value)}
-              className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#0D9488] hover:text-[#0F766E]"
             >
               <Lightbulb className="w-4 h-4" /> {showHint ? "Hide a hint" : "Show a hint"}
             </button>
             {showHint && (
-              <p className="mt-2 rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 text-sm text-violet-800">
+              <p className="mt-2 rounded-xl bg-[#F0FAF7] border border-[#B2DFDB] px-4 py-3 text-sm text-[#134E4A]">
                 {scenario?.hint || scenario?.suggestedResponses?.[0]}
               </p>
             )}
@@ -168,7 +184,7 @@ export default function ConversationView({ engine }) {
               onClick={toggleVoice}
               disabled={!isActive || engine.busy}
               aria-label={voice.listening ? "Stop recording" : "Start speaking"}
-              className="shrink-0"
+              className="shrink-0 border-[#B2DFDB]"
             >
               {voice.listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
@@ -181,10 +197,10 @@ export default function ConversationView({ engine }) {
             }}
             placeholder={isPaused ? "Practice is paused — press Resume to continue" : "Type your reply…"}
             disabled={!isActive || engine.busy || voice.listening}
-            className="flex-1"
+            className="flex-1 border-[#B2DFDB] focus:border-[#0D9488]"
             aria-label="Your reply"
           />
-          <Button size="icon" onClick={sendText} disabled={!isActive || engine.busy || voice.listening} aria-label="Send reply">
+          <Button size="icon" onClick={sendText} disabled={!isActive || engine.busy || voice.listening} aria-label="Send reply" className="bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-[2px_2px_0_#B2DFDB]">
             <Send className="w-4 h-4" />
           </Button>
           <Button
@@ -199,16 +215,16 @@ export default function ConversationView({ engine }) {
         </div>
 
         {voice.supported && !isPaused && !voice.listening && (
-          <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+          <p className="text-[11px] text-[#5F8A87] mt-2 flex items-center gap-1">
             <Mic className="w-3 h-3" /> Tap the mic and speak, or type. You can use both.
           </p>
         )}
 
         {voice.supported && voice.listening && (
-          <div className="mt-2 flex items-center gap-2 text-[11px] font-medium text-red-600">
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-medium text-rose-600">
             <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
             </span>
             <span>
               Listening… {voice.listeningFor}s — speak now
@@ -218,6 +234,11 @@ export default function ConversationView({ engine }) {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <AsdChip tone="cyan">Rehearse, don't perform</AsdChip>
+        <AsdChip tone="teal">{isPaused ? "Paused" : "Practice session"}</AsdChip>
       </div>
     </div>
   );
