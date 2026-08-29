@@ -4,11 +4,11 @@ import ModuleCard from "@/components/ModuleCard";
 import { composeHomeModules } from "@/data/modulesRegistry";
 
 export default function Home() {
-  const { user, enabledModules } = useAuth();
+  const { user, enabledModules, enabledFeatures } = useAuth();
 
   const modules = useMemo(
-    () => composeHomeModules(enabledModules || []),
-    [enabledModules],
+    () => composeHomeModules([...enabledModules, ...enabledFeatures]),
+    [enabledModules, enabledFeatures],
   );
 
   return (
