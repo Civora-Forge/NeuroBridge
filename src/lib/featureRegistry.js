@@ -317,49 +317,11 @@ export function resolveEnabledFeatures(input) {
     ? input.enabledModules
     : [];
 
-  if (explicitModules.length > 0) {
-    const enabled = new Set();
-    const activeDisorders = new Set();
-
-    for (const moduleId of explicitModules) {
-      if (moduleId === FEATURES.ADHD || moduleId === FEATURES.DEPRESSION) {
-        Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
-          if (featureIds.includes(moduleId)) featureIds.forEach((featureId) => enabled.add(featureId));
-        });
-      }
-      if (moduleId === FEATURES.ASD) {
-        Object.values(ASD_MODULE_GRANTS).forEach((featureIds) =>
-          featureIds.forEach((featureId) => enabled.add(featureId)),
-        );
-      }
-      if (moduleId === FEATURES.DYSLEXIA) {
-        Object.values(DYSLEXIA_MODULE_GRANTS).forEach((featureIds) =>
-          featureIds.forEach((featureId) => enabled.add(featureId)),
-        );
-      }
-      for (const featureId of SUPPORT_MODULE_FEATURE_ALIASES[moduleId] || []) {
-        enabled.add(featureId);
-      }
-      for (const featureId of ASD_MODULE_GRANTS[moduleId] || []) {
-        enabled.add(featureId);
-      }
-      for (const featureId of DYSLEXIA_MODULE_GRANTS[moduleId] || []) {
-        enabled.add(featureId);
-      }
-      if (FEATURE_REGISTRY[moduleId]) {
-        enabled.add(moduleId);
-        if (moduleId.includes(".")) {
-          const rootModule = moduleId.split(".")[0];
-          if (FEATURE_REGISTRY[rootModule]) {
-            enabled.add(rootModule);
-          }
-        }
-      }
-    }
-
-    return enabled;
-  }
-
+  // Base access: every feature whose configured disorders overlap the user's
+  // active disorders. Always applied first so a matching disorder can never be
+  // silently revoked by a stale or partial enabledModules list (which happens
+  // when profiles were created under an older registry). This keeps the
+  // deployed build behaving exactly like local dev for disorder users.
   const disorders = Array.isArray(input) ? input : input?.disorders ?? [];
   const active = new Set(disorders ?? []);
   const enabled = new Set();
@@ -367,6 +329,45 @@ export function resolveEnabledFeatures(input) {
   for (const [key, config] of Object.entries(FEATURE_REGISTRY)) {
     if (config.disorders.some((d) => active.has(d))) {
       enabled.add(key);
+    }
+  }
+
+  // Module grants: explicit enabledModules act as a refinement that can only
+  // ADD access (hub roots, legacy "support.*" aliases, grouped sub-features),
+  // never remove what the disorder base already granted.
+  for (const moduleId of explicitModules) {
+    if (moduleId === FEATURES.ADHD || moduleId === FEATURES.DEPRESSION) {
+      Object.values(SUPPORT_MODULE_FEATURE_ALIASES).forEach((featureIds) => {
+        if (featureIds.includes(moduleId)) featureIds.forEach((featureId) => enabled.add(featureId));
+      });
+    }
+    if (moduleId === FEATURES.ASD) {
+      Object.values(ASD_MODULE_GRANTS).forEach((featureIds) =>
+        featureIds.forEach((featureId) => enabled.add(featureId)),
+      );
+    }
+    if (moduleId === FEATURES.DYSLEXIA) {
+      Object.values(DYSLEXIA_MODULE_GRANTS).forEach((featureIds) =>
+        featureIds.forEach((featureId) => enabled.add(featureId)),
+      );
+    }
+    for (const featureId of SUPPORT_MODULE_FEATURE_ALIASES[moduleId] || []) {
+      enabled.add(featureId);
+    }
+    for (const featureId of ASD_MODULE_GRANTS[moduleId] || []) {
+      enabled.add(featureId);
+    }
+    for (const featureId of DYSLEXIA_MODULE_GRANTS[moduleId] || []) {
+      enabled.add(featureId);
+    }
+    if (FEATURE_REGISTRY[moduleId]) {
+      enabled.add(moduleId);
+      if (moduleId.includes(".")) {
+        const rootModule = moduleId.split(".")[0];
+        if (FEATURE_REGISTRY[rootModule]) {
+          enabled.add(rootModule);
+        }
+      }
     }
   }
 
