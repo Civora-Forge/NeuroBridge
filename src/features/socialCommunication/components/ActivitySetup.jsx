@@ -34,8 +34,8 @@ export default function ActivitySetup({ engine }) {
               aria-pressed={domain === item.id}
               className={`text-left rounded-xl border p-4 transition-colors ${
                 domain === item.id
-                  ? "border-violet-400 bg-violet-50 ring-2 ring-violet-200"
-                  : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40"
+                  ? "border-[#14B8A6] bg-[#F0FAF7] ring-2 ring-[#A7F3D0]"
+                  : "border-slate-200 bg-white hover:border-[#99F6E4] hover:bg-[#F0FAF7]/60"
               }`}
             >
               <span className={`font-semibold text-slate-900 ${engine.a11y.largeText ? "text-lg" : ""}`}>
@@ -65,11 +65,11 @@ export default function ActivitySetup({ engine }) {
               aria-pressed={difficulty === level}
               className={`rounded-xl border px-2 py-3 text-center transition-colors ${
                 difficulty === level
-                  ? "border-violet-400 bg-violet-50 ring-2 ring-violet-200"
-                  : "border-slate-200 bg-white hover:border-violet-200"
+                  ? "border-[#14B8A6] bg-[#F0FAF7] ring-2 ring-[#A7F3D0]"
+                  : "border-slate-200 bg-white hover:border-[#99F6E4]"
               }`}
             >
-              <span className={`block font-bold text-violet-600 ${engine.a11y.largeText ? "text-lg" : ""}`}>{level}</span>
+              <span className={`block font-bold text-[#0D9488] ${engine.a11y.largeText ? "text-lg" : ""}`}>{level}</span>
               <span className="block text-[11px] text-slate-500 leading-tight mt-1">
                 {DIFFICULTY_LEVELS[level].label}
               </span>
@@ -81,7 +81,7 @@ export default function ActivitySetup({ engine }) {
       {hasActive && (
         <Button
           variant="outline"
-          className="w-full mb-4 border-violet-300 text-violet-700"
+          className="w-full mb-4 border-[#14B8A6] text-[#0F766E]"
           onClick={() => engine.begin()}
         >
           Resume your in-progress practice
@@ -104,17 +104,17 @@ export default function ActivitySetup({ engine }) {
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
         <div className="rounded-xl bg-white border border-slate-200 p-4">
-          <BarChart3 className="w-5 h-5 text-violet-500 mx-auto mb-1" />
+          <BarChart3 className="w-5 h-5 text-[#14B8A6] mx-auto mb-1" />
           <p className="text-2xl font-black text-slate-800">{historyStats?.completedSessions ?? 0}</p>
           <p className="text-xs text-slate-500">Sessions completed</p>
         </div>
         <div className="rounded-xl bg-white border border-slate-200 p-4">
-          <Sparkles className="w-5 h-5 text-violet-500 mx-auto mb-1" />
+          <Sparkles className="w-5 h-5 text-[#14B8A6] mx-auto mb-1" />
           <p className="text-2xl font-black text-slate-800">{historyStats?.averageScore ?? "—"}</p>
           <p className="text-xs text-slate-500">Average score</p>
         </div>
         <div className="rounded-xl bg-white border border-slate-200 p-4">
-          <Mic className="w-5 h-5 text-violet-500 mx-auto mb-1" />
+          <Mic className="w-5 h-5 text-[#14B8A6] mx-auto mb-1" />
           <p className="text-2xl font-black text-slate-800">{voice.supported ? "Yes" : "Type"}</p>
           <p className="text-xs text-slate-500">Voice input available</p>
         </div>

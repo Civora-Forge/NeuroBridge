@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { buildFeedback } from "../services/feedbackGenerator";
 
 function scoreColor(score) {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-violet-500";
-  return "bg-amber-500";
+  if (score >= 80) return "bg-[#34D399]";
+  if (score >= 60) return "bg-[#14B8A6]";
+  return "bg-[#FBBF24]";
 }
 
 export default function FeedbackView({ engine }) {
@@ -17,9 +17,9 @@ export default function FeedbackView({ engine }) {
 
   return (
     <div className="w-full space-y-5">
-      <div className="rounded-2xl bg-white border border-violet-100 shadow-sm p-6 text-center">
+      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[3px_3px_0_#D5F5EC] p-6 text-center">
         <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Overall</p>
-        <p className={`font-black text-violet-600 ${engine.a11y.largeText ? "text-5xl" : "text-4xl"}`}>
+        <p className={`font-black text-[#0D9488] ${engine.a11y.largeText ? "text-5xl" : "text-4xl"}`}>
           {evaluation.overallScore}
           <span className="text-lg text-slate-400 font-semibold">/100</span>
         </p>
@@ -54,7 +54,7 @@ export default function FeedbackView({ engine }) {
             {section.id === "what_worked" ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             ) : section.id === "alternatives" ? (
-              <Target className="w-5 h-5 text-violet-500" />
+              <Target className="w-5 h-5 text-[#0891B2]" />
             ) : (
               <Sparkles className="w-5 h-5 text-amber-500" />
             )}
@@ -63,7 +63,7 @@ export default function FeedbackView({ engine }) {
           <ul className="space-y-2">
             {section.items.map((item, index) => (
               <li key={`${section.id}-${index}`} className="text-sm text-slate-700 flex items-start gap-2">
-                <span className="mt-1.5 block h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                <span className="mt-1.5 block h-1.5 w-1.5 rounded-full bg-[#14B8A6] shrink-0" />
                 {item}
               </li>
             ))}

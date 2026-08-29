@@ -1,21 +1,42 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { BookOpen, ChevronLeft, ChevronRight, Pencil, Play, Plus, Repeat, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Play,
+  Plus,
+  Repeat,
+  Trash2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
+import {
+  AsdCard,
+  AsdCharacter,
+  AsdCelebration,
+  AsdChip,
+  AsdProgressDots,
+  useASDPracticeCounts,
+  PROGRESS_EVENTS,
+} from "@/components/asd/ui";
+import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
-const STEP_COLORS = [
-  "from-teal-400 to-teal-600",
-  "from-emerald-400 to-emerald-600",
-  "from-cyan-400 to-cyan-600",
-  "from-green-400 to-green-600",
-  "from-teal-500 to-emerald-500",
-  "from-cyan-500 to-teal-500",
-  "from-emerald-500 to-cyan-500",
+const SCENE_GRADIENTS = [
+  "linear-gradient(135deg,#D7F5EC 0%,#A7F3D0 100%)",
+  "linear-gradient(135deg,#E0F2FE 0%,#BAE6FD 100%)",
+  "linear-gradient(135deg,#FDF2D7 0%,#FDE68A 100%)",
+  "linear-gradient(135deg,#EDE9FE 0%,#DDD6FE 100%)",
+  "linear-gradient(135deg,#FFE4E6 0%,#FECDD3 100%)",
 ];
+
+const SCENE_TONES = ["teal", "sky", "amber", "violet", "rose"];
 
 const createEmptyStep = () => ({
   id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -108,10 +129,12 @@ function useReadAloud() {
   return { speaking, speak, stop };
 }
 
-export default function SocialStoryBuilder({ role, stories, loading, onCreateStory, onUpdateStory, onDeleteStory }) {
+export default function SocialStoryBuilder({ role, stories, loading, onCreateStory, onUpdateStory, onDeleteStory, learnerId }) {
   const canManageStories = role === "guardian";
   const normalizedStories = useMemo(() => stories.map(normalizeStory), [stories]);
   const { speaking, speak, stop } = useReadAloud();
+  const { recordEvent } = useASDPracticeCounts(learnerId);
+  const { reduced, gentle } = useSensoryReducedMotion();
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSteps, setDraftSteps] = useState([createEmptyStep()]);
@@ -123,6 +146,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
   const [autoPlaySeconds, setAutoPlaySeconds] = useState(5);
+  const [justFinished, setJustFinished] = useState(false);
 
   const activeStory = useMemo(() => normalizedStories.find((s) => s.id === activeStoryId) || null, [normalizedStories, activeStoryId]);
   const activeSteps = activeStory?.steps || [];
@@ -136,7 +160,6 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
     return () => clearTimeout(id);
   }, [autoPlayEnabled, autoPlaySeconds, activeStory, activeStepIndex, activeSteps.length]);
 
-  // Auto read-aloud when step changes
   useEffect(() => {
     if (activeStep?.text) speak(activeStep.text);
   }, [activeStep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -144,273 +167,299 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
   const updateDraftStep = (i, patch) => setDraftSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
   const updateEditingStep = (i, patch) => setEditingSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
 
-  const startStory = (storyId) => { setActiveStoryId(storyId); setActiveStepIndex(0); };
-  const exitStory = () => { setActiveStoryId(null); setActiveStepIndex(0); setAutoPlayEnabled(false); stop(); };
-  const replayStory = () => setActiveStepIndex(0);
+  const startStory = (storyId) => { setJustFinished(false); setActiveStoryId(storyId); setActiveStepIndex(0); };
+  const exitStory = () => { setActiveStoryId(null); setActiveStepIndex(0); setAutoPlayEnabled(false); setJustFinished(false); stop(); };
+  const replayStory = () => { setJustFinished(false); setActiveStepIndex(0); };
+  const finishStory = () => {
+    setJustFinished(true);
+    recordEvent(PROGRESS_EVENTS.STORY_FINISHED);
+    stop();
+  };
 
   return (
-    <Card className="border-[#B2DFDB] shadow-[6px_6px_0_#B2DFDB] rounded-2xl overflow-hidden">
-      <div className="h-2 bg-gradient-to-r from-[#0D9488] to-[#5EEAD4]" />
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl text-[#134E4A]"><BookOpen size={20} className="text-[#0D9488]" /> Social Story Builder</CardTitle>
-        <CardDescription className="text-[#5F7A75]">Interactive story cards with read-aloud and visual illustrations for each step.</CardDescription>
-      </CardHeader>
+    <AsdCard tone="stone" className="!rounded-2xl !shadow-[4px_4px_0_#B2DFDB]">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-gradient-to-br from-[#2DD4A8] to-[#0D9488] text-white shadow-[2px_2px_0_#D5F5EC]">
+          <BookOpen size={20} />
+        </span>
+        <div>
+          <h2 className="text-xl font-black text-[#134E4A]">Social Stories</h2>
+          <p className="text-sm text-[#5F8A87]">Illustrated stories, read one scene at a time — tap a scene to hear it.</p>
+        </div>
+      </div>
 
-      <CardContent className="space-y-5">
-        {/* Active story player */}
+      <div className="mt-6 space-y-5">
+        {/* ── Active story player ── */}
         {activeStory && activeStep && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-4 space-y-4"
+            initial={{ opacity: 0, y: reduced ? 0 : 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: gentle ? 0.3 : 0.4, ease: "easeOut" }}
+            className="rounded-2xl border-2 border-[#5EEAD4] bg-[#F0FAF7] p-4"
           >
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div>
-                <p className="font-bold text-xl">{activeStory.title}</p>
-                <p className="text-sm text-muted-foreground">Step {activeStepIndex + 1} of {activeSteps.length}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="gap-1" onClick={speaking ? stop : () => speak(activeStep.text)}>
-                  {speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                  {speaking ? "Stop" : "Read Aloud"}
-                </Button>
-                <Badge variant="secondary" className="bg-[#D1FAE5] text-[#059669]">Story Mode</Badge>
-              </div>
-            </div>
-
-            {/* Progress dots */}
-            <div className="flex gap-1.5 flex-wrap">
-              {activeSteps.map((_, i) => (
-                <motion.button
-                  key={i}
-                  onClick={() => setActiveStepIndex(i)}
-                  className={`rounded-full transition-all ${i === activeStepIndex ? "w-6 h-3 bg-[#0D9488]" : i < activeStepIndex ? "w-3 h-3 bg-[#34D399]" : "w-3 h-3 bg-[#B2DFDB]"}`}
-                  whileHover={{ scale: 1.3 }}
-                />
-              ))}
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${activeStory.id}-${activeStep.id}-${activeStepIndex}`}
-                initial={{ opacity: 0, x: 40 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -40 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="rounded-2xl overflow-hidden border-2 border-border bg-card"
-              >
-                {/* Illustration area */}
-                {activeStep.image_url ? (
-                  <img src={activeStep.image_url} alt={`Step ${activeStepIndex + 1}`} className="w-full max-h-72 object-cover" />
-                ) : (
-                  <div className={`w-full h-52 flex flex-col items-center justify-center bg-gradient-to-br ${STEP_COLORS[activeStepIndex % STEP_COLORS.length]}`}>
-                    <motion.span
-                      className="text-7xl select-none"
-                      initial={{ scale: 0.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.4, type: "spring", bounce: 0.4 }}
-                      aria-hidden="true"
-                    >
-                      {inferEmojiForText(activeStep.text)}
-                    </motion.span>
-                  </div>
-                )}
-
-                {/* Step text - tappable */}
-                <motion.div
-                  className="p-5 cursor-pointer select-none"
-                  whileTap={{ scale: 0.98, backgroundColor: "rgba(13,148,136,0.06)" }}
-                  onClick={() => speak(activeStep.text)}
-                >
-                  <p className="text-2xl md:text-3xl leading-relaxed font-semibold tracking-wide">
-                    {activeStep.text}
-                  </p>
-                  <p className="text-xs text-[#5F7A75] mt-2">Tap text to hear it again</p>
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="gap-1 rounded-xl h-11" disabled={activeStepIndex === 0} onClick={() => setActiveStepIndex((p) => Math.max(0, p - 1))}>
-                <ChevronLeft size={16} /> Previous
-              </Button>
-              {activeStepIndex < activeSteps.length - 1 ? (
-                <Button className="gap-1 rounded-xl h-11" onClick={() => setActiveStepIndex((p) => Math.min(activeSteps.length - 1, p + 1))}>
-                  Next <ChevronRight size={16} />
-                </Button>
-              ) : (
-                <Button variant="default" className="gap-1 rounded-xl h-11 bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={exitStory}>
-                  🎉 Finish!
-                </Button>
-              )}
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" className="gap-1" onClick={replayStory}><Repeat size={14} /> Replay</Button>
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => setAutoPlayEnabled((v) => !v)}>
-                <Play size={14} /> {autoPlayEnabled ? "Auto-play On" : "Auto-play Off"}
-              </Button>
-              {autoPlayEnabled && (
-                <div className="flex items-center gap-1">
-                  <Input type="number" min={2} max={20} value={autoPlaySeconds}
-                    onChange={(e) => setAutoPlaySeconds(Math.max(2, Math.min(20, Number(e.target.value) || 5)))}
-                    className="w-20 h-8" />
-                  <span className="text-xs text-muted-foreground">s/step</span>
+            {justFinished ? (
+              <div className="py-6">
+                <AsdCelebration label={`Story finished: ${activeStory.title}`} sub="That's one full story done — small steps count." />
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={replayStory}>
+                    <Repeat size={15} /> Read it again
+                  </Button>
+                  <Button variant="outline" className="gap-1 rounded-xl h-11 border-[#B2DFDB] text-[#134E4A]" onClick={exitStory}>
+                    <CheckCircle2 size={15} /> Back to all stories
+                  </Button>
                 </div>
-              )}
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={exitStory}>
-                <X size={14} /> Exit
-              </Button>
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-xl text-[#134E4A]">{activeStory.title}</p>
+                    <p className="text-sm text-[#5F8A87]">Scene {activeStepIndex + 1} of {activeSteps.length}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="gap-1 text-[#134E4A]" onClick={speaking ? stop : () => speak(activeStep.text)}>
+                      {speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      {speaking ? "Stop" : "Read Aloud"}
+                    </Button>
+                    <AsdChip tone="teal">Story Mode</AsdChip>
+                  </div>
+                </div>
+
+                <AsdProgressDots total={activeSteps.length} current={activeStepIndex} onSelect={setActiveStepIndex} tone="teal" labelPrefix="Scene" />
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${activeStory.id}-${activeStep.id}-${activeStepIndex}`}
+                    initial={{ opacity: 0, x: reduced ? 0 : 36 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: reduced ? 0 : -36 }}
+                    transition={{ duration: gentle ? 0.25 : 0.32, ease: "easeOut" }}
+                    className="overflow-hidden rounded-2xl border-2 border-[#B2DFDB] bg-white"
+                  >
+                    {/* Illustrated scene */}
+                    {activeStep.image_url ? (
+                      <div className="relative">
+                        <img src={activeStep.image_url} alt={`Scene ${activeStepIndex + 1}`} className="h-56 w-full object-cover" />
+                        <span className="absolute left-3 top-3"><AsdChip tone="teal">Scene {activeStepIndex + 1}</AsdChip></span>
+                      </div>
+                    ) : (
+                      <div className="relative h-56 w-full" style={{ background: SCENE_GRADIENTS[activeStepIndex % SCENE_GRADIENTS.length] }}>
+                        <div className="absolute inset-0 grid place-items-center">
+                          <motion.span
+                            aria-hidden="true"
+                            className="text-7xl select-none drop-shadow-[0_4px_10px_rgba(13,148,136,0.2)]"
+                            initial={reduced ? false : { scale: 0.6, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: gentle ? 0.3 : 0.4, type: "spring", bounce: reduced ? 0 : 0.32 }}
+                          >
+                            {inferEmojiForText(activeStep.text)}
+                          </motion.span>
+                        </div>
+                        <AsdCharacter size={64} tone={SCENE_TONES[activeStepIndex % SCENE_TONES.length]} ariaHidden className="absolute right-4 bottom-3" />
+                        <span className="absolute left-3 top-3"><AsdChip tone="teal">Scene {activeStepIndex + 1}</AsdChip></span>
+                      </div>
+                    )}
+
+                    {/* Step text */}
+                    <motion.div
+                      className="cursor-pointer p-5 select-none"
+                      whileTap={reduced ? undefined : { scale: 0.985 }}
+                      onClick={() => speak(activeStep.text)}
+                    >
+                      <p className="text-xl md:text-2xl leading-relaxed font-semibold tracking-wide text-[#134E4A]">
+                        {activeStep.text}
+                      </p>
+                      <p className="text-xs text-[#5F8A87] mt-2">Tap the words to hear them again</p>
+                    </motion.div>
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Navigation */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" className="gap-1 rounded-xl h-11 border-[#B2DFDB] text-[#134E4A]" disabled={activeStepIndex === 0} onClick={() => setActiveStepIndex((p) => Math.max(0, p - 1))}>
+                    <ChevronLeft size={16} /> Previous
+                  </Button>
+                  {activeStepIndex < activeSteps.length - 1 ? (
+                    <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => setActiveStepIndex((p) => Math.min(activeSteps.length - 1, p + 1))}>
+                      Next <ChevronRight size={16} />
+                    </Button>
+                  ) : (
+                    <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={finishStory}>
+                      <CheckCircle2 size={16} /> Finish!
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" className="gap-1 border-[#B2DFDB] text-[#134E4A]" onClick={replayStory}><Repeat size={14} /> Replay</Button>
+                  <Button variant="outline" size="sm" className="gap-1 border-[#B2DFDB] text-[#134E4A]" onClick={() => setAutoPlayEnabled((v) => !v)}>
+                    <Play size={14} /> {autoPlayEnabled ? "Auto-play On" : "Auto-play Off"}
+                  </Button>
+                  {autoPlayEnabled && (
+                    <div className="flex items-center gap-1">
+                      <Input type="number" min={2} max={20} value={autoPlaySeconds}
+                        onChange={(e) => setAutoPlaySeconds(Math.max(2, Math.min(20, Number(e.target.value) || 5)))}
+                        className="w-20 h-8 border-[#B2DFDB]" />
+                      <span className="text-xs text-[#5F8A87]">s/scene</span>
+                    </div>
+                  )}
+                  <Button variant="ghost" size="sm" className="gap-1 text-[#5F8A87]" onClick={exitStory}>
+                    <X size={14} /> Exit
+                  </Button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
-        {/* Guardian story builder */}
+        {/* ── Guardian story builder ── */}
         {canManageStories && (
           <div className="rounded-2xl border-2 border-[#B2DFDB] bg-[#F0FAF7] p-4 space-y-3">
-            <p className="font-semibold text-[#0D9488]">Create New Story</p>
+            <p className="font-semibold text-[#0D9488]">Create a new story</p>
 
-            <div className="rounded-xl border bg-background/60 p-3 space-y-2">
-              <p className="text-sm font-medium">Quick Task Breakdown</p>
+            <div className="rounded-xl border border-[#B2DFDB] bg-white/60 p-3 space-y-2">
+              <p className="text-sm font-medium text-[#134E4A]">Quick scene breakdown</p>
               <div className="flex gap-2 flex-wrap">
                 <Input placeholder="E.g. Going to school on Monday" value={taskBreakdownInput}
-                  onChange={(e) => setTaskBreakdownInput(e.target.value)} className="flex-1 min-w-52" />
-                <Button variant="outline" onClick={() => {
+                  onChange={(e) => setTaskBreakdownInput(e.target.value)} className="flex-1 min-w-52 border-[#B2DFDB] focus:border-[#0D9488]" />
+                <Button variant="outline" className="border-[#B2DFDB] text-[#134E4A]" onClick={() => {
                   const generated = buildTaskSteps(taskBreakdownInput);
                   if (!generated.length) return;
                   if (!draftTitle.trim()) setDraftTitle(taskBreakdownInput.trim());
                   setDraftSteps(generated);
-                }}>Auto Create Cards</Button>
+                }}>Auto create scenes</Button>
               </div>
             </div>
 
-            <Input placeholder="Story title" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+            <Input placeholder="Story title" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} className="border-[#B2DFDB] focus:border-[#0D9488]" />
             <div className="space-y-2">
               {draftSteps.map((step, i) => (
-                <div key={step.id} className="rounded-xl border p-3 space-y-2 bg-background/60">
-                  <p className="text-xs font-semibold text-muted-foreground">Card {i + 1} {inferEmojiForText(step.text)}</p>
-                  <Textarea placeholder="Step text" value={step.text} onChange={(e) => updateDraftStep(i, { text: e.target.value })} />
-                  <Input placeholder="Image URL (optional)" value={step.image_url} onChange={(e) => updateDraftStep(i, { image_url: e.target.value })} />
+                <div key={step.id} className="rounded-xl border border-[#B2DFDB] p-3 space-y-2 bg-white/70">
+                  <p className="text-xs font-semibold text-[#5F8A87]">Scene {i + 1} <span aria-hidden="true">{inferEmojiForText(step.text)}</span></p>
+                  <Textarea placeholder="Scene text" value={step.text} onChange={(e) => updateDraftStep(i, { text: e.target.value })} className="border-[#B2DFDB] focus:border-[#0D9488]" />
+                  <Input placeholder="Image URL (optional)" value={step.image_url} onChange={(e) => updateDraftStep(i, { image_url: e.target.value })} className="border-[#B2DFDB] focus:border-[#0D9488]" />
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" disabled={i === 0} onClick={() => setDraftSteps((p) => moveStep(p, i, i - 1))}>↑ Up</Button>
-                    <Button size="sm" variant="outline" disabled={i === draftSteps.length - 1} onClick={() => setDraftSteps((p) => moveStep(p, i, i + 1))}>↓ Down</Button>
+                    <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" disabled={i === 0} onClick={() => setDraftSteps((p) => moveStep(p, i, i - 1))}>↑ Up</Button>
+                    <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" disabled={i === draftSteps.length - 1} onClick={() => setDraftSteps((p) => moveStep(p, i, i + 1))}>↓ Down</Button>
                     <Button size="sm" variant="destructive" disabled={draftSteps.length <= 1} onClick={() => setDraftSteps((p) => p.filter((_, idx) => idx !== i))}>Remove</Button>
                   </div>
                 </div>
               ))}
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button size="sm" variant="outline" onClick={() => setDraftSteps((p) => [...p, createEmptyStep()])}><Plus size={14} /> Add Card</Button>
-              <Button className="gap-2" onClick={() => {
+              <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" onClick={() => setDraftSteps((p) => [...p, createEmptyStep()])}><Plus size={14} /> Add scene</Button>
+              <Button className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => {
                 const payload = buildStoryPayload({ title: draftTitle, steps: draftSteps });
                 if (!payload.title || payload.steps.length === 0) return;
                 onCreateStory(payload);
                 setDraftTitle(""); setDraftSteps([createEmptyStep()]);
-              }}><Plus size={16} /> Save Story</Button>
+              }}><Plus size={16} /> Save story</Button>
             </div>
           </div>
         )}
 
-        {/* Story list */}
+        {/* ── Story list ── */}
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading social stories...</p>
+          <p className="text-sm text-[#5F8A87]">Loading social stories...</p>
         ) : (
           <div className="space-y-4">
-            {normalizedStories.length === 0 && <p className="text-sm text-muted-foreground">No social stories yet.</p>}
-            {normalizedStories.map((story) => {
+            {normalizedStories.length === 0 && <p className="text-sm text-[#5F8A87]">No social stories yet.</p>}
+            {normalizedStories.map((story, storyIndex) => {
               const isEditing = editingId === story.id;
               const isBuiltIn = Boolean(story.is_builtin) || String(story.id).startsWith("builtin-");
               return (
-                <motion.article
+                <motion.div
                   key={story.id}
-                  layout
-                  initial={{ opacity: 0, y: 12 }}
+                  layout={!reduced}
+                  initial={{ opacity: 0, y: reduced ? 0 : 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border-2 border-[#B2DFDB] p-4 space-y-3 bg-white/80"
+                  className="rounded-2xl border-2 border-[#B2DFDB] p-4 space-y-3 bg-white"
                 >
                   {isEditing ? (
                     <>
-                      <Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} />
+                      <Input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} className="border-[#B2DFDB] focus:border-[#0D9488]" />
                       <div className="space-y-2">
                         {editingSteps.map((step, i) => (
-                          <div key={step.id} className="rounded-xl border p-2 space-y-2 bg-background/60">
-                            <p className="text-xs text-muted-foreground">Card {i + 1} {inferEmojiForText(step.text)}</p>
-                            <Textarea value={step.text} onChange={(e) => updateEditingStep(i, { text: e.target.value })} />
-                            <Input placeholder="Image URL (optional)" value={step.image_url} onChange={(e) => updateEditingStep(i, { image_url: e.target.value })} />
+                          <div key={step.id} className="rounded-xl border border-[#B2DFDB] p-2 space-y-2 bg-[#F0FAF7]">
+                            <p className="text-xs text-[#5F8A87]">Scene {i + 1} <span aria-hidden="true">{inferEmojiForText(step.text)}</span></p>
+                            <Textarea value={step.text} onChange={(e) => updateEditingStep(i, { text: e.target.value })} className="border-[#B2DFDB] focus:border-[#0D9488]" />
+                            <Input placeholder="Image URL (optional)" value={step.image_url} onChange={(e) => updateEditingStep(i, { image_url: e.target.value })} className="border-[#B2DFDB] focus:border-[#0D9488]" />
                             <div className="flex flex-wrap gap-2">
-                              <Button size="sm" variant="outline" disabled={i === 0} onClick={() => setEditingSteps((p) => moveStep(p, i, i - 1))}>↑</Button>
-                              <Button size="sm" variant="outline" disabled={i === editingSteps.length - 1} onClick={() => setEditingSteps((p) => moveStep(p, i, i + 1))}>↓</Button>
+                              <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" disabled={i === 0} onClick={() => setEditingSteps((p) => moveStep(p, i, i - 1))}>↑</Button>
+                              <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" disabled={i === editingSteps.length - 1} onClick={() => setEditingSteps((p) => moveStep(p, i, i + 1))}>↓</Button>
                               <Button size="sm" variant="destructive" disabled={editingSteps.length <= 1} onClick={() => setEditingSteps((p) => p.filter((_, idx) => idx !== i))}>Remove</Button>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setEditingSteps((p) => [...p, createEmptyStep()])}>Add Card</Button>
+                      <Button size="sm" variant="outline" className="border-[#B2DFDB] text-[#134E4A]" onClick={() => setEditingSteps((p) => [...p, createEmptyStep()])}>Add scene</Button>
                       <div className="flex gap-2">
-                        <Button onClick={() => {
+                        <Button className="bg-[#0D9488] text-white hover:bg-[#0F766E]" onClick={() => {
                           const payload = buildStoryPayload({ title: editingTitle, steps: editingSteps });
                           if (!payload.title || payload.steps.length === 0) return;
                           onUpdateStory(story.id, payload); setEditingId(null);
                         }}>Save</Button>
-                        <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                        <Button variant="outline" className="border-[#B2DFDB] text-[#134E4A]" onClick={() => setEditingId(null)}>Cancel</Button>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div>
-                          <p className="font-bold text-lg">{story.title}</p>
-                          <p className="text-xs text-muted-foreground">{story.steps.length} story cards</p>
+                        <div className="flex items-center gap-3">
+                          <AsdCharacter size={46} tone={SCENE_TONES[storyIndex % SCENE_TONES.length]} accessory={storyIndex % 2 === 0 ? "leaf" : "star"} ariaHidden />
+                          <div>
+                            <p className="font-bold text-lg text-[#134E4A]">{story.title}</p>
+                            <p className="text-xs text-[#5F8A87]">{story.steps.length} scenes</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary">{isBuiltIn ? "Built-in" : "Custom"}</Badge>
+                          <AsdChip tone={isBuiltIn ? "teal" : "neutral"}>{isBuiltIn ? "Built-in" : "Custom"}</AsdChip>
                           {!isBuiltIn && canManageStories && (
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => { setEditingId(story.id); setEditingTitle(story.title); setEditingSteps(story.steps.map((s) => ({ ...s }))); }}>
+                            <Button size="sm" variant="outline" className="gap-1 border-[#B2DFDB] text-[#134E4A]" onClick={() => { setEditingId(story.id); setEditingTitle(story.title); setEditingSteps(story.steps.map((s) => ({ ...s }))); }}>
                               <Pencil size={14} /> Edit
                             </Button>
                           )}
                           {!isBuiltIn && canManageStories && (
                             <Button size="sm" variant="destructive" className="gap-1" onClick={() => onDeleteStory(story.id)}><Trash2 size={14} /></Button>
                           )}
-                          <Button size="sm" className="gap-1 bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => startStory(story.id)}>
-                            <Play size={14} /> Start Story
+                          <Button size="sm" className="gap-1 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => startStory(story.id)}>
+                            <Play size={14} /> Start story
                           </Button>
                         </div>
                       </div>
 
-                      {/* Card previews */}
+                      {/* Scene previews */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                         {story.steps.map((step, i) => (
                           <motion.button
                             key={step.id}
-                            whileHover={{ scale: 1.04, y: -2 }}
-                            whileTap={{ scale: 0.96 }}
+                            whileHover={reduced ? undefined : { scale: 1.03, y: -2 }}
+                            whileTap={reduced ? undefined : { scale: 0.97 }}
                             onClick={() => startStory(story.id)}
-                            className="rounded-xl overflow-hidden border-2 border-[#B2DFDB] bg-white text-left"
+                            className="rounded-xl overflow-hidden border-2 border-[#B2DFDB] bg-white text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
                           >
                             {step.image_url ? (
-                              <img src={step.image_url} alt={`Step ${i + 1}`} className="w-full h-20 object-cover" />
+                              <img src={step.image_url} alt={`Scene ${i + 1}`} className="w-full h-16 object-cover" />
                             ) : (
-                              <div className={`w-full h-20 flex items-center justify-center bg-gradient-to-br ${STEP_COLORS[i % STEP_COLORS.length]}`}>
-                                <span className="text-3xl" aria-hidden="true">{inferEmojiForText(step.text)}</span>
+                              <div className="w-full h-16 flex items-center justify-center" style={{ background: SCENE_GRADIENTS[i % SCENE_GRADIENTS.length] }}>
+                                <span className="text-2xl" aria-hidden="true">{inferEmojiForText(step.text)}</span>
                               </div>
                             )}
                             <div className="p-2">
-                              <p className="text-xs font-semibold text-muted-foreground">Step {i + 1}</p>
-                              <p className="text-xs line-clamp-2 mt-0.5">{step.text}</p>
+                              <p className="text-xs font-semibold text-[#0D9488]">Scene {i + 1}</p>
+                              <p className="text-xs line-clamp-2 mt-0.5 text-[#134E4A]">{step.text}</p>
                             </div>
                           </motion.button>
                         ))}
                       </div>
                     </>
                   )}
-                </motion.article>
+                </motion.div>
               );
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </AsdCard>
   );
 }
