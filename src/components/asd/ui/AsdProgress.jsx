@@ -67,15 +67,16 @@ export function AsdProgressBar({ value, max = 1, tone = "teal", label, className
   );
 }
 
-export function AsdProgressRing({ value, max = 1, size = 44, stroke = 5, tone = "teal", label }) {
+export function AsdProgressRing({ value, max = 1, size = 44, stroke = 5, tone = "teal", label, center, className = "" }) {
   const palette = toneColors[tone] ?? toneColors.teal;
+  const { reduced, gentle } = useSensoryReducedMotion();
   const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const dash = circumference * pct;
   return (
     <div
-      className="relative grid place-items-center"
+      className={`relative grid place-items-center ${className}`}
       style={{ width: size, height: size }}
       role="progressbar"
       aria-valuenow={Math.round(pct * 100)}
@@ -85,7 +86,7 @@ export function AsdProgressRing({ value, max = 1, size = 44, stroke = 5, tone = 
     >
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#E4F3EE" strokeWidth={stroke} />
-        <circle
+        <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -93,10 +94,13 @@ export function AsdProgressRing({ value, max = 1, size = 44, stroke = 5, tone = 
           stroke={palette.active}
           strokeWidth={stroke}
           strokeLinecap="round"
-          strokeDasharray={`${dash} ${circumference - dash}`}
+          strokeDasharray={circumference}
+          initial={reduced ? false : { strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: circumference - dash }}
+          transition={{ duration: reduced ? 0 : gentle ? 0.5 : 0.9, ease: "easeOut" }}
         />
       </svg>
-      <span className="absolute text-sm font-black text-[#134E4A]">{Math.round(pct * 100)}</span>
+      <span className="absolute text-sm font-black text-[#134E4A]">{center ?? Math.round(pct * 100)}</span>
     </div>
   );
 }
