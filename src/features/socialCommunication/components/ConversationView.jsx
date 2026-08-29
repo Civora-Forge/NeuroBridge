@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { Lightbulb, Mic, MicOff, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,11 +7,18 @@ import { SESSION_STATUS, SPEAKER, RESPONSE_SOURCE } from "../types/communication
 import { extractSpeechFeatures } from "../services/speechAnalysis";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { AsdCharacter, AsdChip } from "@/components/asd/ui";
+import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
 function MessageBubble({ turn, largeText, kind = "teal" }) {
   const isUser = turn.speaker === SPEAKER.USER;
+  const { reduced, gentle } = useSensoryReducedMotion();
   return (
-    <div className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+    <motion.div
+      className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}
+      initial={reduced ? false : { opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: gentle ? 0.25 : 0.3, ease: "easeOut" }}
+    >
       {!isUser && (
         <AsdCharacter
           size={34}
@@ -34,7 +42,7 @@ function MessageBubble({ turn, largeText, kind = "teal" }) {
           </p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

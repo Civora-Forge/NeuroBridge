@@ -36,6 +36,7 @@ export function AsdCharacter({
   accessoryLabel = null,
   ariaHidden = false,
   className = "",
+  style = null,
 }) {
   const palette = TONES[tone] ?? TONES.teal;
   const sticker = accessory && ACCESSORY_LIST[accessory]
@@ -58,6 +59,7 @@ export function AsdCharacter({
         outline: `3px solid ${palette.ring}`,
         outlineOffset: -3,
         position: "relative",
+        ...style,
       }}
     >
       {/* face */}

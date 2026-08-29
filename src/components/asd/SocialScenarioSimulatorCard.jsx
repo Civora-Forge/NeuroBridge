@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { getGeminiApiKey } from "@/features/socialCommunication/services/aiService";
 import { useVoiceInput } from "@/features/socialCommunication/hooks/useVoiceInput";
@@ -328,7 +329,14 @@ export default function SocialScenarioSimulatorCard() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border-2 border-[#DDD6FE]" style={{ background: STAGE_GRADIENTS[stageKind] }}>
+            <motion.div
+              key={scenario.id}
+              initial={{ opacity: 0, y: reduced ? 0 : 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: gentle ? 0.3 : 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden rounded-2xl border-2 border-[#DDD6FE]"
+              style={{ background: STAGE_GRADIENTS[stageKind] }}
+            >
               <div className="flex items-start gap-3 p-5">
                 <div className="flex flex-col items-center gap-1.5">
                   <AsdCharacter
@@ -336,7 +344,7 @@ export default function SocialScenarioSimulatorCard() {
                     ariaHidden
                     tone={npcTone}
                     accessory={npcAccessory}
-                    className="drop-shadow-[0_6px_12px_rgba(109,40,217,0.25)]"
+                    className="nb-mascot-float drop-shadow-[0_6px_12px_rgba(109,40,217,0.25)]"
                   />
                   <AsdChip tone="violet">NPC</AsdChip>
                 </div>
@@ -373,7 +381,7 @@ export default function SocialScenarioSimulatorCard() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {coachNote && (
               <p className="flex items-center gap-2 text-xs font-semibold text-[#7C3AED] rounded-xl bg-[#F5F3FF] border border-[#DDD6FE] px-3 py-2">

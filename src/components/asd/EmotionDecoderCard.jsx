@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { getGeminiApiKey } from "@/features/socialCommunication/services/aiService";
 import { useVoiceInput } from "@/features/socialCommunication/hooks/useVoiceInput";
@@ -291,15 +292,28 @@ export default function EmotionDecoderCard() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border-2 border-[#FDE68A] bg-gradient-to-br from-[#FFFDF5] to-[#FDF6E3]">
+            <motion.div
+              key={scenario.id}
+              initial={{ opacity: 0, y: reduced ? 0 : 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: gentle ? 0.3 : 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden rounded-2xl border-2 border-[#FDE68A] bg-gradient-to-br from-[#FFFDF5] to-[#FDF6E3]"
+            >
               <div className="flex items-start gap-3 p-5">
-                <AsdCharacter
-                  size={64}
-                  ariaHidden
-                  tone={CHARACTER_TONES[characterIndex % CHARACTER_TONES.length]}
-                  accessory={CHARACTER_ACCESSORY[characterIndex % CHARACTER_ACCESSORY.length]}
+                <motion.div
+                  key={attempts}
+                  initial={reduced ? false : { scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 220, damping: 15 }}
                   className="mt-1"
-                />
+                >
+                  <AsdCharacter
+                    size={64}
+                    ariaHidden
+                    tone={CHARACTER_TONES[characterIndex % CHARACTER_TONES.length]}
+                    accessory={CHARACTER_ACCESSORY[characterIndex % CHARACTER_ACCESSORY.length]}
+                  />
+                </motion.div>
                 <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-base font-semibold leading-relaxed text-[#134E4A]">{scenario.scenario}</p>
                   {scenario.dialogue && (
@@ -334,7 +348,7 @@ export default function EmotionDecoderCard() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {coachNote && (
               <p className="flex items-center gap-2 text-xs font-semibold text-[#0D9488] rounded-xl bg-[#F0FAF7] border border-[#B2DFDB] px-3 py-2">

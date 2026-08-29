@@ -255,7 +255,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                             {inferEmojiForText(activeStep.text)}
                           </motion.span>
                         </div>
-                        <AsdCharacter size={64} tone={SCENE_TONES[activeStepIndex % SCENE_TONES.length]} ariaHidden className="absolute right-4 bottom-3" />
+                        <AsdCharacter size={64} tone={SCENE_TONES[activeStepIndex % SCENE_TONES.length]} ariaHidden className="nb-mascot-float absolute right-4 bottom-3" style={{ animationDelay: "0.6s" }} />
                         <span className="absolute left-3 top-3"><AsdChip tone="teal">Scene {activeStepIndex + 1}</AsdChip></span>
                       </div>
                     )}
