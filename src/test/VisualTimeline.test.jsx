@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import VisualTimeline from "@/pages/adhd/VisualTimeline";
+
+const auth = vi.hoisted(() => ({ user: { id: "visual-timeline-user" } }));
+
+vi.mock("@/context/AuthContext", () => ({
+  useAuth: () => ({ user: auth.user }),
+}));
 
 describe("Visual Timeline", () => {
   it("keeps blocks, controls, brain dump, and snapshot interactions live", async () => {

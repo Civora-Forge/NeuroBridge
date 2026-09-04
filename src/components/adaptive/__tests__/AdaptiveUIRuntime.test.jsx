@@ -225,7 +225,7 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/depression/reality")).toBe("support.cognitive_reframing");
     expect(resolveCanonicalModuleId("/depression/social")).toBe("support.social_connection");
     expect(resolveCanonicalModuleId("/depression/evidence")).toBe("support.evidence_journal");
-    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading-module");
+    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading");
 
     expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
     expect(resolveCanonicalModuleId("/asd/social-scenarios")).toBe("asd.social-scenarios");

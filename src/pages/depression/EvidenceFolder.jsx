@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Shield, Star, TrendingUp, Award, Heart, ChevronDown, Search, Sparkles, Sprout, Trash2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import { useContextStateOptional } from '@/context/ContextProvider';
+import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
 import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
 import { clearEvidenceJournalEntries, deleteEvidenceJournalEntry, listEvidenceJournalEntries, saveEvidenceJournalEntry } from '@/support/persistence/evidenceJournalStore';
@@ -25,6 +27,13 @@ function EvidenceCornerArt() {
 
 export default function EvidenceFolder() {
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.evidence_journal", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+
   const [items, setItems] = useState([]);
   const [input, setInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("survival");
@@ -94,6 +103,12 @@ export default function EvidenceFolder() {
     const matchesCat = filterCat === "all" || i.category === filterCat;
     return matchesText && matchesCat;
   });
+
+  // When the low-mood REORDER decision is active, surface the user's starred
+  // wins first — a native presentation change over existing entries only.
+  const orderedItems = adaptiveConfig?.winsFirst
+    ? [...filtered].sort((a, b) => Number(Boolean(b.starred)) - Number(Boolean(a.starred)))
+    : filtered;
 
   const perCat = Object.keys(evidenceCategories).reduce((acc, key) => {
     acc[key] = items.filter(i => i.category === key).length;
@@ -299,6 +314,13 @@ export default function EvidenceFolder() {
             </section>
 
             {/* Entries Display List */}
+            {adaptiveConfig?.highlightWins && orderedItems.length > 0 && (
+              <div className="flex items-center gap-2.5 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-[13px] font-extrabold text-amber-900 backdrop-blur-sm">
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                Your strongest pieces of evidence are shown first.
+              </div>
+            )}
+
             {filtered.length === 0 ? (
               <div className="grid min-h-[200px] place-items-center rounded-[28px] border border-dashed border-emerald-200 bg-white/40 px-6 py-12 text-center backdrop-blur-sm">
                 <div>
@@ -310,7 +332,7 @@ export default function EvidenceFolder() {
               </div>
             ) : (
               <div className="space-y-3">
-                {filtered.map((i) => {
+                {orderedItems.map((i) => {
                   const cfg = evidenceCategories[i.category];
                   return (
                     <article

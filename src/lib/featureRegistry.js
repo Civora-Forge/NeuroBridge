@@ -52,7 +52,7 @@ export const FEATURES = /** @type {const} */ ({
   // ── Dyslexia sub-features ───────────────────
   DYSLEXIA_READER:           "dyslexia.reader-mode",
   DYSLEXIA_WORDBANK:         "dyslexia.word-bank",
-  DYSLEXIA_ADAPTIVE_READING: "dyslexia.adaptive-reading-module",
+  DYSLEXIA_ADAPTIVE_READING: "dyslexia.adaptive-reading",
 
   // ── Dyspraxia sub-features ──────────────────
   DYSPRAXIA_DECOMPOSE: "dyspraxia.task-decompose",
@@ -282,7 +282,6 @@ const DYSLEXIA_MODULE_GRANTS = {
   [FEATURES.DYSLEXIA_READER]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_READER],
   [FEATURES.DYSLEXIA_WORDBANK]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_WORDBANK],
   [FEATURES.DYSLEXIA_ADAPTIVE_READING]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
-  "dyslexia.adaptive-reading": [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
 };
 
 const LEGACY_FEATURE_SUPPORT_ALIASES = Object.fromEntries(
