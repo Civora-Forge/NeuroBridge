@@ -81,6 +81,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
+import { useContextStateOptional } from "@/context/ContextProvider";
 import {
   uploadAndProcessReadingFile,
   fetchUserReadingHistory,
@@ -594,8 +596,9 @@ function TTSPlayer({
   isPlaying,
   setIsPlaying,
   prefs,
+  defaultPlaybackRate,
 }) {
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(defaultPlaybackRate ?? 1);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [voices, setVoices] = useState([]);
   const utteranceRef = useRef(null);
@@ -617,6 +620,14 @@ function TTSPlayer({
     return () =>
       window.speechSynthesis.removeEventListener("voiceschanged", sync);
   }, [selectedVoiceURI]);
+
+  /* Apply an adaptive default rate while idle so slow-paced decisions carry
+     into playback without overriding an explicit mid-session speed choice. */
+  useEffect(() => {
+    if (defaultPlaybackRate != null && !isPlaying) {
+      setPlaybackRate(defaultPlaybackRate);
+    }
+  }, [defaultPlaybackRate, isPlaying]);
 
   const speak = useCallback(
     (fromIndex) => {
@@ -1561,6 +1572,12 @@ function HomeScreen({ onOpenDoc }) {
 ───────────────────────────────────────────────────────────────────────────── */
 function ReaderScreen({ docId, onBack }) {
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("dyslexia.adaptive-reading", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
   const [docState, setDocState] = useState(() => {
     return (
       EPHEMERAL_DOCS.get(docId) ||
@@ -1629,6 +1646,20 @@ function ReaderScreen({ docId, onBack }) {
       return next;
     });
   }, [user]);
+
+  /* Adaptive overrides sit on top of the user's saved prefs only while the
+     engine decision is active; the user's own toggles in the panel always
+     remain visible (they edit `prefs` below). */
+  const effectivePrefs = useMemo(() => {
+    if (!adaptiveConfig?.active) return prefs;
+    return {
+      ...prefs,
+      focusMode:
+        adaptiveConfig.enableFocusMode === true ? true : prefs.focusMode,
+      readingRuler:
+        adaptiveConfig.enableReadingRuler === true ? true : prefs.readingRuler,
+    };
+  }, [prefs, adaptiveConfig]);
 
   /* Build structured paragraphs with global word indices */
   const structuredParagraphs = useMemo(() => {
@@ -1769,7 +1800,7 @@ function ReaderScreen({ docId, onBack }) {
 
   /* Reading ruler — follows mouse/touch and stays inside container bounds */
   useEffect(() => {
-    if (!prefs.readingRuler) return;
+    if (!effectivePrefs.readingRuler) return;
     
     const updateRulerBounds = () => {
       if (mainRef.current) {
@@ -1801,26 +1832,26 @@ function ReaderScreen({ docId, onBack }) {
       window.removeEventListener("resize", updateRulerBounds);
       window.removeEventListener("scroll", updateRulerBounds);
     };
-  }, [prefs.readingRuler]);
+  }, [effectivePrefs.readingRuler]);
 
   const theme = useMemo(() => {
-    if (prefs.highContrast)
+    if (effectivePrefs.highContrast)
       return { backgroundColor: "#000000", color: "#FFF8C4" };
-    if (prefs.darkMode)
+    if (effectivePrefs.darkMode)
       return { backgroundColor: "#0F172A", color: "#F8FAFC" };
-    return { backgroundColor: prefs.backgroundColor, color: prefs.textColor };
-  }, [prefs]);
+    return { backgroundColor: effectivePrefs.backgroundColor, color: effectivePrefs.textColor };
+  }, [effectivePrefs]);
 
   const readingStyle = useMemo(
     () => ({
-      fontFamily: prefs.fontFamily,
-      fontSize: `${prefs.fontSize}px`,
-      lineHeight: prefs.lineHeight,
-      letterSpacing: `${prefs.letterSpacing}em`,
-      wordSpacing: `${prefs.wordSpacing}em`,
+      fontFamily: effectivePrefs.fontFamily,
+      fontSize: `${effectivePrefs.fontSize}px`,
+      lineHeight: effectivePrefs.lineHeight,
+      letterSpacing: `${effectivePrefs.letterSpacing}em`,
+      wordSpacing: `${effectivePrefs.wordSpacing}em`,
       color: theme.color,
     }),
-    [prefs, theme],
+    [effectivePrefs, theme],
   );
 
   const progress =
@@ -1828,7 +1859,7 @@ function ReaderScreen({ docId, onBack }) {
       ? Math.round((currentWordIndex / (totalWords - 1)) * 100)
       : 0;
 
-  const isDark = prefs.darkMode || prefs.highContrast;
+  const isDark = effectivePrefs.darkMode || effectivePrefs.highContrast;
 
   /* Render a paragraph with per-word TTS highlighting */
   function renderParagraph(paraObj, paraIndex) {
@@ -1866,7 +1897,7 @@ function ReaderScreen({ docId, onBack }) {
     });
 
     const isFocused =
-      !prefs.focusMode || paraIndex === activePara;
+      !effectivePrefs.focusMode || paraIndex === activePara;
 
     let compClass = "";
     if (compScore === 1) compClass = "sentence-complexity-medium";
@@ -2083,6 +2114,38 @@ function ReaderScreen({ docId, onBack }) {
         </div>
       </header>
 
+      {/* ── Adaptive Reading Notice ── */}
+      {adaptiveConfig?.active && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.18 }}
+          className={cn(
+            "border-b px-6 py-3",
+            isDark
+              ? "border-emerald-400/20 bg-emerald-950/50"
+              : "border-emerald-200 bg-emerald-50",
+          )}
+        >
+          <div className="mx-auto max-w-3xl">
+            <p className="text-xs font-bold text-emerald-700">
+              Adapted for you:{" "}
+              {adaptiveConfig.mode === "slow_paced_reading"
+                ? "slower pacing"
+                : adaptiveConfig.mode === "focus_layout"
+                ? "focus mode and reading ruler on"
+                : "reading aids adjusted"}
+            </p>
+            {adaptation.reason && (
+              <p className="mt-0.5 text-xs text-emerald-800/70">
+                {adaptation.reason}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* ── AI Summary Banner ── */}
       <AnimatePresence>
         {summary && (
@@ -2255,7 +2318,8 @@ function ReaderScreen({ docId, onBack }) {
         setCurrentWordIndex={setCurrentWordIndex}
         isPlaying={isPlaying}
         setIsPlaying={setIsPlaying}
-        prefs={prefs}
+        prefs={effectivePrefs}
+        defaultPlaybackRate={adaptiveConfig?.active ? adaptiveConfig.playbackRate : undefined}
       />
     </div>
   );

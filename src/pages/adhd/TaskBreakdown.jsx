@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Brain, Check, ChevronDown, ChevronUp, ClipboardCheck, Clock3, Heart, Pencil, Play, Rocket, RotateCcw, Sparkles, Target } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
+import { useContextStateOptional } from "@/context/ContextProvider";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import { useInterventionLifecycle } from "@/support/execution";
@@ -45,6 +47,12 @@ const TaskBreakdown = ({
   const location = useLocation();
   const aiData = location.state || null;
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.task_breakdown", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
   const [bigTask, setBigTask] = useState(aiData?.original_task || "");
   const [selectedVibe, setSelectedVibe] = useState("Important");
   const [planningOpen, setPlanningOpen] = useState(false);
@@ -134,7 +142,16 @@ const TaskBreakdown = ({
   const generateBreakdown = async () => {
     if (!bigTask.trim()) return;
     if (!(await discardActiveBreakdown())) return;
-    const generated = generateTaskBreakdown(bigTask, { selectedStyle, priority: selectedVibe });
+    // When the engine decision is live and suggests smaller steps, drive the
+    // generator's native style without overriding the user's explicit choice
+    // once they have made one.
+    const styleForGeneration =
+      adaptiveConfig?.active &&
+      adaptiveConfig.smallerSteps &&
+      selectedStyle === "Standard"
+        ? adaptiveConfig.suggestedStyle
+        : selectedStyle;
+    const generated = generateTaskBreakdown(bigTask, { selectedStyle: styleForGeneration, priority: selectedVibe });
     setSteps(generated);
     setCompletedSteps(new Set());
     setRequestedStepCount(generated.length);
@@ -232,6 +249,15 @@ const TaskBreakdown = ({
           <div className="absolute right-[8%] top-0 hidden text-[#8056ea] lg:block"><ClipboardCheck size={150} strokeWidth={1.4} /><Pencil className="absolute -left-9 bottom-7 rotate-[-12deg] text-[#f1b633]" size={57} /><Sparkles className="absolute -right-10 top-3 text-[#f1c936]" size={30} /><Heart className="absolute -right-10 bottom-9 text-[#c89af4]" size={38} /></div>
           {steps.length > 0 && <div className="absolute right-0 top-0 rounded-full bg-[#eaf5e8] px-4 py-2 text-xs font-black text-[#397348]">Progress: {progress}%</div>}
         </header>
+
+        {!steps.length && adaptiveConfig?.active && (
+          <p className="mx-auto mb-4 max-w-5xl rounded-2xl border border-[#d4bcff] bg-[#fdfaff] px-4 py-3 text-xs font-semibold text-[#6e3ed2]">
+            {adaptiveConfig.smallerSteps
+              ? "Adapted for you: we'll keep the breakdown to a few tiny steps."
+              : "Adapted for you: gentle pacing — one thing at a time."}
+            {adaptation.reason ? ` ${adaptation.reason}` : ""}
+          </p>
+        )}
 
         {!steps.length && <section className="relative mx-auto mb-5 max-w-5xl overflow-hidden rounded-[2rem] border border-[#91d5a5] bg-gradient-to-br from-white via-[#fbfff9] to-[#f4fff2] p-5 shadow-[8px_9px_0_#a4dca1] sm:p-6"><span className="absolute -left-9 top-4 h-12 w-12 rounded-full border-4 border-[#d9efaa]" /><Sparkles className="absolute right-8 top-7 text-[#63b957]" size={30} /><div className="relative"><div className="flex items-center gap-4"><span className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-[#94d37c] to-[#4ba65b] text-2xl font-black text-white shadow-md">1</span><p className="text-lg font-black uppercase tracking-[0.12em] text-[#397348] sm:text-xl">Step 1: Name the task</p></div><p className="mt-3 text-base font-medium text-slate-700 sm:ml-14 sm:text-lg">You do not need to solve it yet. Just tell me what is on your mind. <Heart className="inline text-[#5caf5c]" size={22} /></p><div className="mt-4 sm:ml-14"><div className="relative"><textarea className="w-full resize-none rounded-3xl border-2 border-[#72c38c] bg-white px-5 py-4 pr-14 text-base font-medium text-slate-900 shadow-[0_4px_0_#daf0d9] outline-none placeholder:text-slate-400 focus:border-[#4ba65b]" rows={1} placeholder={`e.g. ${placeholders[placeholderIdx]}`} value={bigTask} onChange={(e) => setBigTask(e.target.value)} /><Pencil className="absolute right-5 top-1/2 -translate-y-1/2 text-[#4ba65b]" size={28} /></div><div className="mt-4 flex flex-wrap items-center gap-5"><button onClick={generateBreakdown} disabled={!bigTask.trim()} className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#66ba69] to-[#4da661] px-5 py-3 text-base font-black text-white shadow-[4px_5px_0_#d0e9cc] disabled:cursor-not-allowed disabled:opacity-45"><Rocket size={22} /> Break into steps</button><p className="text-sm font-bold text-[#5ca651]">← Let&apos;s break it down!</p></div></div></div></section>}
 

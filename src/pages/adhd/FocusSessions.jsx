@@ -11,6 +11,8 @@ import { buildFocusSessionOutcome, completionRatio, validateFocusSessionConfigur
 import { FOCUS_SESSION_MODULE_ID } from '@/support/modules/focusSession/focusSessionTypes';
 import { getSupportEvidenceAsync } from '@/support/evidence';
 import { recommendFocusConfiguration } from '@backend/adaptive/reasoning/focusConfiguration';
+import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
+import { useContextStateOptional } from '@/context/ContextProvider';
 
 const PRESETS = [
   { label: '15 min Sprint', minutes: 15, eyebrow: 'Quick', detail: 'Sprint' },
@@ -36,6 +38,14 @@ const BREAK_TIPS = [
   'Look at something 20 feet away for 20 seconds.',
   'Take five deep breaths.',
   'Walk around for a minute.',
+];
+
+const CALM_BREAK_TIPS = [
+  'Take five slow breaths, focusing on the exhale.',
+  'Rest your hands in your lap and soften your shoulders.',
+  'Look at something calm and breathe slowly.',
+  'Close your eyes and notice one sound nearby.',
+  'Press your feet into the floor and relax your jaw.',
 ];
 
 const BrainMascot = () => <img src="/focus-mascot.svg" alt="Calm brain wearing green headphones" className="h-28 w-36 object-contain" />;
@@ -313,6 +323,14 @@ const FocusSessions = () => {
   const initialFocusMinutes = navigationConfiguration?.plannedDurationMinutes ?? aiData?.duration_minutes ?? 25;
   const initialBreakMinutes = navigationConfiguration?.breakDurationMinutes ?? 5;
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+
+  const adaptation = useFeatureAdaptation("support.focus_session", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
   const [focusMinutes, setFocusMinutes] = useState(initialFocusMinutes);
@@ -352,6 +370,18 @@ const FocusSessions = () => {
   });
 
   const { streak, weeklyMinutes } = streakState;
+
+  const effectiveFocusMinutes =
+    phase === "setup" && adaptiveConfig?.active
+      ? Math.min(adaptiveConfig.focusMinutes, initialFocusMinutes)
+      : initialFocusMinutes;
+  const effectiveBreakMinutes =
+    phase === "setup" && adaptiveConfig?.active
+      ? adaptiveConfig.breakMinutes
+      : initialBreakMinutes;
+  const calmBreakTips = adaptiveConfig?.calmBreakTips ?? false;
+  const effectiveAdaptationActive =
+    phase === "setup" && adaptiveConfig?.active;
 
   useEffect(() => {
     const data = loadStreakData();
@@ -435,7 +465,14 @@ const FocusSessions = () => {
   }, [focusMinutes, user?.id]);
 
   const startSession = async () => {
-    setSecondsLeft(focusMinutes * 60);
+    // Apply the engine's module decision (if live and active) as the block
+    // length at start. Only ever shrinks the block — never lengthens beyond
+    // what the user selected.
+    const blockMinutes = effectiveAdaptationActive
+      ? Math.min(effectiveFocusMinutes, focusMinutes)
+      : focusMinutes;
+    setFocusMinutes(blockMinutes);
+    setSecondsLeft(blockMinutes * 60);
     setMicroGoals([
       { label: 'Open the thing', done: false },
       { label: 'One small chunk', done: false },
@@ -476,8 +513,9 @@ const FocusSessions = () => {
   };
 
   const startBreak = () => {
-    setBreakSecondsLeft(initialBreakMinutes * 60);
-    setBreakTip(BREAK_TIPS[Math.floor(Math.random() * BREAK_TIPS.length)]);
+    setBreakSecondsLeft(effectiveBreakMinutes * 60);
+    const pool = calmBreakTips ? CALM_BREAK_TIPS : BREAK_TIPS;
+    setBreakTip(pool[Math.floor(Math.random() * pool.length)]);
     setPhase('break');
   };
 
@@ -545,6 +583,17 @@ const FocusSessions = () => {
 
                <div className="space-y-2">
               <PresetSelector selected={focusMinutes} onSelect={selectPreset} />
+              {effectiveAdaptationActive && (
+                <div className="rounded-2xl border border-[#cbb8ff] bg-[#fcf8ff] p-3 shadow-[2px_2px_0_#e6dcff]">
+                  <p className="text-xs font-bold text-slate-800">
+                    Adapted for you: {effectiveFocusMinutes} min block
+                    {calmBreakTips ? " · calmer pacing" : ""}
+                  </p>
+                  {adaptation.reason && (
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{adaptation.reason}</p>
+                  )}
+                </div>
+              )}
               {durationRecommendation && !recommendationDismissed && phase === 'setup' && (
                 <div className="rounded-2xl border border-[#6D9F46] bg-[#E2EDDA] p-4 shadow-[3px_3px_0_#D8E6CE]">
                   <p className="text-sm font-semibold text-slate-900">15 min may work better</p>
