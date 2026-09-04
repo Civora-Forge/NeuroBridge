@@ -8,6 +8,9 @@ import SensorySettings from "@/components/neurobridge/SensorySettings";
 import AdaptiveAnxietyEngine from "@/components/anxiety/AdaptiveAnxietyEngine";
 import InterventionModal from "@/components/interventions/InterventionModal";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
+import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
+import { useContextStateOptional } from "@/context/ContextProvider";
+import { useAuth } from "@/context/AuthContext";
 
 const anxietyInterventions = [
   {
@@ -117,6 +120,21 @@ function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, a
 export default function AnxietyPage() {
   const [activeIntervention, setActiveIntervention] = useState(null);
   const { reduced, gentle } = useSensoryReducedMotion();
+  const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("anxiety.hub", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+
+  // When the engine decision promotes breathing, bring the breathing card to
+  // the front of the support grid without removing the other options.
+  const orderedInterventions = adaptiveConfig?.promoteBreathing
+    ? [...anxietyInterventions].sort((a, b) =>
+        a.id === "guided_breathing" ? -1 : b.id === "guided_breathing" ? 1 : 0,
+      )
+    : anxietyInterventions;
 
   const heroVariants = {
     hidden: {},
@@ -186,6 +204,23 @@ export default function AnxietyPage() {
               <Sparkles size={20} className="shrink-0 text-[#A5B4FC] nb-twinkle" />
             </motion.div>
 
+            {/* ── Adaptive calm hint ── */}
+            {adaptiveConfig?.active && (
+              <motion.div
+                initial={{ opacity: 0, y: reduced ? 0 : 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: gentle ? 0.35 : 0.4, ease: "easeOut" }}
+                className="mt-5 rounded-2xl border border-[#bfe3ff] bg-[#eef8ff] px-4 py-3 text-[13px] font-semibold text-[#1E5B8E]"
+              >
+                {adaptiveConfig.promoteBreathing
+                  ? "Adapted for you: a quick breathing exercise is ready when you are."
+                  : adaptiveConfig.calmReassurance
+                  ? "Adapted for you: a softer, slower pace today — no pressure."
+                  : "Adapted for you: calmer space to settle in."}
+                {adaptation.reason ? ` ${adaptation.reason}` : ""}
+              </motion.div>
+            )}
+
             {/* ── Interactive Anxiety Support (Role 3 Interventions) ── */}
             <motion.section
               initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -206,7 +241,7 @@ export default function AnxietyPage() {
               </div>
 
               <div className="grid gap-5 sm:grid-cols-3">
-                {anxietyInterventions.map((card, i) => (
+                {orderedInterventions.map((card, i) => (
                   <CalmMiniCard
                     key={card.id}
                     {...card}

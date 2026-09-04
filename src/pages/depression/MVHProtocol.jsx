@@ -3,6 +3,8 @@
 import React, { useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronRight, Info, Leaf, RotateCcw, ShieldCheck, Sparkles, Sprout } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
+import { useContextStateOptional } from '@/context/ContextProvider';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gentleActivityService';
 import { GENTLE_ACTIVITY_MODULE_ID } from '@/support/modules/gentleActivity/gentleActivityTypes';
@@ -69,14 +71,29 @@ function EnergyPicker({ label, value, onChange }) {
 
 export default function MVHProtocol() {
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.gentle_activity", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
   const [step, setStep] = useState(0);
   const [energyBefore, setEnergyBefore] = useState(null);
   const [energyAfter, setEnergyAfter] = useState(null);
   const startedAtRef = useRef(null);
   const completedRef = useRef(false);
-  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GENTLE_ACTIVITY_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { pacing: 'gentle', totalSteps: steps.length } });
-  const isComplete = step === steps.length - 1;
-  const completedSteps = Math.min(step + 1, steps.length);
+
+  // When the engine decision is live and suggests a gentler session, show
+  // fewer steps so the user only needs a smaller activation. The actions
+  // themselves remain unchanged.
+  const effectiveTotalSteps =
+    adaptiveConfig?.active && adaptiveConfig.visibleSteps
+      ? Math.min(adaptiveConfig.visibleSteps, steps.length)
+      : steps.length;
+
+  const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GENTLE_ACTIVITY_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps } });
+  const isComplete = step === effectiveTotalSteps - 1;
+  const completedSteps = Math.min(step + 1, effectiveTotalSteps);
 
   const next = async () => {
     if (!lifecycle.hasStarted && user?.id) {
@@ -84,11 +101,11 @@ export default function MVHProtocol() {
       if (!started.ok) return;
       startedAtRef.current = Date.now();
     }
-    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'gentle_activity_step', completedUnits: completedSteps, totalUnits: steps.length, progressRatio: completedSteps / steps.length });
-    if (completedSteps === steps.length) {
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'gentle_activity_step', completedUnits: completedSteps, totalUnits: effectiveTotalSteps, progressRatio: completedSteps / effectiveTotalSteps });
+    if (completedSteps === effectiveTotalSteps) {
       if (user?.id && !completedRef.current) {
         completedRef.current = true;
-        await lifecycle.complete(buildGentleActivityOutcome({ configuration: { pacing: 'gentle', totalSteps: steps.length }, completedSteps, energyBefore, energyAfter, startedAt: startedAtRef.current }));
+        await lifecycle.complete(buildGentleActivityOutcome({ configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps }, completedSteps, energyBefore, energyAfter, startedAt: startedAtRef.current }));
       }
       setStep(0);
       lifecycle.reset();
@@ -99,7 +116,7 @@ export default function MVHProtocol() {
   };
 
   const reset = async () => {
-    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_reset', {}, buildGentleActivityOutcome({ configuration: { pacing: 'gentle', totalSteps: steps.length }, completedSteps: step, energyBefore, energyAfter, startedAt: startedAtRef.current }));
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_reset', {}, buildGentleActivityOutcome({ configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps }, completedSteps: step, energyBefore, energyAfter, startedAt: startedAtRef.current }));
     setStep(0);
     lifecycle.reset();
   };
@@ -145,16 +162,16 @@ export default function MVHProtocol() {
                     </p>
 
                     {/* Progress Bar with Floating Sprout Badge */}
-                    <div className="relative mt-8" aria-label={`Step ${step + 1} of ${steps.length}`}>
+                    <div className="relative mt-8" aria-label={`Step ${step + 1} of ${effectiveTotalSteps}`}>
                       <div className="mb-2.5 flex items-center justify-between text-[12px] font-bold text-slate-600">
-                        <span className="uppercase tracking-wider text-emerald-900">Step {step + 1} of {steps.length}</span>
+                        <span className="uppercase tracking-wider text-emerald-900">Step {step + 1} of {effectiveTotalSteps}</span>
                         <span>{isComplete ? "Finished" : "Take your time"}</span>
                       </div>
                       
                       <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 p-0.5 border border-slate-200/60">
                         <div 
                           className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500" 
-                          style={{ width: `${Math.round((step / (steps.length - 1)) * 100)}%` }} 
+                          style={{ width: `${Math.round((step / (effectiveTotalSteps - 1)) * 100)}%` }} 
                         />
                       </div>
                     </div>
@@ -162,6 +179,14 @@ export default function MVHProtocol() {
                 </header>
 
                 {/* Main Step Display Card */}
+                {adaptiveConfig?.active && (
+                  <p className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-[13px] font-semibold text-emerald-800">
+                    {adaptiveConfig.visibleSteps && adaptiveConfig.visibleSteps < steps.length
+                      ? "Adapted for you: a shorter, gentler session — fewer steps today."
+                      : "Adapted for you: gentle pacing — no need to rush."}
+                    {adaptation.reason ? ` ${adaptation.reason}` : ""}
+                  </p>
+                )}
                 <section className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-md shadow-slate-900/[0.02] transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-6" aria-live="polite">
                   <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[.16em] text-emerald-800">
                     <Sparkles size={14} className="text-amber-500" />
