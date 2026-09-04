@@ -38,7 +38,7 @@ describe("Support module registry and selection", () => {
     expect(ids).toContain("support.task_breakdown");
     expect(ids).toContain("support.gentle_activity");
     expect(ids).toContain("ocd.exposure-session");
-    expect(ids).toContain("dyslexia.adaptive-reading-module");
+    expect(ids).toContain("dyslexia.adaptive-reading");
     expect(getSupportModuleById("ocd.exposure-session").category).toBe(ModuleCategory.SPECIALIZED);
     expect(getSupportModulesByInterventionType("grounding").map((module) => module.id)).toContain("support.mood_checkin");
   });
@@ -108,7 +108,7 @@ describe("Support module registry and selection", () => {
       id: "reading-success",
       userId: USER_A,
       interventionId: "old-reading",
-      moduleId: "dyslexia.adaptive-reading-module",
+      moduleId: "dyslexia.adaptive-reading",
       interventionType: "reading_accessibility",
       category: ModuleCategory.LEARNING,
       status: InterventionStatus.COMPLETED,
@@ -122,7 +122,7 @@ describe("Support module registry and selection", () => {
       userProfile: { role: "user", disorders: ["dyslexia"] },
     });
 
-    expect(ranked[0].module.id).toBe("dyslexia.adaptive-reading-module");
+    expect(ranked[0].module.id).toBe("dyslexia.adaptive-reading");
     expect(ranked[0].eligibility.reasonCodes).toContain("user_preference_match");
     expect(ranked[0].eligibility.reasonCodes).toContain("positive_previous_outcomes");
   });

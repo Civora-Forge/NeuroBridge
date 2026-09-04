@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Heart, Leaf, MessageSquareHeart, Pause, Play, RotateCcw, ShieldCheck, Sparkles, Wind } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import { useContextStateOptional } from '@/context/ContextProvider';
+import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildGroundingOutcome } from '@/support/modules/grounding/groundingService';
 import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
@@ -15,6 +17,13 @@ const techniques = [
   { title: "Muscle relaxation", duration: 3, steps: ["Tense your shoulders for 5 seconds", "Release slowly for 10 seconds", "Move to your arms, then your legs", "Keep breathing as you go"] },
   { title: "Box breathing", duration: 5, steps: ["Inhale for 4 seconds", "Hold for 4 seconds", "Exhale for 4 seconds", "Hold for 4 seconds", "Repeat the cycle"] }
 ];
+
+const TECHNIQUE_IDS = {
+  "4-7-8 breathing": "4-7-8",
+  "5-4-3-2-1 grounding": "5-4-3-2-1",
+  "Muscle relaxation": "muscle_relaxation",
+  "Box breathing": "box_breathing",
+};
 
 function WindowIllustration() {
   return (
@@ -93,13 +102,34 @@ export default function AnxietyDissolver() {
   const configuration = { exerciseType: 'timed_grounding', pacing: 'timed', totalSteps: 4, techniqueOrder: ['4-7-8', '5-4-3-2-1', 'muscle_relaxation', 'box_breathing'], suggestedDurations: [4, 2, 3, 5] };
   const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GROUNDING_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration });
 
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.grounding", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+
+  // When the engine decision guides breathing, bring both breathing practices
+  // to the front of the native technique list without dropping anything.
+  const orderedTechniques = adaptiveConfig?.breathingFirst
+    ? [...techniques].sort((a, b) => {
+        const aBreath = TECHNIQUE_IDS[a.title] === "4-7-8" || TECHNIQUE_IDS[a.title] === "box_breathing";
+        const bBreath = TECHNIQUE_IDS[b.title] === "4-7-8" || TECHNIQUE_IDS[b.title] === "box_breathing";
+        if (aBreath !== bBreath) return aBreath ? -1 : 1;
+        return techniques.indexOf(a) - techniques.indexOf(b);
+      })
+    : techniques;
+
+  const currentTechnique = orderedTechniques[activeStep];
+  const currentTechniqueId = TECHNIQUE_IDS[currentTechnique.title];
+
   const startTimer = useCallback(async () => {
     if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
     if (durationReached) { setTimer(0); setDurationReached(false); }
     setIsRunning(true);
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
-        if (prev >= techniques[activeStep].duration * 60) {
+        if (prev >= currentTechnique.duration * 60) {
           clearInterval(intervalRef.current);
           setIsRunning(false);
           setDurationReached(true);
@@ -108,7 +138,7 @@ export default function AnxietyDissolver() {
         return prev + 1;
       });
     }, 1000);
-  }, [activeStep, lifecycle, user?.id, durationReached]);
+  }, [currentTechnique, lifecycle, user?.id, durationReached]);
 
   const stopTimer = () => { setIsRunning(false); clearInterval(intervalRef.current); };
 
@@ -121,7 +151,7 @@ export default function AnxietyDissolver() {
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'grounding_technique', completedUnits: completedSteps, totalUnits: techniques.length, progressRatio: completedSteps / techniques.length, suggestedDurationReached: durationReached, completedBeforeSuggestedDuration: !durationReached });
     setCompletedCount(completedSteps); setReachedCount(reached); setEarlyCount(early);
     if (completedSteps === techniques.length) {
-      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current }));
+      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId, startedAt: startedAtRef.current }));
       stopTimer(); setCompleted(true); return;
     }
     stopTimer(); setActiveStep((prev) => prev + 1); setTimer(0); setDurationReached(false);
@@ -129,7 +159,7 @@ export default function AnxietyDissolver() {
 
   const restart = async () => { 
     stopTimer(); 
-    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_restart', {}, buildGroundingOutcome({ configuration, completedSteps: completedCount, suggestedDurationsReached: reachedCount, techniquesCompletedEarly: earlyCount, currentTechniqueId: configuration.techniqueOrder[activeStep], startedAt: startedAtRef.current })); 
+    if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_restart', {}, buildGroundingOutcome({ configuration, completedSteps: completedCount, suggestedDurationsReached: reachedCount, techniquesCompletedEarly: earlyCount, currentTechniqueId, startedAt: startedAtRef.current })); 
     lifecycle.reset(); 
     setActiveStep(0); 
     setTimer(0); 
@@ -142,7 +172,7 @@ export default function AnxietyDissolver() {
 
   useEffect(() => () => clearInterval(intervalRef.current), []);
   const formatTime = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
-  const technique = techniques[activeStep];
+  const technique = currentTechnique;
 
   return (
     <SupportToolThemeProvider theme="depression_gentle">
@@ -186,6 +216,22 @@ export default function AnxietyDissolver() {
                 </header>
 
                 {/* Main Practice Section */}
+                {adaptiveConfig?.active && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-[13px] leading-relaxed backdrop-blur-sm">
+                    <p className="font-black text-emerald-900">
+                      Adapted for you:{" "}
+                      {adaptiveConfig.mode === "breathing_first"
+                        ? "breathing practices first"
+                        : adaptiveConfig.mode === "quiet_slow_pace"
+                        ? "a quieter, slower pace"
+                        : "a softer approach"}
+                    </p>
+                    {adaptation.reason && (
+                      <p className="mt-0.5 text-emerald-900/70">{adaptation.reason}</p>
+                    )}
+                  </div>
+                )}
+
                 <section className="overflow-hidden rounded-[24px] border border-emerald-200/80 bg-emerald-50/30 shadow-md shadow-slate-900/[0.02] transition-all duration-300 hover:-translate-y-1 hover:shadow-md" aria-labelledby="practice-title">
                   <div className="p-5 sm:p-6 lg:p-6">
                     
@@ -217,6 +263,11 @@ export default function AnxietyDissolver() {
                     </div>
 
                     {/* Step-by-Step Instructions */}
+                    {adaptiveConfig?.guidedBreathing && (
+                      <p className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-[14px] leading-relaxed text-emerald-900 backdrop-blur-sm">
+                        Start with a slow inhale through your nose and a long, even exhale — there is no rush.
+                      </p>
+                    )}
                     <ol className="mt-6 divide-y divide-slate-100">
                       {technique.steps.map((step, index) => {
                         const match = step.match(/(\d+ seconds|\d+ cycles)/);
@@ -279,6 +330,12 @@ export default function AnxietyDissolver() {
                         {durationReached && (
                           <p className="mt-3 text-center text-[13px] font-medium text-slate-500">
                             You have reached the suggested time. Continue if it helps, or move on when you are ready.
+                          </p>
+                        )}
+
+                        {adaptiveConfig?.slowPacing && (
+                          <p className="mt-3 text-center text-[13px] font-medium text-emerald-800">
+                            Quiet pace: you can pause a little longer between breaths and steps.
                           </p>
                         )}
                       </div>
