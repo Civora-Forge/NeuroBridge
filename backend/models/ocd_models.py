@@ -1,19 +1,11 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..database import Base
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    
-    hierarchies = relationship("ExposureHierarchy", back_populates="owner")
-    sessions = relationship("ERPSession", back_populates="owner")
-    suds_logs = relationship("SUDSLog", back_populates="owner")
-    journal_entries = relationship("OCDJournalEntry", back_populates="owner")
+# NOTE: user identity is Supabase's auth.users (UUID, verified server-side via
+# backend/auth.py) — there is no local shadow "users" table. owner_id columns
+# below store that UUID as a plain string.
 
 
 class ExposureHierarchy(Base):
@@ -22,10 +14,9 @@ class ExposureHierarchy(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     category = Column(String)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(String, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    owner = relationship("User", back_populates="hierarchies")
     tasks = relationship("ExposureTask", back_populates="hierarchy", cascade="all, delete-orphan")
 
 
@@ -48,15 +39,16 @@ class ERPSession(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     pre_suds = Column(Integer)
-    post_suds = Column(Integer)
-    duration_seconds = Column(Integer)
-    resisted_compulsion = Column(Boolean)
+    post_suds = Column(Integer, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+    resisted_compulsion = Column(Boolean, nullable=True)
     notes = Column(Text, nullable=True)
     ai_summary = Column(Text, nullable=True)
+    status = Column(String, default="completed")  # 'in_progress' | 'completed' — agent-started sessions begin in_progress
+    exposure_task_id = Column(Integer, ForeignKey("exposure_tasks.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-
-    owner = relationship("User", back_populates="sessions")
+    completed_at = Column(DateTime, nullable=True)
+    owner_id = Column(String, index=True, nullable=False)
 
 
 class SUDSLog(Base):
@@ -65,10 +57,9 @@ class SUDSLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     value = Column(Integer)
     context_tag = Column(String, nullable=True)
+    session_id = Column(Integer, ForeignKey("erp_sessions.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-
-    owner = relationship("User", back_populates="suds_logs")
+    owner_id = Column(String, index=True, nullable=False)
 
 
 class OCDJournalEntry(Base):
@@ -84,6 +75,4 @@ class OCDJournalEntry(Base):
     notes = Column(Text, nullable=True)
     ai_analysis = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-
-    owner = relationship("User", back_populates="journal_entries")
+    owner_id = Column(String, index=True, nullable=False)

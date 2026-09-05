@@ -6,3 +6,5 @@ pydantic
 google-generativeai
 python-dotenv
 alembic
+httpx
+pytest
