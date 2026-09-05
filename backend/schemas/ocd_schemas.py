@@ -26,7 +26,7 @@ class ExposureHierarchyCreate(ExposureHierarchyBase):
 
 class ExposureHierarchy(ExposureHierarchyBase):
     id: int
-    owner_id: int
+    owner_id: str
     created_at: datetime
     tasks: List[ExposureTask] = []
     class Config:
@@ -45,9 +45,12 @@ class ERPSessionCreate(ERPSessionBase):
 
 class ERPSession(ERPSessionBase):
     id: int
-    owner_id: int
+    owner_id: str
+    status: str
     ai_summary: Optional[str] = None
+    exposure_task_id: Optional[int] = None
     created_at: datetime
+    completed_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -60,7 +63,8 @@ class SUDSLogCreate(SUDSLogBase):
 
 class SUDSLog(SUDSLogBase):
     id: int
-    owner_id: int
+    owner_id: str
+    session_id: Optional[int] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -79,7 +83,7 @@ class OCDJournalEntryCreate(OCDJournalEntryBase):
 
 class OCDJournalEntry(OCDJournalEntryBase):
     id: int
-    owner_id: int
+    owner_id: str
     ai_analysis: Optional[str] = None
     created_at: datetime
     class Config:

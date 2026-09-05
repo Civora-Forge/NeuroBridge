@@ -26,6 +26,12 @@ dist-ssr
 .venv/
 venv/
 backend/.venv/
+__pycache__/
+*.pyc
+backend/sql_app.db
+sql_app.db
+backend/tests/test_agent.db
+*.db
 
 # Environment variables
 .env
