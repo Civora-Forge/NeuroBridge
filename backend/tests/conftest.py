@@ -139,3 +139,49 @@ def install_fake_gemini(monkeypatch):
         return call_log, model_construction_count
 
     return _install
+
+
+class ReactiveFakeChat:
+    """Unlike FakeChat's fixed response list, this actually inspects the real
+    payload it's sent (the function_response from a just-executed tool) and
+    decides what to return next — proving the orchestrator's re-planning is
+    driven by the observed tool result, not a hardcoded script."""
+
+    def __init__(self, responder, call_log=None):
+        self._responder = responder
+        self._call_log = call_log
+        self._call_index = 0
+
+    def send_message(self, payload, *args, **kwargs):
+        if self._call_log is not None:
+            self._call_log.append(payload)
+        response = self._responder(self._call_index, payload)
+        self._call_index += 1
+        return response
+
+
+class ReactiveFakeModel:
+    def __init__(self, responder, call_log=None):
+        self._responder = responder
+        self._call_log = call_log
+
+    def start_chat(self, history=None):
+        return ReactiveFakeChat(self._responder, self._call_log)
+
+
+@pytest.fixture
+def install_fake_gemini_reactive(monkeypatch):
+    """Like install_fake_gemini, but takes responder(call_index, payload) -> FakeResponse
+    instead of a fixed list — payload is the REAL first message or FunctionResponse
+    Content the orchestrator sent, so the test can branch on the actual tool result."""
+    import google.generativeai as genai
+    from backend.services import agent_service
+
+    call_log = []
+
+    def _install(responder):
+        monkeypatch.setattr(agent_service, "api_key", "fake-key-for-tests")
+        monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: ReactiveFakeModel(responder, call_log))
+        return call_log
+
+    return _install

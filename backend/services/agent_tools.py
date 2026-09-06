@@ -55,6 +55,10 @@ class ToolError(Exception):
     """Raised by a handler for a user-facing, non-fatal failure (e.g. not found)."""
 
 
+class ToolTimeoutError(Exception):
+    """Raised when a tool handler exceeds AGENT_TOOL_TIMEOUT_MS."""
+
+
 # ---------------------------------------------------------------------------
 # OCD tools — backed by the real ocd_models tables
 # ---------------------------------------------------------------------------
@@ -576,17 +580,61 @@ TOOL_REGISTRY: dict[str, Tool] = {
 }
 
 
+_gemini_tool_declarations_cache: Optional[list[dict]] = None
+
+
 def build_gemini_tool_declarations() -> list[dict]:
-    return [
-        {
-            "function_declarations": [
-                {"name": tool.name, "description": tool.description, "parameters": tool.parameters}
-                for tool in TOOL_REGISTRY.values()
-            ]
-        }
-    ]
+    """TOOL_REGISTRY is fixed at import time and never mutated at runtime, so
+    this is genuinely static — compute it once, not on every request."""
+    global _gemini_tool_declarations_cache
+    if _gemini_tool_declarations_cache is None:
+        _gemini_tool_declarations_cache = [
+            {
+                "function_declarations": [
+                    {"name": tool.name, "description": tool.description, "parameters": tool.parameters}
+                    for tool in TOOL_REGISTRY.values()
+                ]
+            }
+        ]
+    return _gemini_tool_declarations_cache
 
 
 def get_user_learnings(user_id: str, db: Session) -> dict:
     learnings = db.query(agent_models.AgentLearning).filter(agent_models.AgentLearning.user_id == user_id).all()
     return {l.key: l.value for l in learnings}
+
+
+def get_personalization_summary(module: str, user_id: str, db: Session) -> Optional[str]:
+    """Closes the personalization loop: InterventionOutcome rows are written on
+    every successful write/write_confirm tool call, but were never read back
+    into a future decision until now. Compact by design — a count-by-type
+    summary, not the raw history."""
+    outcomes = (
+        db.query(agent_models.InterventionOutcome)
+        .filter_by(user_id=user_id, module=module)
+        .order_by(agent_models.InterventionOutcome.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    if not outcomes:
+        return None
+
+    counts: dict[str, int] = {}
+    for outcome in outcomes:
+        counts[outcome.outcome_type] = counts.get(outcome.outcome_type, 0) + 1
+    summary = ", ".join(f"{count} {outcome_type}" for outcome_type, count in counts.items())
+
+    if module == "adhd":
+        sessions = (
+            db.query(adhd_models.FocusSession)
+            .filter_by(user_id=user_id)
+            .order_by(adhd_models.FocusSession.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        durations = [s.duration_minutes for s in sessions if s.duration_minutes]
+        if durations:
+            most_common = max(set(durations), key=durations.count)
+            summary += f"; recent focus sessions tended to be around {most_common} minutes"
+
+    return f"Recent {module} activity: {summary}."
