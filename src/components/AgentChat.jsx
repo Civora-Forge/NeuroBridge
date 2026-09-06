@@ -170,7 +170,11 @@ export default function AgentChat() {
   const wasListeningRef = useRef(false);
 
   const voice = useAgentVoice();
-  const isRealAccount = isAuthenticated && user?._supabase;
+  // Any authenticated "user"-role account can use the agent — a real Supabase
+  // session or one of the Demo Access mock logins. Demo mode gets real backend
+  // access too (see agentStore.js), just under an isolated demo identity.
+  const canUseAgent = isAuthenticated && !!user;
+  const isDemoAccount = canUseAgent && !user?._supabase;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -199,9 +203,9 @@ export default function AgentChat() {
   }, [messages, voice.voiceResponsesEnabled]);
 
   const submit = (text) => {
-    if (!text.trim() || isLoading || !isRealAccount) return;
+    if (!text.trim() || isLoading || !canUseAgent) return;
     setLastUserMessage(text);
-    sendMessage(text, user?.id);
+    sendMessage(text, user);
     setInput("");
   };
 
@@ -234,7 +238,7 @@ export default function AgentChat() {
         <PendingConfirmationCard
           toolName={action.tool_name}
           toolArgs={action.tool_args}
-          onConfirm={confirmPendingAction}
+          onConfirm={() => confirmPendingAction(user)}
           onCancel={cancelPendingAction}
           isLoading={isLoading}
         />
@@ -327,14 +331,21 @@ export default function AgentChat() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background/50">
-            {!isRealAccount && (
+            {!canUseAgent && (
               <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Sign in with your NeuroBridge account (not a demo role) to use the assistant — it needs a real, secure session to act on your data.</span>
+                <span>Sign in (or use a Demo Access account) to use the assistant.</span>
               </div>
             )}
 
-            {messages.length === 0 && isRealAccount && (
+            {isDemoAccount && (
+              <div className="flex items-start gap-2 text-xs bg-sky-50 border border-sky-200 text-sky-800 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>You're in demo mode — the assistant fully works, but demo data is separate from a real account and may be reset. Messages are also rate-limited in demo mode.</span>
+              </div>
+            )}
+
+            {messages.length === 0 && canUseAgent && (
               <div className="text-center text-muted-foreground text-sm my-auto opacity-70">
                 <Bot className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p>Hi! I'm your NeuroBridge assistant.</p>
@@ -450,13 +461,13 @@ export default function AgentChat() {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={isRealAccount ? "How can I help you right now?" : "Sign in to chat with the assistant"}
+                    placeholder={canUseAgent ? "How can I help you right now?" : "Sign in to chat with the assistant"}
                     className="w-full bg-muted border border-border/50 rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-60"
-                    disabled={isLoading || !isRealAccount}
+                    disabled={isLoading || !canUseAgent}
                   />
                   <button
                     type="submit"
-                    disabled={!input.trim() || isLoading || !isRealAccount}
+                    disabled={!input.trim() || isLoading || !canUseAgent}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-primary text-primary-foreground rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors"
                     aria-label="Send message"
                   >
@@ -467,7 +478,7 @@ export default function AgentChat() {
                   <button
                     type="button"
                     onClick={handleMicClick}
-                    disabled={isLoading || !isRealAccount}
+                    disabled={isLoading || !canUseAgent}
                     className="p-3 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50 flex-shrink-0"
                     aria-label="Speak your message"
                   >

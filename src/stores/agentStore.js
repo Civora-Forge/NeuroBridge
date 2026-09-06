@@ -3,15 +3,43 @@ import { supabase } from '@/lib/supabaseClient';
 import { listInterventions } from '@/support/persistence/role4Store';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
+const DEMO_SESSION_KEY = 'nb_agent_demo_session_id';
 
-async function authHeaders() {
+/**
+ * Demo/mock logins (see AuthContext.jsx's MOCK_USERS) have no real Supabase
+ * session, so there's no token to send. Instead we generate a random,
+ * per-browser session id once and persist it — this keeps one demo visitor's
+ * agent data (real DB rows, just under a "demo:" namespaced id) isolated from
+ * every other demo visitor, even though they picked the same demo role.
+ */
+function getOrCreateDemoSessionId() {
   try {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    let id = localStorage.getItem(DEMO_SESSION_KEY);
+    if (!id) {
+      id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(DEMO_SESSION_KEY, id);
+    }
+    return id;
   } catch {
-    return {};
+    return `volatile-${Math.random().toString(36).slice(2)}`;
   }
+}
+
+async function authHeaders(user) {
+  if (user?._supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
+  }
+  if (user?.id) {
+    const sessionId = getOrCreateDemoSessionId();
+    return { Authorization: `Bearer demo:${user.id}:${sessionId}` };
+  }
+  return {};
 }
 
 /**
@@ -52,19 +80,19 @@ const useAgentStore = create((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  sendMessage: async (text, userId) => {
+  sendMessage: async (text, user) => {
     const { conversationId, addMessage } = get();
 
     addMessage({ role: 'user', content: text });
     set({ isLoading: true, error: null, pendingConfirmation: null });
 
     try {
-      const headers = await authHeaders();
+      const headers = await authHeaders(user);
       if (!headers.Authorization) {
         set({
           isLoading: false,
           isSignedIn: false,
-          error: 'Sign in with your NeuroBridge account to use the assistant.',
+          error: 'Sign in (or use a Demo Access account) to use the assistant.',
         });
         return;
       }
@@ -75,12 +103,17 @@ const useAgentStore = create((set, get) => ({
         body: JSON.stringify({
           message: text,
           conversation_id: conversationId,
-          client_context: buildClientContext(userId),
+          client_context: buildClientContext(user?.id),
         }),
       });
 
       if (res.status === 401) {
         set({ isLoading: false, isSignedIn: false, error: 'Your session has expired. Please sign in again.' });
+        return;
+      }
+      if (res.status === 429) {
+        const body = await res.json().catch(() => null);
+        set({ isLoading: false, error: body?.detail || 'Demo mode has a message limit — please try again later.' });
         return;
       }
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -113,13 +146,13 @@ const useAgentStore = create((set, get) => ({
     }
   },
 
-  confirmPendingAction: async () => {
+  confirmPendingAction: async (user) => {
     const { pendingConfirmation, conversationId, addMessage } = get();
     if (!pendingConfirmation || !conversationId) return;
 
     set({ isLoading: true, error: null });
     try {
-      const headers = await authHeaders();
+      const headers = await authHeaders(user);
       const res = await fetch(`${API_BASE_URL}/api/agent/tool/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -148,9 +181,9 @@ const useAgentStore = create((set, get) => ({
     set({ pendingConfirmation: null });
   },
 
-  loadHistory: async (convId) => {
+  loadHistory: async (convId, user) => {
     try {
-      const headers = await authHeaders();
+      const headers = await authHeaders(user);
       const res = await fetch(`${API_BASE_URL}/api/agent/conversations/${convId}`, { headers });
       if (!res.ok) throw new Error('Failed to load history');
       const data = await res.json();

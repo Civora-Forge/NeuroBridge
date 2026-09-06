@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -9,6 +11,30 @@ from ..schemas import agent_schemas
 from ..services.agent_service import AgentOrchestrator
 
 router = APIRouter()
+
+# Demo mode has no real credential behind it (see auth.py), so it's the one path
+# that could let someone burn through the GEMINI_API_KEY's quota for free just
+# by reading this token format out of the public frontend bundle. This bounds
+# that: a simple in-memory, per-demo-session cap on the one endpoint that
+# actually calls Gemini. It resets on a backend restart — that's an accepted
+# tradeoff for a lightweight demo protection, not a strict guarantee.
+_DEMO_RATE_LIMIT_MAX_MESSAGES = 20
+_DEMO_RATE_LIMIT_WINDOW_SECONDS = 3600
+_demo_chat_timestamps: dict[str, list[float]] = {}
+
+
+def _enforce_demo_rate_limit(user: CurrentUser) -> None:
+    if not user.is_demo:
+        return
+    now = time.time()
+    recent = [t for t in _demo_chat_timestamps.get(user.id, []) if now - t < _DEMO_RATE_LIMIT_WINDOW_SECONDS]
+    if len(recent) >= _DEMO_RATE_LIMIT_MAX_MESSAGES:
+        raise HTTPException(
+            status_code=429,
+            detail="Demo mode is limited to a small number of messages per hour. Sign in with a real account for unlimited use, or try again later.",
+        )
+    recent.append(now)
+    _demo_chat_timestamps[user.id] = recent
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
@@ -24,6 +50,8 @@ def chat_with_agent(
     user: CurrentUser = Depends(get_current_user),
     authorization: Optional[str] = Header(default=None),
 ):
+    _enforce_demo_rate_limit(user)
+
     if request.conversation_id:
         conversation = db.query(agent_models.AgentConversation).filter(
             agent_models.AgentConversation.id == request.conversation_id,
