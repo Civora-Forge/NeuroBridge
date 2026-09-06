@@ -26,7 +26,7 @@ from . import agent_tools, safety
 from .agent_tools import RiskLevel, Tool, ToolContext, ToolError
 from .navigation import FEATURE_LABELS, match_navigation_shortcut, resolve_feature_route
 
-MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-3.6-flash")
 MAX_TOOL_ROUNDS = 4
 
 api_key = os.getenv("GEMINI_API_KEY")
