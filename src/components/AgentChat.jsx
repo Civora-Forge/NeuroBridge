@@ -278,7 +278,7 @@ export default function AgentChat() {
       {!isOpen && (
         <button
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
+          className="fixed top-20 right-6 md:top-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
           aria-label="Open AI Assistant"
         >
           <MessageSquareText className="w-6 h-6" />
@@ -286,7 +286,7 @@ export default function AgentChat() {
       )}
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-bottom-5">
+        <div className="fixed top-20 right-6 md:top-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-top-5">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
