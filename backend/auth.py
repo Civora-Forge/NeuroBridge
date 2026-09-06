@@ -23,10 +23,18 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 _TOKEN_CACHE_TTL_SECONDS = 60
 _token_cache: dict[str, tuple[float, "CurrentUser"]] = {}
 
+# Mirrors the "user"-role mock accounts hardcoded in src/context/AuthContext.jsx's
+# MOCK_USERS. There's no real credential behind these — anyone can construct a
+# demo token for one of these roles — so this must stay restricted to the
+# handful of known, non-sensitive demo personas, never to arbitrary strings
+# (which could otherwise be used to try to collide with a real user's id).
+DEMO_ROLE_IDS = {"nb-user-042", "nb-user-011", "nb-user-088"}
+
 
 class CurrentUser(BaseModel):
     id: str
     email: Optional[str] = None
+    is_demo: bool = False
 
 
 def _validate_with_supabase(token: str) -> CurrentUser:
@@ -62,8 +70,27 @@ def _validate_with_supabase(token: str) -> CurrentUser:
     return CurrentUser(id=str(user_id), email=data.get("email"))
 
 
+def _resolve_demo_user(token: str) -> CurrentUser:
+    """Resolve a `demo:<role_id>:<session_id>` pseudo-token into an isolated demo identity.
+
+    No credential is checked here — that's the point of demo mode — but the
+    resulting id is namespaced under "demo:" (a prefix no real Supabase UUID
+    can ever produce) and requires a per-browser random session_id, so two
+    different demo visitors never share the same backend data even though
+    they picked the same demo role.
+    """
+    parts = token.split(":", 2)
+    if len(parts) != 3:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid demo session.")
+    _, role_id, session_id = parts
+    if role_id not in DEMO_ROLE_IDS or not session_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid demo session.")
+    return CurrentUser(id=f"demo:{role_id}:{session_id}", email=None, is_demo=True)
+
+
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> CurrentUser:
-    """FastAPI dependency: raises 401 unless a valid Supabase session token is present."""
+    """FastAPI dependency: raises 401 unless a valid Supabase session token — or a
+    well-formed demo pseudo-token — is present."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,6 +100,9 @@ def get_current_user(authorization: Optional[str] = Header(default=None)) -> Cur
     token = authorization.split(" ", 1)[1].strip()
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token.")
+
+    if token.startswith("demo:"):
+        return _resolve_demo_user(token)
 
     now = time.monotonic()
     cached = _token_cache.get(token)
