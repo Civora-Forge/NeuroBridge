@@ -12,17 +12,30 @@
  *
  * Role 3 Integration:
  *   - Derives intervention recommendations from the active plan
- *   - Renders the persistent, non-intrusive AdaptiveSupportCard
+ *   - Renders the non-intrusive AdaptiveSupportCard
  *   - Opens the InterventionModal on "Start Support" with full interactive flow
  *
- * Dismissal semantics: dismissing (or starting) a recommendation keeps the card
- * visible in its neutral state and suppresses only that same recommendation; a
- * genuinely different future recommendation appears normally.
+ * Suggestion surfacing policy (engine-driven, non-intrusive):
+ *   - The Adaptive Support card stays hidden during normal interaction and is
+ *     mounted only while the engine's plan carries an active recommendation.
+ *   - The Adaptive Engine is the single source of truth for whether an
+ *     intervention is appropriate NOW. The UI mirrors the plan (covering both
+ *     behavioral-change triggers and context/state triggers): it renders the
+ *     recommendation unobtrusively and hides it the moment the plan clears it.
+ *     No UI-side timer, cooldown, or evidence gate decides when a suggestion
+ *     appears; the engine's own hysteresis stage keeps a sustained target from
+ *     re-activating repeatedly.
+ *   - React keeps the single card mounted while the same recommendation id is
+ *     continuously present, so an unchanged plan never re-pops it.
+ *
+ * Dismissal semantics: "Not now" (or starting) suppresses that recommendation
+ * for the session/context period; a genuinely different future recommendation
+ * that the engine offers appears normally.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
@@ -203,7 +216,9 @@ export function deriveInterventionRecommendation(plan) {
   return null;
 }
 
-/** Human-readable labels for module-targeted engine actions. */
+/**
+ * Human-readable labels for module-targeted engine actions.
+ */
 const MODULE_ACTION_LABELS = {
   "PACING:DECREASE": "Slower pacing",
   "PACING:SIMPLIFY": "Gentler pacing",
@@ -260,8 +275,13 @@ export default function AdaptiveUIRuntime({ children }) {
     [runtime.plan],
   );
 
-  // Session-scoped dismissal: suppressing one recommendation keeps the card in
-  // its neutral state and never blocks a genuinely different future offer.
+  // Session-scoped dismissal: "Not now" (or starting) suppresses that same
+  // recommendation id for the session/context period. The Adaptive Engine
+  // remains the single source of truth for whether an intervention is
+  // appropriate NOW; the UI only mirrors the plan (rendering while a
+  // recommendation is present and hiding the moment it clears) and respects
+  // the user's dismissal. A continuously-present recommendation stays mounted
+  // exactly once — an unchanged plan never re-pops it.
   const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
     () => new Set(),
   );
@@ -278,11 +298,15 @@ export default function AdaptiveUIRuntime({ children }) {
   };
 
   const activeRecommendation =
-    recommendation &&
-    recommendation.id &&
-    !dismissedRecommendationIds.has(recommendation.id)
+    recommendation && !dismissedRecommendationIds.has(recommendation.id)
       ? recommendation
       : null;
+
+  // Reset dismissed IDs whenever a new recommendation appears (including when cleared).
+  // This allows the same recommendation ID to be shown again for a new intervention opportunity.
+  useEffect(() => {
+    setDismissedRecommendationIds(() => new Set());
+  }, [recommendation?.id]);
 
   const wrapperProps = {
     "data-adaptive-root": "true",
@@ -307,6 +331,7 @@ export default function AdaptiveUIRuntime({ children }) {
           id: activeRecommendation.id,
           title: activeRecommendation.title || meta.title,
           description: activeRecommendation.description || meta.description,
+          reason: activeRecommendation.reason || null,
         }
       : null;
 
@@ -314,16 +339,20 @@ export default function AdaptiveUIRuntime({ children }) {
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
-      {/* Role 3: Persistent, non-intrusive Adaptive Support Card */}
-      <AdaptiveSupportCard
-        recommendation={cardRecommendation}
-        onStartSupport={(id) => {
-          // Start Support opens the intervention and suppresses the same offer.
-          dismissRecommendation(id);
-          setActiveInterventionModal(id);
-        }}
-        onDismiss={(id) => dismissRecommendation(id)}
-      />
+      {/* Role 3: Non-intrusive Adaptive Support Card — mirrors the engine plan
+          exactly: mounted while the plan carries a recommendation, hidden the
+          moment it clears. */}
+      {activeRecommendation && (
+        <AdaptiveSupportCard
+          recommendation={cardRecommendation}
+          onStartSupport={(id) => {
+            // Start Support opens the intervention and suppresses the same offer.
+            dismissRecommendation(id);
+            setActiveInterventionModal(id);
+          }}
+          onDismiss={(id) => dismissRecommendation(id)}
+        />
+      )}
 
       {/* Role 3: Active Intervention Modal */}
       <InterventionModal

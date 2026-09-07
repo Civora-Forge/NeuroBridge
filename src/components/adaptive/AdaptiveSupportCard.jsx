@@ -1,13 +1,10 @@
 /**
- * AdaptiveSupportCard.jsx — Persistent, non-intrusive adaptive support widget
+ * AdaptiveSupportCard.jsx — Subtle, non-intrusive adaptive support widget
  *
- * Replaces the intrusive Adaptive Engine popup with a small always-visible
- * status card.
- *
- * Two states:
- *   - neutral:          a quiet "Adaptive Support" indicator (default)
- *   - recommendation:   a "Personalized Support" offer derived from the live
- *                       Adaptive Engine plan, with one primary action
+ * Mounted only while the Adaptive Engine plan carries an active recommendation
+ * (see AdaptiveUIRuntime surfacing policy — the engine is the source of truth
+ * for when a suggestion is appropriate). Shows the plan-derived offer with one
+ * primary action and the engine's reason.
  *
  * The card never blocks content, never auto-executes, and its copy is sourced
  * from the plan (via the intervention resolver metadata) — never from UI-side
@@ -57,8 +54,8 @@ export function recommendationCopy(recommendation) {
 
 /**
  * @param {object} props
- * @param {object|null} props.recommendation - Plan-derived recommendation,
- *   or null for the neutral state.
+ * @param {object|null} props.recommendation - Plan-derived recommendation
+ *   with `id`, `title`, `description` and optional engine `reason`.
  * @param {(recommendationId: string) => void} [props.onStartSupport]
  * @param {(recommendationId: string) => void} [props.onDismiss]
  */
@@ -110,6 +107,11 @@ export default function AdaptiveSupportCard({
                     <span className="text-muted-foreground/80"> · {copy.duration}</span>
                   ) : null}
                 </p>
+                {recommendation.reason && (
+                  <p className="text-[11px] text-muted-foreground/70 mt-1.5 leading-snug">
+                    {recommendation.reason}
+                  </p>
+                )}
               </div>
             )}
           </div>
