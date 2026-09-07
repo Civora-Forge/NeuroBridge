@@ -27,6 +27,10 @@ _REAL_RATE_LIMIT_MAX_MESSAGES = int(os.getenv("AGENT_REAL_RATE_LIMIT_PER_HOUR", 
 _REAL_RATE_LIMIT_WINDOW_SECONDS = 3600
 _demo_chat_timestamps: dict[str, list[float]] = {}
 _real_chat_timestamps: dict[str, list[float]] = {}
+# FastAPI runs sync route handlers in a thread pool — two concurrent requests from
+# the same rapidly-double-clicking user could otherwise both read the same "count so
+# far" list before either appends, letting both through past the limit (lost update).
+_rate_limit_lock = threading.Lock()
 
 
 def _enforce_rate_limit(user: CurrentUser) -> None:
@@ -37,11 +41,12 @@ def _enforce_rate_limit(user: CurrentUser) -> None:
     else:
         bucket, limit, window = _real_chat_timestamps, _REAL_RATE_LIMIT_MAX_MESSAGES, _REAL_RATE_LIMIT_WINDOW_SECONDS
         message = "You've sent a lot of messages in a short time — please wait a bit before sending more."
-    recent = [t for t in bucket.get(user.id, []) if now - t < window]
-    if len(recent) >= limit:
-        raise HTTPException(status_code=429, detail=message)
-    recent.append(now)
-    bucket[user.id] = recent
+    with _rate_limit_lock:
+        recent = [t for t in bucket.get(user.id, []) if now - t < window]
+        if len(recent) >= limit:
+            raise HTTPException(status_code=429, detail=message)
+        recent.append(now)
+        bucket[user.id] = recent
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
@@ -138,7 +143,10 @@ def chat_with_agent_stream(
     event_queue: "queue.Queue" = queue.Queue()
 
     def on_event(event: dict) -> None:
-        event_queue.put(event)
+        # Every event carries conversation_id — without it, the frontend could
+        # never learn a newly-created conversation's id from the stream alone,
+        # and would start a fresh conversation on every subsequent message.
+        event_queue.put({**event, "conversation_id": conversation_id})
 
     def run() -> None:
         thread_db = SessionLocal()
@@ -158,12 +166,12 @@ def chat_with_agent_stream(
                 "CONFIRMATION_REQUIRED": "confirmation_required",
             }.get(final_state, "execution_failed")
             event_queue.put({
-                "type": event_type,
+                "type": event_type, "conversation_id": conversation_id,
                 "execution_id": result.get("execution_id"), "state": final_state,
                 "content": result["response"], "action_payload": result["action"],
             })
         except Exception as e:
-            event_queue.put({"type": "execution_failed", "error": "internal_error"})
+            event_queue.put({"type": "execution_failed", "conversation_id": conversation_id, "error": "internal_error"})
             print(f"[agent] stream execution failed: {e}")
         finally:
             thread_db.close()

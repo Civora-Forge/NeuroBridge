@@ -94,6 +94,33 @@ def test_execution_reaches_failed_state_on_llm_error(user_a, monkeypatch):
     assert execution.error == "llm_call_failed"
 
 
+def test_an_unexpected_internal_error_still_returns_a_safe_failed_response_not_a_crash(user_a, monkeypatch):
+    """Guards the safety-net wrapper added around process_message(): a bug or DB
+    hiccup anywhere in the turn (simulated here in context building, a spot with
+    no existing try/except of its own) must never propagate as a raw exception
+    to the caller, and the execution row must still reach a terminal state."""
+    from backend.services import agent_service as svc, context_scope
+
+    def _boom(message):
+        raise RuntimeError("simulated unexpected failure")
+
+    monkeypatch.setattr(svc, "api_key", "fake-key")
+    monkeypatch.setattr(context_scope, "infer_relevant_modules", _boom)
+
+    db = SessionLocal()
+    try:
+        orchestrator = svc.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("hello")  # must not raise
+        execution = db.query(agent_models.AgentExecution).filter_by(execution_id=result["execution_id"]).one()
+    finally:
+        db.close()
+
+    assert result["state"] == "FAILED"
+    assert "went wrong" in result["response"].lower()
+    assert execution.state == ExecutionState.FAILED.value
+    assert execution.completed_at is not None  # reached a terminal state, not stuck
+
+
 def test_frontend_never_needs_to_infer_state_from_prose():
     """Sanity check on the contract itself: every process_message() return value
     carries a real `state` field pulled from the enum, not derived from `response` text."""

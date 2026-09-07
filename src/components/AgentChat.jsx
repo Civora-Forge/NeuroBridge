@@ -162,7 +162,7 @@ export default function AgentChat() {
   const { user, isAuthenticated } = useAuth();
   const {
     isOpen, closeChat, toggleChat, messages, isLoading, sendMessage, error, clearError,
-    pendingConfirmation, confirmPendingAction, cancelPendingAction,
+    pendingConfirmation, confirmPendingAction, cancelPendingAction, abortActiveStream,
   } = useAgentStore();
   const [input, setInput] = useState("");
   const [lastUserMessage, setLastUserMessage] = useState(null);
@@ -180,6 +180,10 @@ export default function AgentChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading, isOpen]);
 
+  // Unmounting (or navigating away) must not leave a stream running in the
+  // background against a component that no longer exists.
+  useEffect(() => () => abortActiveStream(), [abortActiveStream]);
+
   // Auto-send once the browser finishes recognizing a spoken utterance.
   useEffect(() => {
     if (wasListeningRef.current && !voice.isListening && voice.transcript.trim()) {
@@ -189,13 +193,17 @@ export default function AgentChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voice.isListening]);
 
-  // Optionally speak new assistant replies.
+  // Optionally speak new assistant replies. Must wait for the message to be
+  // finalized (streaming: false) — the placeholder is added with empty content
+  // the instant a request starts, at the same array index the real answer will
+  // later fill in; speaking (and marking-as-spoken) too early would permanently
+  // skip the actual response once it arrives at that same index.
   const lastSpokenIndexRef = useRef(-1);
   useEffect(() => {
     if (!voice.voiceResponsesEnabled || messages.length === 0) return;
     const lastIndex = messages.length - 1;
     const last = messages[lastIndex];
-    if (last.role === "model" && lastIndex !== lastSpokenIndexRef.current) {
+    if (last.role === "model" && !last.streaming && last.content && lastIndex !== lastSpokenIndexRef.current) {
       lastSpokenIndexRef.current = lastIndex;
       voice.speak(last.content);
     }
@@ -364,14 +372,42 @@ export default function AgentChat() {
                   )}
                   <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'} w-full`}>
                     <div className={`flex items-end gap-1.5 ${isUser ? 'flex-row-reverse' : ''}`}>
-                      <div className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
-                        isUser
-                          ? 'bg-primary text-primary-foreground rounded-br-sm'
-                          : 'bg-muted rounded-bl-sm border border-border/50'
-                      }`}>
-                        {msg.content}
+                      <div
+                        className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
+                          isUser
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-muted rounded-bl-sm border border-border/50'
+                        }`}
+                        aria-live={msg.streaming ? "polite" : undefined}
+                      >
+                        {msg.streaming ? (
+                          msg.steps && msg.steps.length > 0 ? (
+                            <div className="flex flex-col gap-1 min-w-[160px]">
+                              {msg.steps.map((step) => (
+                                <span
+                                  key={step.id}
+                                  className={`flex items-center gap-1.5 text-xs ${
+                                    step.status === 'active' ? 'text-foreground font-medium' : 'text-muted-foreground'
+                                  }`}
+                                >
+                                  {step.status === 'done' && <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+                                  {step.status === 'failed' && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
+                                  {step.status === 'active' && <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />}
+                                  <span className="truncate">{step.label}</span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                              {msg.statusLabel || "Working on it..."}
+                            </span>
+                          )
+                        ) : (
+                          msg.content
+                        )}
                       </div>
-                      {!isUser && voice.ttsSupported && msg.content && (
+                      {!isUser && !msg.streaming && voice.ttsSupported && msg.content && (
                         <button
                           onClick={() => voice.speak(msg.content)}
                           className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
@@ -387,18 +423,6 @@ export default function AgentChat() {
                 </div>
               );
             })}
-
-            {isLoading && (
-              <div className="flex gap-3 max-w-[85%]">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="w-4 h-4 text-primary" />
-                </div>
-                <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-sm border border-border/50 flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Thinking and preparing tools...</span>
-                </div>
-              </div>
-            )}
 
             {error && (
               <div className="flex items-start gap-2 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3">

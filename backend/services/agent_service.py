@@ -390,10 +390,38 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         conversation_id: Optional[int] = None,
         on_event: Optional[Callable[[dict], None]] = None,
     ) -> dict:
+        """Thin safety-net wrapper: guarantees every execution reaches a terminal
+        state and a safe response even if something below raises unexpectedly
+        (e.g. a DB error mid-turn) — without that, the execution row would be
+        stuck non-terminal forever and the caller could see a raw exception."""
         total_start = time.monotonic()
         execution = self._new_execution(conversation_id)
         if on_event:
             on_event({"type": "execution_started", "execution_id": execution.execution_id})
+        try:
+            return self._run_turn(execution, total_start, message, history, client_context, conversation_id, on_event)
+        except Exception as e:
+            print(f"[agent] unhandled process_message error: {e}")
+            try:
+                self._transition(execution, ExecutionState.FAILED, on_event, error="internal_error")
+                self._finish(execution, total_start)
+            except Exception:
+                pass  # best-effort — the safe response below is what actually matters
+            return {
+                "response": "Something went wrong on my end. Please try again.",
+                "action": None, "execution_id": execution.execution_id, "state": ExecutionState.FAILED.value,
+            }
+
+    def _run_turn(
+        self,
+        execution: agent_models.AgentExecution,
+        total_start: float,
+        message: str,
+        history: list[dict] | None,
+        client_context: Optional[dict],
+        conversation_id: Optional[int],
+        on_event: Optional[Callable[[dict], None]],
+    ) -> dict:
         self._transition(execution, ExecutionState.UNDERSTANDING, on_event)
 
         assessment = safety.assess_message_safety(message)
