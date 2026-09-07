@@ -46,19 +46,56 @@ class AgentLearning(Base):
 
 
 class AgentActionLog(Base):
-    """Structured observability record for every tool call the agent attempts."""
+    """Structured observability record for every tool call the agent attempts.
+
+    Also doubles as the idempotency ledger for write_confirm tools: `args_hash`
+    lets execute_confirmed_tool recognize "this exact confirmed action already
+    ran for this conversation" and return the prior result instead of
+    re-executing on a duplicate submit/retry.
+    """
 
     __tablename__ = "agent_action_logs"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)
     conversation_id = Column(Integer, ForeignKey("agent_conversations.id"), nullable=True)
+    execution_id = Column(String, index=True, nullable=True)
     tool_name = Column(String, nullable=True)  # null for a plain conversational turn with no tool call
     tool_args = Column(JSON, nullable=True)
+    args_hash = Column(String, nullable=True, index=True)
     risk_level = Column(String, nullable=True)  # 'read' | 'write_low' | 'write_confirm'
     status = Column(String, nullable=False)  # 'executed' | 'pending_confirmation' | 'denied' | 'error' | 'escalated'
     error_message = Column(Text, nullable=True)
     latency_ms = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgentExecution(Base):
+    """The authoritative, backend-owned state machine for one user turn.
+
+    One row per call to AgentOrchestrator.process_message. The frontend
+    renders THIS record's `state` (via the streaming endpoint) — it must
+    never infer execution state from generated prose.
+    """
+
+    __tablename__ = "agent_executions"
+    id = Column(Integer, primary_key=True, index=True)
+    execution_id = Column(String, unique=True, index=True, nullable=False)
+    conversation_id = Column(Integer, ForeignKey("agent_conversations.id"), nullable=True)
+    user_id = Column(String, index=True, nullable=False)
+    state = Column(String, nullable=False, default="IDLE")
+    current_step = Column(Integer, default=0)
+    tool_name = Column(String, nullable=True)
+    error = Column(Text, nullable=True)
+    llm_call_count = Column(Integer, default=0)
+    tool_call_count = Column(Integer, default=0)
+    retry_count = Column(Integer, default=0)
+    context_retrieval_ms = Column(Integer, nullable=True)
+    llm_latency_ms = Column(Integer, nullable=True)
+    tool_latency_ms = Column(Integer, nullable=True)
+    total_latency_ms = Column(Integer, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
 
 class InterventionOutcome(Base):

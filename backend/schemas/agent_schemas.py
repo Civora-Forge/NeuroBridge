@@ -19,6 +19,12 @@ class AgentMessageResponse(AgentMessageBase):
         orm_mode = True
         from_attributes = True
 
+class AgentChatResponse(AgentMessageResponse):
+    """Response for POST /chat — adds the backend-owned execution state the
+    frontend renders. Never inferred from message text."""
+    execution_id: Optional[str] = None
+    state: Optional[str] = None
+
 class AgentConversationBase(BaseModel):
     title: Optional[str] = "New Conversation"
 
@@ -61,3 +67,4 @@ class ToolExecuteResponse(BaseModel):
     tool_name: str
     result: Optional[Dict[str, Any]] = None
     message: str
+    idempotent_replay: bool = False
