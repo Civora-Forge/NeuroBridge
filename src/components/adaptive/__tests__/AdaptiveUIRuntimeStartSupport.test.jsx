@@ -13,6 +13,29 @@ function Harness({ runtimeValue, children = <div>content</div> }) {
   );
 }
 
+// Telemetry snapshot that produces meaningful context evidence (tier >= 2) in
+// the shared context adapter, satisfying the evidence gate.
+const stressedSnapshot = {
+  snapshotId: "test-snap-start-support",
+  timestamp: "2026-08-01T00:00:00.000Z",
+  behavior: {
+    taskSwitchFrequency: 0.8,
+    correctionRate: 0.5,
+    typingPauseDuration: 3000,
+    idleDuration: 10,
+  },
+  deviceInteraction: {
+    focusSessionInterruptions: 2,
+    repeatedNavigation: 3,
+    timeSinceLastInteraction: 4,
+  },
+  activity: {
+    taskSwitching: "high",
+    currentTask: "reading_assignment",
+    sessionDurationMs: 20 * 60 * 1000,
+  },
+};
+
 describe("AdaptiveUIRuntime Start Support (real InterventionModal)", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -41,10 +64,13 @@ describe("AdaptiveUIRuntime Start Support (real InterventionModal)", () => {
           trace: null,
           enabled: true,
           active: true,
+          contextSnapshot: stressedSnapshot,
         }}
       />,
     );
 
+    // The engine's plan already carries the guided breathing recommendation,
+    // so the card is present immediately with no UI-side timing.
     fireEvent.click(screen.getByRole("button", { name: /start support/i }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
