@@ -119,6 +119,14 @@ describe("AgentChat — agent execution after transcription", () => {
     expect(() => renderChat()).not.toThrow();
   });
 
+  it("explains WHY the mic is unavailable in unsupported browsers (e.g. Firefox/Zen), instead of silently hiding it", () => {
+    voiceState = { ...voiceState, voiceSupported: false };
+    const { getByLabelText, queryByLabelText } = renderChat();
+    expect(queryByLabelText("Speak your message")).toBeNull();
+    const disabledMic = getByLabelText(/voice input isn't supported in this browser/i);
+    expect(disabledMic).toBeDisabled();
+  });
+
   it("does not call the agent if the transcript is whitespace-only", () => {
     const { rerender } = renderChat();
     voiceState = { ...voiceState, isListening: true };

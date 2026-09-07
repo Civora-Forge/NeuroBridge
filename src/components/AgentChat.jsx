@@ -498,7 +498,7 @@ export default function AgentChat() {
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
-                {voice.voiceSupported && (
+                {voice.voiceSupported ? (
                   <button
                     type="button"
                     onClick={handleMicClick}
@@ -507,6 +507,19 @@ export default function AgentChat() {
                     aria-label="Speak your message"
                   >
                     <Mic className="w-4 h-4" />
+                  </button>
+                ) : (
+                  // Voice input relies on the browser's built-in speech recognition
+                  // (Chrome/Edge/Safari only — Firefox and Firefox-based browsers like
+                  // Zen have no support at all). Show why instead of silently hiding it.
+                  <button
+                    type="button"
+                    disabled
+                    title="Voice input isn't supported in this browser. Try Chrome, Edge, or Safari."
+                    aria-label="Voice input isn't supported in this browser. Try Chrome, Edge, or Safari."
+                    className="p-3 rounded-full bg-muted text-muted-foreground/40 flex-shrink-0 cursor-not-allowed"
+                  >
+                    <MicOff className="w-4 h-4" />
                   </button>
                 )}
               </form>
