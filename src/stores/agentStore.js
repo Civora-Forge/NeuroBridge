@@ -346,7 +346,7 @@ const useAgentStore = create((set, get) => ({
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = await res.json();
 
-      addMessage({ role: 'model', content: data.message, action_payload: null });
+      addMessage({ id: newStreamingMessageId(), role: 'model', content: data.message, action_payload: data.action || null });
       set({ pendingConfirmation: null });
     } catch (err) {
       console.error(err);

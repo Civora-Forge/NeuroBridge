@@ -226,7 +226,7 @@ def execute_tool(
 
     return agent_schemas.ToolExecuteResponse(
         status=outcome["status"], tool_name=request.tool_name, result=outcome.get("result"), message=message,
-        idempotent_replay=is_replay,
+        idempotent_replay=is_replay, action=outcome.get("action"),
     )
 
 
