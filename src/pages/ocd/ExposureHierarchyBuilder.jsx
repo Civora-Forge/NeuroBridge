@@ -6,7 +6,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, Plus, Trash2, Play, Award, GripVertical, ChevronDown, ChevronRight, Activity, Clock, X } from 'lucide-react';
-import { getHierarchies, createHierarchy } from '@/api/ocdApi';
+import { getHierarchies, createHierarchy, addHierarchyTask, updateHierarchyTask, removeHierarchyTask } from '@/api/ocdApi';
 import { getSessions, OCD_SUBTYPES } from '@/support/specialized/ocdStore';
 
 const getDifficultyMeta = (suds) => {
@@ -44,7 +44,7 @@ function SortableItem({ item, hId, onRemove }) {
         <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${meta.badge}`}>
             <Activity className="w-3 h-3" />
-            {meta.label} · SUDS {item.estimated_suds}
+            {meta.label} · difficulty ~{item.estimated_suds}
           </span>
           {item.is_completed && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-700">
@@ -126,7 +126,7 @@ function AddStepForm({ onSave, onCancel }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-slate-700">Distress Level (SUDS)</label>
+              <label className="text-sm font-semibold text-slate-700">Difficulty estimate</label>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${meta.badge}`}>
                 {meta.label} · {suds}
               </span>
@@ -191,7 +191,7 @@ function AddStepForm({ onSave, onCancel }) {
 
 function HierarchyCard({ h, isExpanded, onToggle, sensors, onDragEnd, onRemoveItem, onAddItem }) {
   const [showAddStep, setShowAddStep] = useState(false);
-  const items = h.items ?? [];
+  const items = [...(h.tasks ?? [])].sort((a, b) => a.order_index - b.order_index);
   const mastered = items.filter((i) => i.is_completed).length;
   const progress = items.length > 0 ? (mastered / items.length) * 100 : 0;
 
@@ -351,13 +351,51 @@ export default function ExposureHierarchyBuilder() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: ({ taskId, order_index }) => updateHierarchyTask(taskId, { order_index }),
+  });
+
+  const addTaskMutation = useMutation({
+    mutationFn: ({ hierarchyId, data }) => addHierarchyTask(hierarchyId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
+  });
+
+  const removeTaskMutation = useMutation({
+    mutationFn: (taskId) => removeHierarchyTask(taskId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const handleDragEnd = (event, hId) => {
-    // Basic implementation for drag-and-drop state update. Should ideally persist to backend.
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const hierarchy = hierarchies.find((h) => h.id === hId);
+    if (!hierarchy) return;
+    const items = [...(hierarchy.tasks ?? [])].sort((a, b) => a.order_index - b.order_index);
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(items, oldIndex, newIndex);
+
+    // Optimistic UI update so the reorder feels instant, then persist each
+    // changed order_index to the backend.
+    queryClient.setQueryData(['hierarchies'], (prev) =>
+      (prev ?? []).map((h) =>
+        h.id === hId ? { ...h, tasks: reordered.map((item, idx) => ({ ...item, order_index: idx })) } : h
+      )
+    );
+
+    reordered.forEach((item, idx) => {
+      if (item.order_index !== idx) {
+        reorderMutation.mutate({ taskId: item.id, order_index: idx });
+      }
+    });
   };
 
   const toggleExpand = (id) => {
@@ -375,11 +413,11 @@ export default function ExposureHierarchyBuilder() {
   };
 
   const handleRemoveItem = (hId, itemId) => {
-    // Placeholder — connect to deleteHierarchyItem mutation when available
+    removeTaskMutation.mutate(itemId);
   };
 
   const handleAddItem = (hId, stepData) => {
-    // Placeholder — connect to addHierarchyItem mutation when available
+    addTaskMutation.mutate({ hierarchyId: hId, data: stepData });
   };
 
   return (
@@ -396,21 +434,21 @@ export default function ExposureHierarchyBuilder() {
           </Link>
           <div>
             <h1 className="text-2xl md:text-4xl font-black bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent leading-tight tracking-tight">
-              Exposure Hierarchy Builder
+              Your practice list
             </h1>
             <p className="text-sm md:text-base font-medium text-slate-500 mt-1">
-              Build your fear ladder — from manageable steps to bigger challenges
+              Situations to practice, from easier to harder
             </p>
           </div>
         </div>
 
-        {/* Staircase Visual Indicator */}
+        {/* What is this / why — orientation, not decoration */}
         <div className="flex items-end gap-3 mb-10 bg-white/60 backdrop-blur-md rounded-[24px] px-6 py-5 border border-white shadow-sm">
           <div className="flex items-end gap-1.5">
             {[
-              { label: 'Easy', color: 'bg-emerald-400', h: 'h-8' },
+              { label: 'Easier', color: 'bg-emerald-400', h: 'h-8' },
               { label: 'Medium', color: 'bg-amber-400', h: 'h-14' },
-              { label: 'Hard', color: 'bg-rose-400', h: 'h-20' },
+              { label: 'Harder', color: 'bg-rose-400', h: 'h-20' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center gap-1.5 group">
                 <div className={`w-14 md:w-16 ${s.h} ${s.color} rounded-t-xl opacity-90 shadow-sm transition-transform group-hover:-translate-y-1`} />
@@ -420,8 +458,8 @@ export default function ExposureHierarchyBuilder() {
           </div>
           <div className="ml-6 border-l-2 border-slate-200/60 pl-6 py-2">
             <p className="text-sm text-slate-600 leading-relaxed">
-              Each step pushes you slightly further.<br />
-              <span className="font-black text-slate-800">That's the plan. Keep climbing.</span>
+              This helps you plan gradual ERP practice, easiest steps first.<br />
+              <span className="font-black text-slate-800">It's a working guide, not a perfect measurement — you can edit it anytime.</span>
             </p>
           </div>
         </div>

@@ -115,7 +115,7 @@ export default function ERPProgressTracker() {
           </Link>
           <div>
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500">Your Progress</h1>
-            <p className="text-slate-500 mt-1">Track your ERP journey and symptom reduction</p>
+            <p className="text-slate-500 mt-1">A record of your practice — not a score to chase. Check in whenever it's useful, not out of habit.</p>
           </div>
         </div>
 
@@ -257,9 +257,10 @@ export default function ERPProgressTracker() {
             {/* Milestones Gallery */}
             {milestones.length > 0 && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h3 className="text-slate-800 font-semibold mb-6 flex items-center gap-2 text-lg">
+                <h3 className="text-slate-800 font-semibold mb-2 flex items-center gap-2 text-lg">
                   <Target className="w-5 h-5 text-violet-500" /> Milestones Earned
                 </h3>
+                <p className="text-xs text-slate-400 mb-4">These mark practice you've already done — there's no benefit to checking back often.</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                   {milestones.map((m, i) => {
                     const earned = !!m.earnedAt;

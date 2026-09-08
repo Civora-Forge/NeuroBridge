@@ -116,6 +116,24 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
+
+  /* Personalization: "Text-first" preset and the text-size advanced control
+     (src/components/neurobridge/SensorySettings.jsx) set this on <html>. */
+  :root[data-sensory-text-scale="large"] {
+    font-size: 112.5%; /* ~18px base instead of 16px, scales all rem-based type */
+  }
+
+  /* "Low-stimulation"/"Focus" presets and the Animation advanced control set
+     this on <html> when animation is off — stop motion everywhere, not just
+     inside disorder-themed tool pages. */
+  .sensory-no-animation *,
+  .sensory-no-animation *::before,
+  .sensory-no-animation *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer components {
