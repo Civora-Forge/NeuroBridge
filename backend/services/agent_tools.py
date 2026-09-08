@@ -314,6 +314,72 @@ def _create_task_breakdown(args: dict, ctx: ToolContext) -> dict:
     }
 
 
+def _serialize_breakdown(breakdown) -> dict:
+    steps = sorted(breakdown.steps, key=lambda s: s.id)  # insertion order == step order; no separate index column
+    return {
+        "id": breakdown.id,
+        "original_task": breakdown.original_task,
+        "steps": [
+            {"id": s.id, "description": s.description, "estimated_minutes": s.estimated_minutes, "is_completed": s.is_completed}
+            for s in steps
+        ],
+    }
+
+
+def _most_recent_breakdown(db, user_id: str):
+    return (
+        db.query(adhd_models.TaskBreakdown)
+        .filter_by(user_id=user_id)
+        .order_by(adhd_models.TaskBreakdown.created_at.desc())
+        .first()
+    )
+
+
+def _get_task_breakdown(args: dict, ctx: ToolContext) -> dict:
+    """Real per-step detail (description + estimated_minutes) for the user's
+    most recent task breakdown — get_recent_tasks only returns a step COUNT,
+    not enough for the agent to reason about "the first one" without this."""
+    db, user = ctx.db, ctx.user
+    breakdown = _most_recent_breakdown(db, user.id)
+    if not breakdown:
+        raise ToolError("You don't have a task breakdown yet. Want me to create one?")
+    return _serialize_breakdown(breakdown)
+
+
+def _update_task_step(args: dict, ctx: ToolContext) -> dict:
+    """Edits one step (by its position, 0-based, in the user's most recent
+    breakdown) — e.g. "make the first one smaller" after the agent has
+    actually observed the current steps via get_task_breakdown. Low-stakes
+    and easily reversible (unlike creating/completing a record), so it
+    executes immediately rather than requiring confirmation."""
+    db, user = ctx.db, ctx.user
+    step_index = args.get("step_index")
+    if step_index is None:
+        raise ToolError("Which step should be changed? (I need its position, e.g. the first one.)")
+
+    breakdown = _most_recent_breakdown(db, user.id)
+    if not breakdown:
+        raise ToolError("You don't have a task breakdown yet.")
+
+    steps = sorted(breakdown.steps, key=lambda s: s.id)
+    if not (0 <= step_index < len(steps)):
+        raise ToolError(f"That breakdown only has {len(steps)} step(s).")
+
+    step = steps[step_index]
+    new_minutes = args.get("new_estimated_minutes")
+    new_description = args.get("new_description")
+    if new_minutes is None and not new_description:
+        raise ToolError("Tell me what to change about that step — a new size or a new description.")
+    if new_minutes is not None:
+        step.estimated_minutes = max(1, int(new_minutes))
+    if new_description:
+        step.description = new_description.strip()
+    db.commit()
+    db.refresh(breakdown)
+
+    return _serialize_breakdown(breakdown)
+
+
 def _start_focus_session(args: dict, ctx: ToolContext) -> dict:
     db, user = ctx.db, ctx.user
     duration_minutes = int(args.get("duration_minutes") or 25)
@@ -526,6 +592,31 @@ TOOL_REGISTRY: dict[str, Tool] = {
         parameters=_schema({"task": {"type": "string", "description": "The task to break down."}}, required=["task"]),
         risk_level=RiskLevel.WRITE_CONFIRM,
         handler=_create_task_breakdown,
+    ),
+    "get_task_breakdown": Tool(
+        name="get_task_breakdown",
+        description="Retrieve the full steps (description and estimated minutes each) of the user's most recent task breakdown. Call this before changing a step so you know its real current value.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.READ,
+        handler=_get_task_breakdown,
+    ),
+    "update_task_step": Tool(
+        name="update_task_step",
+        description=(
+            "Change one step of the user's most recent task breakdown, e.g. making it smaller/bigger or "
+            "rewording it. `step_index` is 0-based (0 = the first step). Call get_task_breakdown first "
+            "so you know the step's real current size/description before deciding a new one."
+        ),
+        parameters=_schema(
+            {
+                "step_index": {"type": "integer", "description": "0-based position of the step to change (0 = first)."},
+                "new_estimated_minutes": {"type": "integer", "description": "New size in minutes, if changing the size."},
+                "new_description": {"type": "string", "description": "New wording for the step, if changing it."},
+            },
+            required=["step_index"],
+        ),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_update_task_step,
     ),
     "start_focus_session": Tool(
         name="start_focus_session",
