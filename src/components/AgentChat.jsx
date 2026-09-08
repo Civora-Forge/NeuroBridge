@@ -3,13 +3,14 @@ import {
   X, Send, Bot, User, Loader2, ArrowRight, MessageSquareText, CheckCircle2, Clock, Activity,
   Mic, MicOff, Volume2, VolumeX, AlertCircle, RotateCcw,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAgentStore from "@/stores/agentStore";
 import useAgentVoice from "@/hooks/useAgentVoice";
 import { useAuth } from "@/context/AuthContext";
 import AgentCursor from "@/components/AgentCursor";
 import { findNavTarget } from "@/lib/findNavTarget";
 import { isAffirmativeConfirmation, isNegativeConfirmation } from "@/lib/confirmationPhrases";
+import useFocusSessionControlStore from "@/stores/focusSessionControlStore";
 
 function TaskBreakdownCard({ data, onNavigate }) {
   if (!data || !data.steps) return null;
@@ -162,6 +163,7 @@ function PendingConfirmationCard({ toolName, toolArgs, onConfirm, onCancel, isLo
 
 export default function AgentChat() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const {
     isOpen, closeChat, toggleChat, messages, isLoading, sendMessage, error, clearError,
@@ -221,21 +223,39 @@ export default function AgentChat() {
   // for an explicit confirm), a cursor glides to the actual on-screen control
   // and clicks it, then the app navigates. Falls back to navigating directly,
   // with no animation, if that real control isn't visible on the current page.
+  //
+  // FOCUS_SESSION_CONTROL actions are different in kind: there is nothing to
+  // "navigate to" if the user is already on the Focus Session page — the
+  // command (pause/resume/stop/set_duration) is dispatched directly to the
+  // one real, already-mounted timer via focusSessionControlStore, which
+  // calls that page's own real handlers (same as a manual click). Only when
+  // NOT already there does it navigate first, carrying the command along.
   useEffect(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
+    const action = last.action_payload;
+    const isNavigate = action?.type?.startsWith("NAVIGATE");
+    const isFocusControl = action?.type === "FOCUS_SESSION_CONTROL";
     if (
-      last.role !== "model" || last.streaming || !last.action_payload ||
-      !last.action_payload.type?.startsWith("NAVIGATE") || !last.id ||
-      announcedActionIdsRef.current.has(last.id)
+      last.role !== "model" || last.streaming || !action || (!isNavigate && !isFocusControl) ||
+      !last.id || announcedActionIdsRef.current.has(last.id)
     ) {
       return;
     }
     announcedActionIdsRef.current.add(last.id);
-    const action = last.action_payload;
+
+    if (isFocusControl && location.pathname === action.path) {
+      useFocusSessionControlStore.getState().dispatch({ command: action.command, session: action.session });
+      return;
+    }
+
     const targetEl = findNavTarget(action.path);
     if (!targetEl || !avatarRef.current) {
-      handleAction(action);
+      if (isFocusControl) {
+        navigate(action.path, { state: { focusSessionCommand: { command: action.command, session: action.session } } });
+      } else {
+        handleAction(action);
+      }
       return;
     }
     const fromRect = avatarRef.current.getBoundingClientRect();
@@ -246,7 +266,7 @@ export default function AgentChat() {
       action,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages]);
+  }, [messages, location.pathname]);
 
   const submit = (text) => {
     if (!text.trim() || isLoading || !canUseAgent) return;
@@ -345,7 +365,13 @@ export default function AgentChat() {
           from={cursorAnim.from}
           to={cursorAnim.to}
           onArrive={() => {
-            handleAction(cursorAnim.action);
+            if (cursorAnim.action.type === "FOCUS_SESSION_CONTROL") {
+              navigate(cursorAnim.action.path, {
+                state: { focusSessionCommand: { command: cursorAnim.action.command, session: cursorAnim.action.session } },
+              });
+            } else {
+              handleAction(cursorAnim.action);
+            }
             setCursorAnim(null);
           }}
         />

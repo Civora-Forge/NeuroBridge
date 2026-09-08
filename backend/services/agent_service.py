@@ -68,11 +68,23 @@ _TOOL_ACTION_MAP: dict[str, dict] = {
     "navigate_to_feature": {"kind": "navigate_from_result"},
     "start_social_scenario": {"kind": "navigate_from_result"},
     "create_task_breakdown": {"path": "/adhd/breakdown", "card_type": "TASK_BREAKDOWN"},
-    "start_focus_session": {"path": "/adhd/focus", "card_type": "FOCUS_SESSION"},
+    "update_task_step": {"path": "/adhd/breakdown", "card_type": "TASK_BREAKDOWN"},
     "start_grounding_activity": {"path": "/anxiety", "card_type": "GROUNDING_SESSION"},
     "create_exposure": {"path": "/ocd/exposure-hierarchy", "card_type": "EXPOSURE_CREATED"},
     "start_erp_session": {"path": "/ocd/exposure-session", "card_type": "ERP_SESSION_STARTED"},
     "complete_erp_session": {"path": "/ocd/progress", "card_type": "ERP_SESSION_COMPLETE"},
+}
+
+# These tools don't just navigate somewhere — they operate the ONE real,
+# already-mounted Focus Session timer through its own real button handlers
+# (see focusSessionControlStore.js), so existing analytics/lifecycle tracking
+# fires exactly as if the user had clicked. Never a second, competing timer.
+_FOCUS_CONTROL_COMMANDS = {
+    "start_focus_session": "start",
+    "pause_focus_session": "pause",
+    "resume_focus_session": "resume",
+    "stop_focus_session": "stop",
+    "update_focus_session": "set_duration",
 }
 
 _OUTCOME_MODULE_BY_TOOL_PREFIX = {
@@ -83,7 +95,12 @@ _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "complete_erp": "ocd",
     "get_recent_tasks": "adhd",
     "create_task_breakdown": "adhd",
+    "update_task_step": "adhd",
     "start_focus_session": "adhd",
+    "pause_focus_session": "adhd",
+    "resume_focus_session": "adhd",
+    "stop_focus_session": "adhd",
+    "update_focus_session": "adhd",
     "get_anxiety": "anxiety",
     "start_grounding": "anxiety",
     "get_reading": "dyslexia",
@@ -296,6 +313,9 @@ Relevant user context (already retrieved for you — do not re-ask for this):
             db.close()
 
     def _build_action(self, tool_name: str, result: dict) -> Optional[dict]:
+        command = _FOCUS_CONTROL_COMMANDS.get(tool_name)
+        if command:
+            return {"type": "FOCUS_SESSION_CONTROL", "command": command, "path": "/adhd/focus", "session": result}
         mapping = _TOOL_ACTION_MAP.get(tool_name)
         if not mapping:
             return None

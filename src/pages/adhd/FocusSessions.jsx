@@ -13,6 +13,7 @@ import { getSupportEvidenceAsync } from '@/support/evidence';
 import { recommendFocusConfiguration } from '@backend/adaptive/reasoning/focusConfiguration';
 import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
 import { useContextStateOptional } from '@/context/ContextProvider';
+import useFocusSessionControlStore from '@/stores/focusSessionControlStore';
 
 const PRESETS = [
   { label: '15 min Sprint', minutes: 15, eyebrow: 'Quick', detail: 'Sprint' },
@@ -316,11 +317,16 @@ const BreakMode = ({ secondsLeft, tip, onEnd }) => {
 const FocusSessions = () => {
   const location = useLocation();
   const aiData = location.state || null;
+  // The agent's FOCUS_SESSION_CONTROL actions carry their data nested under
+  // focusSessionCommand.session (see focusSessionControlStore.js) rather than
+  // flat on aiData — support both shapes so this page works whether it was
+  // reached via that path or the older flat navigation-with-data shape.
+  const focusCommand = aiData?.focusSessionCommand;
   const navigationConfiguration = aiData?.configuration;
   const initialConfiguration = validateFocusSessionConfiguration(
     navigationConfiguration,
   );
-  const initialFocusMinutes = navigationConfiguration?.plannedDurationMinutes ?? aiData?.duration_minutes ?? 25;
+  const initialFocusMinutes = navigationConfiguration?.plannedDurationMinutes ?? focusCommand?.session?.duration_minutes ?? aiData?.duration_minutes ?? 25;
   const initialBreakMinutes = navigationConfiguration?.breakDurationMinutes ?? 5;
   const { user } = useAuth();
   const context = useContextStateOptional()?.context ?? null;
@@ -335,7 +341,7 @@ const FocusSessions = () => {
   const [mode, setMode] = useState('focus');
   const [focusMinutes, setFocusMinutes] = useState(initialFocusMinutes);
   const [secondsLeft, setSecondsLeft] = useState(initialFocusMinutes * 60);
-  const [intent, setIntent] = useState(aiData?.intent || '');
+  const [intent, setIntent] = useState(focusCommand?.session?.intent || aiData?.intent || '');
   const [tag, setTag] = useState('');
   const [completedCount, setCompletedCount] = useState(0);
   const [totalFocusedMinutes, setTotalFocusedMinutes] = useState(0);
@@ -511,6 +517,61 @@ const FocusSessions = () => {
     setBreakSecondsLeft(initialBreakMinutes * 60);
     lifecycle.reset();
   };
+
+  // Bridge for the agent: these are the SAME real handlers a manual click
+  // uses (startSession/togglePause/resetToSetup) — never a second, separate
+  // "fake" timer — so the existing lifecycle/analytics tracking above fires
+  // identically whether a click or a voice command triggered it. Commands
+  // that don't make sense for the current phase (e.g. "pause" when nothing
+  // is running) are simply ignored here — the backend tool that produced the
+  // command already validated the transition against its own record before
+  // ever reaching this page.
+  const applyAgentCommand = useCallback((cmd) => {
+    if (!cmd) return;
+    switch (cmd.command) {
+      case 'start':
+        if (phase === 'setup') startSession();
+        break;
+      case 'pause':
+        if (phase === 'running') togglePause();
+        break;
+      case 'resume':
+        if (phase === 'paused') togglePause();
+        break;
+      case 'stop':
+        if (phase === 'running' || phase === 'paused') resetToSetup();
+        break;
+      case 'set_duration':
+        if (cmd.session?.duration_minutes) {
+          setFocusMinutes(cmd.session.duration_minutes);
+          setSecondsLeft(cmd.session.duration_minutes * 60);
+        }
+        break;
+      default:
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // A command that arrived via navigation (agent wasn't already on this page).
+  const appliedNavCommandRef = useRef(false);
+  useEffect(() => {
+    if (focusCommand && !appliedNavCommandRef.current) {
+      appliedNavCommandRef.current = true;
+      applyAgentCommand(focusCommand);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A command that arrived while already mounted here (e.g. "pause" said
+  // right after "start it", without leaving this page in between).
+  const pendingAgentCommand = useFocusSessionControlStore((s) => s.pendingCommand);
+  useEffect(() => {
+    if (!pendingAgentCommand) return;
+    applyAgentCommand(pendingAgentCommand);
+    useFocusSessionControlStore.getState().consume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAgentCommand]);
 
   const startBreak = () => {
     setBreakSecondsLeft(effectiveBreakMinutes * 60);
