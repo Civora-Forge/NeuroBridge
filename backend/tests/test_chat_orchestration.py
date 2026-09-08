@@ -108,8 +108,12 @@ def test_multistep_fully_automatic_read_then_write_low_chain(user_a, install_fak
 
     assert len(sessions) == 1
     assert sessions[0].duration_minutes == 15
-    assert result["action"]["type"] == "NAVIGATE_WITH_DATA"
-    assert result["action"]["card_type"] == "FOCUS_SESSION"
+    assert sessions[0].status == "RUNNING"
+    # FOCUS_SESSION_CONTROL, not a static "here's a card, click Start" —
+    # the agent operates the real, already-mounted Focus Session UI directly.
+    assert result["action"]["type"] == "FOCUS_SESSION_CONTROL"
+    assert result["action"]["command"] == "start"
+    assert result["action"]["session"]["status"] == "RUNNING"
 
 
 def test_agent_never_reports_success_when_the_tool_actually_failed(user_a, install_fake_gemini):

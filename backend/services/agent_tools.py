@@ -380,12 +380,45 @@ def _update_task_step(args: dict, ctx: ToolContext) -> dict:
     return _serialize_breakdown(breakdown)
 
 
+_FOCUS_ACTIVE_STATUSES = ("RUNNING", "PAUSED")
+
+
+def _serialize_focus_session(session) -> dict:
+    """remaining_seconds is derived from timestamps, not a stored countdown —
+    immune to drift from tab backgrounding, reconnects, or reload."""
+    now = datetime.utcnow()
+    elapsed_current_run = (now - session.started_at).total_seconds() if session.status == "RUNNING" and session.started_at else 0
+    active_seconds = (session.accumulated_seconds or 0) + elapsed_current_run
+    remaining_seconds = max(0, int((session.duration_minutes or 0) * 60 - active_seconds))
+    return {
+        "id": session.id,
+        "intent": session.intent,
+        "duration_minutes": session.duration_minutes,
+        "status": session.status,
+        "remaining_seconds": remaining_seconds,
+    }
+
+
+def _most_recent_active_focus_session(db, user_id: str):
+    return (
+        db.query(adhd_models.FocusSession)
+        .filter_by(user_id=user_id)
+        .filter(adhd_models.FocusSession.status.in_(_FOCUS_ACTIVE_STATUSES))
+        .order_by(adhd_models.FocusSession.created_at.desc())
+        .first()
+    )
+
+
 def _start_focus_session(args: dict, ctx: ToolContext) -> dict:
     db, user = ctx.db, ctx.user
     duration_minutes = int(args.get("duration_minutes") or 25)
     intent = args.get("intent")
+    now = datetime.utcnow()
 
-    session = adhd_models.FocusSession(user_id=user.id, intent=intent, duration_minutes=duration_minutes)
+    session = adhd_models.FocusSession(
+        user_id=user.id, intent=intent, duration_minutes=duration_minutes,
+        status="RUNNING", started_at=now, accumulated_seconds=0,
+    )
     db.add(session)
     db.commit()
 
@@ -397,7 +430,71 @@ def _start_focus_session(args: dict, ctx: ToolContext) -> dict:
         )
         db.commit()
 
-    return {"id": session.id, "intent": session.intent, "duration_minutes": session.duration_minutes, "status": session.status}
+    return _serialize_focus_session(session)
+
+
+def _get_active_focus_session(args: dict, ctx: ToolContext) -> dict:
+    session = _most_recent_active_focus_session(ctx.db, ctx.user.id)
+    if not session:
+        raise ToolError("There's no active focus session right now.")
+    return _serialize_focus_session(session)
+
+
+def _pause_focus_session(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    session = _most_recent_active_focus_session(db, user.id)
+    if not session:
+        raise ToolError("There's no active focus session to pause.")
+    if session.status != "RUNNING":
+        raise ToolError(f"That session is already {session.status.lower()}, not running.")
+    now = datetime.utcnow()
+    elapsed = (now - session.started_at).total_seconds() if session.started_at else 0
+    session.accumulated_seconds = int((session.accumulated_seconds or 0) + elapsed)
+    session.status = "PAUSED"
+    session.paused_at = now
+    db.commit()
+    return _serialize_focus_session(session)
+
+
+def _resume_focus_session(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    session = _most_recent_active_focus_session(db, user.id)
+    if not session:
+        raise ToolError("There's no paused focus session to resume.")
+    if session.status != "PAUSED":
+        raise ToolError(f"That session is {session.status.lower()}, not paused.")
+    session.status = "RUNNING"
+    session.started_at = datetime.utcnow()
+    session.paused_at = None
+    db.commit()
+    return _serialize_focus_session(session)
+
+
+def _stop_focus_session(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    session = _most_recent_active_focus_session(db, user.id)
+    if not session:
+        raise ToolError("There's no active focus session to stop.")
+    now = datetime.utcnow()
+    if session.status == "RUNNING" and session.started_at:
+        session.accumulated_seconds = int((session.accumulated_seconds or 0) + (now - session.started_at).total_seconds())
+    session.status = "STOPPED"
+    session.ended_at = now
+    db.commit()
+    return _serialize_focus_session(session)
+
+
+def _update_focus_session(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    session = _most_recent_active_focus_session(db, user.id)
+    if not session:
+        raise ToolError("There's no active focus session to change.")
+    new_minutes = args.get("duration_minutes")
+    if new_minutes is None:
+        raise ToolError("What should the new duration be?")
+    session.duration_minutes = max(1, int(new_minutes))
+    db.commit()
+    return _serialize_focus_session(session)
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +726,41 @@ TOOL_REGISTRY: dict[str, Tool] = {
         ),
         risk_level=RiskLevel.WRITE_LOW,
         handler=_start_focus_session,
+    ),
+    "get_active_focus_session": Tool(
+        name="get_active_focus_session",
+        description="Check whether the user currently has a running or paused focus session, and its real remaining time.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.READ,
+        handler=_get_active_focus_session,
+    ),
+    "pause_focus_session": Tool(
+        name="pause_focus_session",
+        description="Pause the user's currently running focus session.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_pause_focus_session,
+    ),
+    "resume_focus_session": Tool(
+        name="resume_focus_session",
+        description="Resume the user's currently paused focus session.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_resume_focus_session,
+    ),
+    "stop_focus_session": Tool(
+        name="stop_focus_session",
+        description="Stop/end the user's currently active (running or paused) focus session.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_stop_focus_session,
+    ),
+    "update_focus_session": Tool(
+        name="update_focus_session",
+        description="Change the target duration (in minutes) of the user's currently active focus session.",
+        parameters=_schema({"duration_minutes": {"type": "integer"}}, required=["duration_minutes"]),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_update_focus_session,
     ),
     "get_anxiety_history": Tool(
         name="get_anxiety_history",

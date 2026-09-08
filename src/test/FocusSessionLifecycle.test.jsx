@@ -6,6 +6,7 @@ import { getInterventionHistory } from '@/support/lifecycle/interventionLifecycl
 import { AdaptiveRuntimeContext } from '@/components/adaptive/adaptiveRuntimeContext';
 import { getFocusSessionHistory } from '@/support/lifecycle/focusSessionLifecycle';
 import { abandonSupportModule, completeSupportModule, executeSupportModule } from '@/support/execution';
+import useFocusSessionControlStore from '@/stores/focusSessionControlStore';
 
 const auth = vi.hoisted(() => ({ user: { id: 'focus-ui-user' } }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: auth.user }) }));
@@ -21,7 +22,12 @@ function renderFocus({ state, runtime } = {}) {
 }
 
 describe('FocusSessions lifecycle UI', () => {
-  beforeEach(() => { localStorage.clear(); auth.user = { id: 'focus-ui-user' }; vi.useFakeTimers(); });
+  beforeEach(() => {
+    localStorage.clear();
+    auth.user = { id: 'focus-ui-user' };
+    vi.useFakeTimers();
+    useFocusSessionControlStore.setState({ pendingCommand: null });
+  });
   afterEach(() => { cleanup(); vi.useRealTimers(); });
 
   async function recordTerminalSession(minutes, status) {
@@ -143,5 +149,103 @@ describe('FocusSessions lifecycle UI', () => {
     renderFocus({ state: { duration_minutes: 45, intent: 'Read chapter 3' } });
     expect(screen.getByText('45:00')).toBeTruthy();
     expect(screen.getByDisplayValue('Read chapter 3')).toBeTruthy();
+  });
+});
+
+describe('FocusSessions — agent-driven control bridge (the "hands-free" proof)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    auth.user = { id: 'focus-ui-user' };
+    vi.useFakeTimers();
+    useFocusSessionControlStore.setState({ pendingCommand: null });
+  });
+  afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+  it('an agent "start" command starts the REAL session — same visible/lifecycle effect as clicking Start', async () => {
+    renderFocus();
+    expect(getInterventionHistory(auth.user.id)).toEqual([]);
+
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'start', session: { duration_minutes: 25 } });
+    });
+
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(getInterventionHistory(auth.user.id)).toHaveLength(1);
+    expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe('started');
+  });
+
+  it('agent "pause" then "resume" commands toggle the REAL running timer, not a disconnected shadow state', async () => {
+    renderFocus();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Start' })));
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'pause' });
+    });
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+    expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe('paused');
+
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'resume' });
+    });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe('in_progress');
+  });
+
+  it('an agent "stop" command ends the REAL session — same visible/lifecycle effect as clicking End', async () => {
+    renderFocus();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Start' })));
+
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'stop' });
+    });
+
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    const abandoned = getInterventionHistory(auth.user.id).find((e) => e.intervention.status === 'abandoned');
+    expect(abandoned).toBeTruthy();
+  });
+
+  it('an agent "set_duration" command changes the real displayed countdown', async () => {
+    renderFocus();
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'set_duration', session: { duration_minutes: 15 } });
+    });
+    expect(screen.getByText('15:00')).toBeTruthy();
+  });
+
+  it('ignores a "pause" command when nothing is running — never crashes, never fakes a transition', async () => {
+    renderFocus();
+    await act(async () => {
+      useFocusSessionControlStore.getState().dispatch({ command: 'pause' });
+    });
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    expect(getInterventionHistory(auth.user.id)).toEqual([]);
+  });
+
+  it('a command carried via navigation (agent was not already on this page) auto-applies on mount', async () => {
+    renderFocus({ state: { focusSessionCommand: { command: 'start', session: { duration_minutes: 15, intent: 'essay' } } } });
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(getInterventionHistory(auth.user.id)).toHaveLength(1);
+  });
+
+  it('the full hands-free sequence — start, pause, resume, set duration, stop — end to end', async () => {
+    renderFocus();
+
+    await act(async () => { useFocusSessionControlStore.getState().dispatch({ command: 'start', session: { duration_minutes: 25 } }); });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+
+    await act(async () => { useFocusSessionControlStore.getState().dispatch({ command: 'pause' }); });
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+
+    await act(async () => { useFocusSessionControlStore.getState().dispatch({ command: 'resume' }); });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+
+    await act(async () => { useFocusSessionControlStore.getState().dispatch({ command: 'stop' }); });
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+
+    const history = getInterventionHistory(auth.user.id);
+    expect(history).toHaveLength(1);
+    expect(history[0].intervention.status).toBe('abandoned'); // ended via stop, not natural completion
   });
 });

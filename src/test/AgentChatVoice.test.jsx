@@ -3,6 +3,7 @@ import { render, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AgentChat from "@/components/AgentChat";
 import { findNavTarget } from "@/lib/findNavTarget";
+import focusSessionControlStore from "@/stores/focusSessionControlStore";
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
 vi.mock("react-router-dom", async () => {
@@ -81,9 +82,9 @@ beforeEach(() => {
   authState = { user: { id: "user-1", _supabase: true }, isAuthenticated: true };
 });
 
-function renderChat() {
+function renderChat({ initialPath = "/" } = {}) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <AgentChat />
     </MemoryRouter>
   );
@@ -412,5 +413,55 @@ describe("AgentChat — cursor-then-navigate for real agent actions (not just a 
 
     expect(findNavTarget).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("AgentChat — FOCUS_SESSION_CONTROL routing (operate the real timer, not a chatbot card)", () => {
+  beforeEach(() => {
+    focusSessionControlStore.setState({ pendingCommand: null });
+  });
+
+  it("dispatches directly to the real, already-mounted Focus Session page instead of navigating, when already there", () => {
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Pausing.", streaming: false,
+        action_payload: { type: "FOCUS_SESSION_CONTROL", command: "pause", path: "/adhd/focus", session: { status: "PAUSED" } },
+      },
+    ];
+    renderChat({ initialPath: "/adhd/focus" });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(findNavTarget).not.toHaveBeenCalled();
+    expect(focusSessionControlStore.getState().pendingCommand).toMatchObject({ command: "pause" });
+  });
+
+  it("navigates there first, carrying the command along, when not already on the Focus Session page", () => {
+    findNavTarget.mockReturnValue(null);
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Starting your focus session.", streaming: false,
+        action_payload: { type: "FOCUS_SESSION_CONTROL", command: "start", path: "/adhd/focus", session: { duration_minutes: 25 } },
+      },
+    ];
+    renderChat({ initialPath: "/" });
+
+    expect(mockNavigate).toHaveBeenCalledWith("/adhd/focus", {
+      state: { focusSessionCommand: { command: "start", session: { duration_minutes: 25 } } },
+    });
+    // The command travels via navigation state, not the live store, since nothing is mounted yet to consume it.
+    expect(focusSessionControlStore.getState().pendingCommand).toBeNull();
+  });
+
+  it("never auto-navigates or dispatches for a PENDING_CONFIRMATION action, even for a focus-session-shaped write", () => {
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Should I proceed?", streaming: false,
+        action_payload: { type: "PENDING_CONFIRMATION", tool_name: "create_exposure", tool_args: {} },
+      },
+    ];
+    renderChat({ initialPath: "/adhd/focus" });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(focusSessionControlStore.getState().pendingCommand).toBeNull();
   });
 });
