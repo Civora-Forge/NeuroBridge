@@ -39,6 +39,15 @@ def test_confirmed_create_exposure_persists_and_logs(login_as, user_a):
     body = response.json()
     assert body["status"] == "executed"
 
+    # The response must carry the resulting navigation action itself — without this,
+    # the frontend has no way to know where to take the user after a confirmed write
+    # (e.g. for an auto-navigating "the agent takes you there" UI), and would only
+    # ever get action_payload=None regardless of what was actually just created.
+    assert body["action"] is not None
+    assert body["action"]["type"] == "NAVIGATE_WITH_DATA"
+    assert body["action"]["card_type"] == "EXPOSURE_CREATED"
+    assert body["action"]["path"] == "/ocd/exposure-hierarchy"
+
     db = SessionLocal()
     try:
         hierarchies = db.query(ocd_models.ExposureHierarchy).filter_by(owner_id=user_a.id).all()

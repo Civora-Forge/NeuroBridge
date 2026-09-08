@@ -68,3 +68,4 @@ class ToolExecuteResponse(BaseModel):
     result: Optional[Dict[str, Any]] = None
     message: str
     idempotent_replay: bool = False
+    action: Optional[Dict[str, Any]] = None
