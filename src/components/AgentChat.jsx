@@ -7,6 +7,9 @@ import { useNavigate } from "react-router-dom";
 import useAgentStore from "@/stores/agentStore";
 import useAgentVoice from "@/hooks/useAgentVoice";
 import { useAuth } from "@/context/AuthContext";
+import AgentCursor from "@/components/AgentCursor";
+import { findNavTarget } from "@/lib/findNavTarget";
+import { isAffirmativeConfirmation, isNegativeConfirmation } from "@/lib/confirmationPhrases";
 
 function TaskBreakdownCard({ data, onNavigate }) {
   if (!data || !data.steps) return null;
@@ -168,6 +171,9 @@ export default function AgentChat() {
   const [lastUserMessage, setLastUserMessage] = useState(null);
   const messagesEndRef = useRef(null);
   const wasListeningRef = useRef(false);
+  const avatarRef = useRef(null);
+  const [cursorAnim, setCursorAnim] = useState(null); // { from, to, action } | null
+  const announcedActionIdsRef = useRef(new Set());
 
   const voice = useAgentVoice();
   // Any authenticated "user"-role account can use the agent — a real Supabase
@@ -210,8 +216,59 @@ export default function AgentChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, voice.voiceResponsesEnabled]);
 
+  // The agent "operating the app for you": once a finalized message carries a
+  // real navigation action (never for PENDING_CONFIRMATION — writes still wait
+  // for an explicit confirm), a cursor glides to the actual on-screen control
+  // and clicks it, then the app navigates. Falls back to navigating directly,
+  // with no animation, if that real control isn't visible on the current page.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (
+      last.role !== "model" || last.streaming || !last.action_payload ||
+      !last.action_payload.type?.startsWith("NAVIGATE") || !last.id ||
+      announcedActionIdsRef.current.has(last.id)
+    ) {
+      return;
+    }
+    announcedActionIdsRef.current.add(last.id);
+    const action = last.action_payload;
+    const targetEl = findNavTarget(action.path);
+    if (!targetEl || !avatarRef.current) {
+      handleAction(action);
+      return;
+    }
+    const fromRect = avatarRef.current.getBoundingClientRect();
+    const toRect = targetEl.getBoundingClientRect();
+    setCursorAnim({
+      from: { x: fromRect.left + fromRect.width / 2, y: fromRect.top + fromRect.height / 2 },
+      to: { x: toRect.left + toRect.width / 2, y: toRect.top + toRect.height / 2 },
+      action,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   const submit = (text) => {
     if (!text.trim() || isLoading || !canUseAgent) return;
+
+    // Hands-free confirmation: while a write is awaiting confirmation, a clear
+    // "yes"/"no" (typed or spoken) drives the existing confirm/cancel actions
+    // directly instead of being sent as a brand-new agent message. Anything
+    // not an exact match falls through to the normal pipeline unchanged —
+    // never silently treated as confirmation.
+    if (pendingConfirmation) {
+      if (isAffirmativeConfirmation(text)) {
+        confirmPendingAction(user);
+        setInput("");
+        return;
+      }
+      if (isNegativeConfirmation(text)) {
+        cancelPendingAction();
+        setInput("");
+        return;
+      }
+    }
+
     setLastUserMessage(text);
     sendMessage(text, user);
     setInput("");
@@ -283,6 +340,16 @@ export default function AgentChat() {
 
   return (
     <>
+      {cursorAnim && (
+        <AgentCursor
+          from={cursorAnim.from}
+          to={cursorAnim.to}
+          onArrive={() => {
+            handleAction(cursorAnim.action);
+            setCursorAnim(null);
+          }}
+        />
+      )}
       {!isOpen && (
         <button
           onClick={toggleChat}
@@ -297,7 +364,7 @@ export default function AgentChat() {
         <div className="fixed top-20 right-6 md:top-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-top-5">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+              <div ref={avatarRef} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
               <div>

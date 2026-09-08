@@ -1,13 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AgentChat from "@/components/AgentChat";
+import { findNavTarget } from "@/lib/findNavTarget";
+
+const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+vi.mock("@/lib/findNavTarget", () => ({ findNavTarget: vi.fn() }));
 
 // jsdom doesn't implement scrollIntoView — AgentChat calls it on every message-list update.
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
 const sendMessage = vi.fn();
 const abortActiveStream = vi.fn();
+const confirmPendingAction = vi.fn();
+const cancelPendingAction = vi.fn();
 
 let authState;
 vi.mock("@/context/AuthContext", () => ({
@@ -15,6 +26,7 @@ vi.mock("@/context/AuthContext", () => ({
 }));
 
 let storeMessages = [];
+let pendingConfirmationState = null;
 vi.mock("@/stores/agentStore", () => ({
   default: () => ({
     isOpen: true,
@@ -25,9 +37,9 @@ vi.mock("@/stores/agentStore", () => ({
     sendMessage,
     error: null,
     clearError: vi.fn(),
-    pendingConfirmation: null,
-    confirmPendingAction: vi.fn(),
-    cancelPendingAction: vi.fn(),
+    pendingConfirmation: pendingConfirmationState,
+    confirmPendingAction,
+    cancelPendingAction,
     abortActiveStream,
   }),
 }));
@@ -59,8 +71,13 @@ function resetVoiceState() {
 beforeEach(() => {
   sendMessage.mockClear();
   abortActiveStream.mockClear();
+  confirmPendingAction.mockClear();
+  cancelPendingAction.mockClear();
+  mockNavigate.mockClear();
+  findNavTarget.mockReset();
   resetVoiceState();
   storeMessages = [];
+  pendingConfirmationState = null;
   authState = { user: { id: "user-1", _supabase: true }, isAuthenticated: true };
 });
 
@@ -268,5 +285,132 @@ describe("AgentChat — text-to-speech reads the real finalized answer, not the 
       </MemoryRouter>
     );
     expect(voiceState.speak).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AgentChat — hands-free voice confirmation ('yes'/'no' instead of clicking)", () => {
+  it("routes a clear affirmative reply to confirmPendingAction instead of sending a new agent message", () => {
+    pendingConfirmationState = { messageIndex: 0, tool_name: "create_exposure", tool_args: {} };
+    const { rerender } = renderChat();
+    voiceState = { ...voiceState, isListening: true };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    voiceState = { ...voiceState, isListening: false, transcript: "yes, do it" };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+
+    expect(confirmPendingAction).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("routes a clear negative reply to cancelPendingAction instead of sending a new agent message", () => {
+    pendingConfirmationState = { messageIndex: 0, tool_name: "create_exposure", tool_args: {} };
+    const { rerender } = renderChat();
+    voiceState = { ...voiceState, isListening: true };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    voiceState = { ...voiceState, isListening: false, transcript: "no, cancel that" };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+
+    expect(cancelPendingAction).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("still sends an ambiguous reply as a normal agent message — never silently confirms or cancels", () => {
+    pendingConfirmationState = { messageIndex: 0, tool_name: "create_exposure", tool_args: {} };
+    const { rerender } = renderChat();
+    voiceState = { ...voiceState, isListening: true };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    voiceState = { ...voiceState, isListening: false, transcript: "actually make it about door handles instead" };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(confirmPendingAction).not.toHaveBeenCalled();
+    expect(cancelPendingAction).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the yes/no shortcut when nothing is actually pending confirmation", () => {
+    pendingConfirmationState = null;
+    const { rerender } = renderChat();
+    voiceState = { ...voiceState, isListening: true };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    voiceState = { ...voiceState, isListening: false, transcript: "yes" };
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+
+    expect(sendMessage).toHaveBeenCalledWith("yes", { id: "user-1", _supabase: true });
+    expect(confirmPendingAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("AgentChat — cursor-then-navigate for real agent actions (not just a chatbot button)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("glides the cursor to the real on-screen target then navigates, for a finalized NAVIGATE_WITH_DATA action", () => {
+    findNavTarget.mockReturnValue({ getBoundingClientRect: () => ({ left: 100, top: 100, width: 20, height: 20 }) });
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Here's your focus session.", streaming: false,
+        action_payload: { type: "NAVIGATE_WITH_DATA", path: "/adhd/focus", card_type: "FOCUS_SESSION", data: { duration_minutes: 25 } },
+      },
+    ];
+    vi.useFakeTimers();
+    renderChat();
+    act(() => { vi.advanceTimersByTime(1000); });
+
+    expect(findNavTarget).toHaveBeenCalledWith("/adhd/focus");
+    expect(mockNavigate).toHaveBeenCalledWith("/adhd/focus", { state: { duration_minutes: 25 } });
+  });
+
+  it("navigates immediately with no animation when the real target isn't on screen — never blocks on it", () => {
+    findNavTarget.mockReturnValue(null);
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Taking you there.", streaming: false,
+        action_payload: { type: "NAVIGATE", path: "/anxiety" },
+      },
+    ];
+    renderChat();
+
+    expect(mockNavigate).toHaveBeenCalledWith("/anxiety", { state: undefined });
+  });
+
+  it("never auto-navigates for a PENDING_CONFIRMATION action — the write still waits for an explicit confirm", () => {
+    findNavTarget.mockReturnValue({ getBoundingClientRect: () => ({ left: 100, top: 100, width: 20, height: 20 }) });
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Ready to add it. Should I proceed?", streaming: false,
+        action_payload: { type: "PENDING_CONFIRMATION", tool_name: "create_exposure", tool_args: {} },
+      },
+    ];
+    vi.useFakeTimers();
+    renderChat();
+    act(() => { vi.advanceTimersByTime(2000); });
+
+    expect(findNavTarget).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("does not re-trigger navigation for the same message on an unrelated re-render", () => {
+    findNavTarget.mockReturnValue(null);
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Taking you there.", streaming: false,
+        action_payload: { type: "NAVIGATE", path: "/anxiety" },
+      },
+    ];
+    const { rerender } = renderChat();
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not navigate while the message is still streaming (no action yet, nothing real to act on)", () => {
+    storeMessages = [
+      { id: "m1", role: "model", content: "", streaming: true, statusLabel: "Working...", action_payload: null },
+    ];
+    renderChat();
+
+    expect(findNavTarget).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

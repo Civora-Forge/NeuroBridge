@@ -412,7 +412,7 @@ describe("agentStore — only one active stream at a time (AbortController)", ()
   });
 });
 
-describe("agentStore.confirmPendingAction / cancelPendingAction — unchanged, non-streaming", () => {
+describe("agentStore.confirmPendingAction / cancelPendingAction — non-streaming (mostly unchanged)", () => {
   it("executes the confirmed tool via /tool/execute and clears pendingConfirmation", async () => {
     useAgentStore.setState({
       conversationId: 42,
@@ -426,6 +426,25 @@ describe("agentStore.confirmPendingAction / cancelPendingAction — unchanged, n
     const [url] = fetch.mock.calls[0];
     expect(url).toMatch(/\/api\/agent\/tool\/execute$/);
     expect(useAgentStore.getState().pendingConfirmation).toBeNull();
+  });
+
+  it("carries the backend's real action (e.g. where to navigate) onto the new message, not a hardcoded null", async () => {
+    useAgentStore.setState({
+      conversationId: 42,
+      pendingConfirmation: { messageIndex: 0, tool_name: "create_exposure", tool_args: { description: "x" } },
+    });
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: "tok-123" } } });
+    const realAction = { type: "NAVIGATE_WITH_DATA", path: "/ocd/exposure-hierarchy", card_type: "EXPOSURE_CREATED", data: { hierarchy_title: "Contamination" } };
+    fetch.mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ status: "executed", message: "Done.", action: realAction }),
+    });
+
+    await useAgentStore.getState().confirmPendingAction(realUser);
+
+    const lastMsg = useAgentStore.getState().messages.at(-1);
+    expect(lastMsg.action_payload).toEqual(realAction);
+    expect(lastMsg.id).toBeTruthy(); // needs a stable id for the auto-navigate-cursor effect to track it
   });
 
   it("cancelPendingAction clears the pending action without calling the backend (no write occurs)", () => {
