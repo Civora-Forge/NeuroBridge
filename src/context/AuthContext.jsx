@@ -26,7 +26,11 @@ function buildProfileFromSupabase(supabaseUser) {
   };
 }
 
-export { CARE_LINK_REGISTRY } from "@/support/asdLearnerId";
+export const CARE_LINK_REGISTRY = {
+  "CL-ARUN-0042": "nb-user-042",
+  "CL-MEERA-0011": "nb-user-011",
+  "CL-RIYA-0088": "nb-user-088",
+};
 const ASD_WARD_SETTINGS_PREFIX = "nb_asd_ward_settings_";
 
 function resolveWardIdFromUser(user) {
