@@ -537,6 +537,30 @@ def _start_grounding_activity(args: dict, ctx: ToolContext) -> dict:
     return {"id": session.id, "exercise_type": session.exercise_type}
 
 
+def _complete_grounding_activity(args: dict, ctx: ToolContext) -> dict:
+    """Records how a grounding exercise actually went — closes the loop that
+    start_grounding_activity left open (post_anxiety existed in the model but
+    nothing, anywhere in the app, ever wrote to it). Deliberately plain and
+    factual: no "great job!"/completion-percentage framing, consistent with
+    the same reassurance-avoidance principle applied to OCD copy."""
+    db, user = ctx.db, ctx.user
+    session_id = args.get("session_id")
+    post_anxiety = args.get("post_anxiety")
+    if post_anxiety is None:
+        raise ToolError("What's the anxiety level now (0-10)?")
+
+    session = db.query(anxiety_models.GroundingSession).filter_by(id=session_id, user_id=user.id).first() if session_id else (
+        db.query(anxiety_models.GroundingSession).filter_by(user_id=user.id).order_by(anxiety_models.GroundingSession.created_at.desc()).first()
+    )
+    if not session:
+        raise ToolError("I couldn't find that grounding session.")
+
+    session.post_anxiety = int(post_anxiety)
+    db.commit()
+
+    return {"id": session.id, "exercise_type": session.exercise_type, "pre_anxiety": session.pre_anxiety, "post_anxiety": session.post_anxiety}
+
+
 # ---------------------------------------------------------------------------
 # Dyslexia — the one module that's genuinely Supabase-backed. We forward the
 # user's own JWT to Supabase's REST API so existing RLS policies enforce
@@ -591,6 +615,21 @@ def _navigate_to_feature(args: dict, ctx: ToolContext) -> dict:
     if not path:
         raise ToolError(f"Unknown feature '{feature}'.")
     return {"path": path}
+
+
+_VALID_PRESENTATION_PRESETS = ("standard", "focus", "low_stimulation", "text_first")
+
+
+def _set_presentation_preset(args: dict, ctx: ToolContext) -> dict:
+    """Pure intent resolution — no DB write. The actual preference lives
+    entirely client-side (localStorage + document attributes, by design: it's
+    a per-device display preference, not user data), so this tool's only job
+    is turning natural language ("make this simpler") into one of the four
+    known preset ids; the frontend applies it (see presentationPreferences.js)."""
+    preset_id = args.get("preset_id")
+    if preset_id not in _VALID_PRESENTATION_PRESETS:
+        raise ToolError(f"'{preset_id}' isn't one of the display options I know.")
+    return {"preset_id": preset_id}
 
 
 # ---------------------------------------------------------------------------
@@ -776,6 +815,19 @@ TOOL_REGISTRY: dict[str, Tool] = {
         risk_level=RiskLevel.WRITE_LOW,
         handler=_start_grounding_activity,
     ),
+    "complete_grounding_activity": Tool(
+        name="complete_grounding_activity",
+        description="Record the user's anxiety level after finishing a grounding exercise, closing out the session started by start_grounding_activity.",
+        parameters=_schema(
+            {
+                "session_id": {"type": "integer", "description": "The session to complete, if known — otherwise the most recent one is used."},
+                "post_anxiety": {"type": "integer", "description": "Anxiety level now, 0-10."},
+            },
+            required=["post_anxiety"],
+        ),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_complete_grounding_activity,
+    ),
     "get_reading_preferences": Tool(
         name="get_reading_preferences",
         description="Retrieve the user's saved dyslexia reading preferences/accessibility settings, if any.",
@@ -799,6 +851,22 @@ TOOL_REGISTRY: dict[str, Tool] = {
         parameters=_schema({"feature": {"type": "string", "enum": sorted(FEATURE_ROUTES.keys())}}, required=["feature"]),
         risk_level=RiskLevel.READ,
         handler=_navigate_to_feature,
+    ),
+    "set_presentation_preset": Tool(
+        name="set_presentation_preset",
+        description=(
+            "Change how NeuroBridge looks and feels for this user right now — animation, visual intensity, "
+            "density, text size. preset_id must be one of: 'standard' (the regular look), 'focus' (fewer "
+            "distractions), 'low_stimulation' (minimal motion, muted visuals), 'text_first' (bigger text, "
+            "simpler layout). Use this for requests like 'make this simpler', 'reduce the animations', "
+            "'make the text bigger', or 'this feels too busy'."
+        ),
+        parameters=_schema(
+            {"preset_id": {"type": "string", "enum": list(_VALID_PRESENTATION_PRESETS)}},
+            required=["preset_id"],
+        ),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_set_presentation_preset,
     ),
 }
 

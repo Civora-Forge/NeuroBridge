@@ -103,6 +103,7 @@ _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "update_focus_session": "adhd",
     "get_anxiety": "anxiety",
     "start_grounding": "anxiety",
+    "complete_grounding": "anxiety",
     "get_reading": "dyslexia",
     "start_social_scenario": "asd",
 }
@@ -320,6 +321,11 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         command = _FOCUS_CONTROL_COMMANDS.get(tool_name)
         if command:
             return {"type": "FOCUS_SESSION_CONTROL", "command": command, "path": "/adhd/focus", "session": result}
+        if tool_name == "set_presentation_preset":
+            # No page/navigation involved — applies instantly wherever the user
+            # already is, via presentationPreferences.js (a pure localStorage +
+            # <html> data-attribute write, not tied to any mounted component).
+            return {"type": "PRESENTATION_PRESET", "preset_id": result["preset_id"]}
         mapping = _TOOL_ACTION_MAP.get(tool_name)
         if not mapping:
             return None

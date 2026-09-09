@@ -11,6 +11,7 @@ import AgentCursor from "@/components/AgentCursor";
 import { findNavTarget } from "@/lib/findNavTarget";
 import { isAffirmativeConfirmation, isNegativeConfirmation } from "@/lib/confirmationPhrases";
 import useFocusSessionControlStore from "@/stores/focusSessionControlStore";
+import { applyPresetGlobally } from "@/lib/presentationPreferences";
 
 function TaskBreakdownCard({ data, onNavigate }) {
   if (!data || !data.steps) return null;
@@ -236,13 +237,21 @@ export default function AgentChat() {
     const action = last.action_payload;
     const isNavigate = action?.type?.startsWith("NAVIGATE");
     const isFocusControl = action?.type === "FOCUS_SESSION_CONTROL";
+    const isPresentationPreset = action?.type === "PRESENTATION_PRESET";
     if (
-      last.role !== "model" || last.streaming || !action || (!isNavigate && !isFocusControl) ||
+      last.role !== "model" || last.streaming || !action ||
+      (!isNavigate && !isFocusControl && !isPresentationPreset) ||
       !last.id || announcedActionIdsRef.current.has(last.id)
     ) {
       return;
     }
     announcedActionIdsRef.current.add(last.id);
+
+    if (isPresentationPreset) {
+      // No page/target involved — applies instantly wherever the user already is.
+      applyPresetGlobally(action.preset_id);
+      return;
+    }
 
     if (isFocusControl && location.pathname === action.path) {
       useFocusSessionControlStore.getState().dispatch({ command: action.command, session: action.session });

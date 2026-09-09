@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Settings, Eye, Sparkles, LayoutGrid, ChevronDown, ChevronUp, Type } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PRESETS, DEFAULT_PRESET_ID, matchPresetId } from "@/lib/presentationPresets";
+import { PREFERENCES_CHANGED_EVENT } from "@/lib/presentationPreferences";
 
 const STORAGE_KEY = "neurobridge-sensory-preferences";
 
@@ -93,6 +94,15 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
       savePreferences(next);
       return next;
     });
+  }, []);
+
+  // If the agent applies a preset (from any page, via presentationPreferences.js)
+  // while this panel happens to be open, reflect that change here too instead
+  // of silently showing a stale selection.
+  useEffect(() => {
+    const onExternalChange = (e) => setPrefs(e.detail ?? loadPreferences());
+    window.addEventListener(PREFERENCES_CHANGED_EVENT, onExternalChange);
+    return () => window.removeEventListener(PREFERENCES_CHANGED_EVENT, onExternalChange);
   }, []);
 
   useEffect(() => {
