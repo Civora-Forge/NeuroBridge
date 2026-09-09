@@ -30,15 +30,7 @@ describe("contextInteractionTracker task-switch accounting", () => {
   it("counts a genuine return to the landing module as a transition", () => {
     recordNavigationSignal("/");
     recordNavigationSignal("/reader");
-    console.log(
-      "DEBUG after /,/reader:",
-      JSON.stringify(getInteractionSnapshot().behavior),
-    );
     recordNavigationSignal("/");
-    console.log(
-      "DEBUG after /,/reader,/:",
-      JSON.stringify(getInteractionSnapshot().behavior),
-    );
 
     expect(getInteractionSnapshot().behavior.taskSwitchFrequency).toBe(0.4);
   });

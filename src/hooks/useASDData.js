@@ -5,13 +5,18 @@
  */
 
 import { useEffect, useState } from "react";
-import { useAuth, CARE_LINK_REGISTRY, MOCK_WARD_ACTIVITY } from "@/context/AuthContext";
+import { useAuth, MOCK_WARD_ACTIVITY } from "@/context/AuthContext";
+import {
+  CARE_LINK_REGISTRY,
+  readRuntimeSyncWardId,
+  writeRuntimeSyncWardId,
+  resolveASDLearnerId,
+} from "@/support/asdLearnerId";
 import { loadWardTasks, saveWardTasks, toAsdRoutineTask, fromAsdRoutineTask } from "@/support/stores/wardTaskStore";
 import { pushWardActivity, pushWardAlert } from "@/support/stores/careSyncStore";
 
 const ROLE_FALLBACK = "user";
 const ASD_STORIES_PREFIX = "nb_asd_stories_";
-const RUNTIME_SYNC_WARD_KEY = "nb_runtime_sync_ward_id";
 
 const createStep = (id, text, image_url = "") => ({ id, text, image_url });
 
@@ -98,23 +103,6 @@ const writeJson = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
-const readRuntimeSyncWardId = () => {
-  try {
-    const value = localStorage.getItem(RUNTIME_SYNC_WARD_KEY);
-    return value && value.startsWith("nb-user-") ? value : null;
-  } catch {
-    return null;
-  }
-};
-
-const writeRuntimeSyncWardId = (wardId) => {
-  if (!wardId || !String(wardId).startsWith("nb-user-")) return;
-  try {
-    localStorage.setItem(RUNTIME_SYNC_WARD_KEY, wardId);
-  } catch {
-  }
-};
-
 const PROFILE_TO_DISORDER = {
   asd: "asd",
   anxiety: "anxiety",
@@ -140,61 +128,6 @@ const getDefaultWardSettings = ({ wardId, user, role }) => {
       : { shareActivity: true, shareJournal: true, shareAlerts: true };
 
   return { disorders, privacy };
-};
-
-const normalizeWardId = (wardId) => {
-  const raw = String(wardId || "").trim();
-  if (!raw) return null;
-  if (raw.startsWith("nb-user-")) return raw;
-  const mapped = CARE_LINK_REGISTRY[raw.toUpperCase()];
-  return mapped || null;
-};
-
-const resolveCanonicalWardId = (user, role) => {
-  if (!user) return null;
-
-  const runtimeWard = readRuntimeSyncWardId();
-  if (runtimeWard) {
-    return runtimeWard;
-  }
-
-  if (role === "guardian") {
-    const linkedIds = Array.isArray(user.linkedWardIds) ? user.linkedWardIds : [];
-    const normalizedLinked = linkedIds.map(normalizeWardId).filter(Boolean);
-    return normalizedLinked[0] || "nb-user-088";
-  }
-
-  const careLinkId = String(user?.careLinkId || "").toUpperCase().trim();
-  if (careLinkId && CARE_LINK_REGISTRY[careLinkId]) {
-    return CARE_LINK_REGISTRY[careLinkId];
-  }
-
-  const email = String(user?.email || "").toLowerCase();
-  if (email.includes("riya") || email.includes("neha")) {
-    return "nb-user-088";
-  }
-
-  const selectedProfile = String(user?.selectedProfile || "").toLowerCase();
-  const disorderList = Array.isArray(user?.disorders) ? user.disorders.map((item) => String(item).toLowerCase()) : [];
-  const hasAsdProfile = selectedProfile === "asd" || disorderList.includes("asd");
-
-  if (typeof user?.id === "string" && user.id.startsWith("nb-user-")) {
-    return user.id;
-  }
-
-  if (email.includes("arun")) {
-    return "nb-user-042";
-  }
-
-  if (email.includes("meera")) {
-    return "nb-user-011";
-  }
-
-  if (hasAsdProfile) {
-    return "nb-user-088";
-  }
-
-  return "nb-user-088";
 };
 
 const getCandidateWardIds = ({ targetWardId, appUser, currentUser }) => {
@@ -258,7 +191,7 @@ export function useASDData() {
     }
 
     const resolvedRole = appRole || appUser?.role || ROLE_FALLBACK;
-    const resolvedWardId = resolveCanonicalWardId(appUser, resolvedRole);
+    const resolvedWardId = resolveASDLearnerId(appUser, resolvedRole);
 
     setCurrentUser(appUser);
     setRole(resolvedRole);

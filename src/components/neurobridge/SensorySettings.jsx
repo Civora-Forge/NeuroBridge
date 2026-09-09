@@ -6,11 +6,16 @@
  *   - Animation (Off / Reduced / Normal)
  *   - Interface density (Simple / Standard)
  *
- * Persists to localStorage under a module-scoped key.
- * Reads from and writes to a data attribute on the wrapper element
- * so CSS can respond to these preferences.
+ * The controls read from and write to the shared reactive sensory store, which
+ * persists to the existing localStorage key and mirrors the preferences onto
+ * <html> data attributes so CSS responds immediately. Choosing a setting is
+ * reflected everywhere at once — no page refresh needed.
  */
 
+import { useState } from "react";
+import { Settings, Eye, Sparkles, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSensoryPreferences } from "@/stores/sensoryPreferencesStore";
 import { useState, useEffect, useCallback } from "react";
 import { Settings, Eye, Sparkles, LayoutGrid, ChevronDown, ChevronUp, Type } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,6 +76,7 @@ function SegmentedControl({ value, onChange, options, icon: Icon, label }) {
 
 export default function SensorySettings({ moduleKey = "global", className = "" }) {
   const [open, setOpen] = useState(false);
+  const { visualIntensity, animation, density, setPreference } = useSensoryPreferences();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [prefs, setPrefs] = useState(loadPreferences);
 
@@ -141,6 +147,38 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
             className="overflow-hidden"
           >
             <div className="space-y-4 border-t border-[#C7D2FE] px-4 py-4">
+              <SegmentedControl
+                label="Visual Intensity"
+                icon={Eye}
+                value={visualIntensity}
+                onChange={(v) => setPreference("visualIntensity", v)}
+                options={[
+                  { value: "simple", label: "Simple" },
+                  { value: "comfortable", label: "Comfortable" },
+                  { value: "expressive", label: "Expressive" },
+                ]}
+              />
+              <SegmentedControl
+                label="Animation"
+                icon={Sparkles}
+                value={animation}
+                onChange={(v) => setPreference("animation", v)}
+                options={[
+                  { value: "off", label: "Off" },
+                  { value: "reduced", label: "Reduced" },
+                  { value: "normal", label: "Normal" },
+                ]}
+              />
+              <SegmentedControl
+                label="Interface Density"
+                icon={LayoutGrid}
+                value={density}
+                onChange={(v) => setPreference("density", v)}
+                options={[
+                  { value: "simple", label: "Simple" },
+                  { value: "standard", label: "Standard" },
+                ]}
+              />
               <div className="space-y-1.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7BA8]">
                   Pick what helps
@@ -230,4 +268,7 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
   );
 }
 
-export { loadPreferences, DEFAULTS };
+export {
+  loadSensoryPreferences as loadPreferences,
+  SENSORY_PREFERENCES_DEFAULTS as DEFAULTS,
+} from "@/stores/sensoryPreferencesStore";
