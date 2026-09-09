@@ -133,6 +133,27 @@ def _is_transient(exc: Exception) -> bool:
     return isinstance(exc, _TRANSIENT_LLM_ERRORS)
 
 
+def _render_focus_control_fallback(command: str, session: dict) -> str:
+    """Same safety-net idea as fast_path's read-tool rendering, for the focus
+    session control tools: if the LLM's own follow-up summary is unavailable,
+    the tool's real result (remaining time, duration) still renders as a
+    proper sentence instead of a bare 'Done.'"""
+    remaining = session.get("remaining_seconds")
+    time_str = f"{remaining // 60}:{remaining % 60:02d}" if remaining is not None else None
+    if command == "start":
+        duration = session.get("duration_minutes")
+        return f"Started a {duration}-minute focus session." if duration else "Started a focus session."
+    if command == "pause":
+        return f"Paused — {time_str} left whenever you're ready to continue." if time_str else "Paused."
+    if command == "resume":
+        return f"Resumed — {time_str} left." if time_str else "Resumed."
+    if command == "stop":
+        return "Stopped the focus session."
+    if command == "set_duration":
+        return f"Updated the session to {session.get('duration_minutes', '?')} minutes."
+    return "Done."
+
+
 def _cached_learnings(user_id: str, db: Session) -> dict:
     now = time.monotonic()
     cached = _learnings_cache.get(user_id)
@@ -559,6 +580,13 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         pending_confirmation: Optional[dict] = None
         any_tool_failed = False
         max_steps_reached = False
+        # Tracks the most recent successfully-executed read tool that has a
+        # deterministic rendering template (see fast_path.py) — a real safety
+        # net for when the LLM itself is unreachable for the follow-up
+        # summarization call (quota, timeout, transient API error): the tool
+        # already ran and its result is real, so "I understand." is a worse
+        # answer than just rendering that data the same way the fast path does.
+        last_renderable_read: Optional[tuple[str, dict]] = None
         self._transition(execution, ExecutionState.EXECUTING, on_event)
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -642,6 +670,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 if outcome["status"] == "executed":
                     last_action = self._build_action(call.name, outcome["result"]) or last_action
                     payload = outcome["result"]
+                    if call.name in fast_path.FAST_PATH_TEMPLATES:
+                        last_renderable_read = (call.name, outcome["result"])
                 else:
                     payload = {"error": outcome["error"] or "That action couldn't be completed."}
                     any_tool_failed = True
@@ -693,7 +723,13 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         try:
             response_text = response.text.strip()
         except Exception:
-            response_text = "Done." if last_action else "I understand."
+            if last_renderable_read:
+                tool_name, result = last_renderable_read
+                response_text = fast_path.FAST_PATH_TEMPLATES[tool_name](result)
+            elif last_action and last_action.get("type") == "FOCUS_SESSION_CONTROL":
+                response_text = _render_focus_control_fallback(last_action["command"], last_action.get("session") or {})
+            else:
+                response_text = "Done." if last_action else "I understand."
 
         if disclaimer:
             response_text = f"{response_text}{disclaimer}"
