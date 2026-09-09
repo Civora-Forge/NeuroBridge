@@ -1,0 +1,223 @@
+/**
+ * asdVisualLanguage.css — the shared ASD visual language.
+ *
+ * The ASD surface is a single, coherent product ("modern educational /
+ * wellness app", not a medical dashboard and not a preschool cartoon). This
+ * stylesheet turns the EXISTING settings into visible differences — it never
+ * introduces competing systems.
+ *
+ * Consumed attributes (all written by existing systems):
+ *   - data-asd-visual-style         (younger | balanced | clear)  — AsdVisualRoot
+ *   - data-sensory-visual-intensity (simple | comfortable | expressive) — SensorySettings
+ *   - data-sensory-animation        (off | reduced | normal)       — SensorySettings
+ *   - data-sensory-density          (simple | standard)            — SensorySettings
+ *   - prefers-reduced-motion        (OS)
+ *
+ * Global handling for most of these already lives in supportToolThemes.css.
+ * This file adds ASD-scoped decoration controls and the style-token layer.
+ */
+
+/* ── Visual style tokens ────────────────────────────────────────────
+   Three age/style treatments. Everything here is an additive knob used by
+   the `.asd-*` decoration classes. The accompanying `presentation` flags
+   (asdVisualStyle.js) drive JS-level differences (stickers, art tiers,
+   reward stars, wording).                                       */
+html[data-asd-visual-style="younger"] {
+  --asd-dec-opacity: 1;
+  --asd-illustration: 1;
+  --asd-reward: 3;
+  --asd-scene-blob: 0.55;
+}
+html[data-asd-visual-style="balanced"] {
+  --asd-dec-opacity: 0.62;
+  --asd-illustration: 0.55;
+  --asd-reward: 2;
+  --asd-scene-blob: 0.4;
+}
+html[data-asd-visual-style="clear"] {
+  --asd-dec-opacity: 0;
+  --asd-illustration: 0.22;
+  --asd-reward: 1;
+  --asd-scene-blob: 0.28;
+}
+html:not([data-asd-visual-style]) {
+  --asd-dec-opacity: 0.62;
+  --asd-illustration: 0.55;
+  --asd-reward: 2;
+  --asd-scene-blob: 0.4;
+}
+
+/* Component-level scoping so the language also works when the attribute
+   sits on a wrapper div (it always does — AsdVisualRoot). */
+[data-asd-visual-style="younger"] {
+  --asd-dec-opacity: 1;
+  --asd-illustration: 1;
+  --asd-reward: 3;
+  --asd-scene-blob: 0.55;
+}
+[data-asd-visual-style="balanced"] {
+  --asd-dec-opacity: 0.62;
+  --asd-illustration: 0.55;
+  --asd-reward: 2;
+  --asd-scene-blob: 0.4;
+}
+[data-asd-visual-style="clear"] {
+  --asd-dec-opacity: 0;
+  --asd-illustration: 0.22;
+  --asd-reward: 1;
+  --asd-scene-blob: 0.28;
+}
+
+/* ── Decorative sticker layer ──────────────────────────────────────
+   Hidden for the Clear look and Simple intensity; brightest for the
+   Younger look / Expressive intensity. Always aria-hidden in markup. */
+.asd-decor {
+  opacity: var(--asd-dec-opacity);
+  transition: opacity 0.25s ease;
+  will-change: opacity;
+}
+html[data-asd-visual-style="clear"] .asd-decor,
+[data-asd-visual-style="clear"] .asd-decor {
+  display: none;
+}
+html[data-sensory-visual-intensity="simple"] .asd-decor {
+  display: none;
+}
+html[data-sensory-visual-intensity="expressive"] .asd-decor {
+  opacity: calc(var(--asd-dec-opacity) * 1.22);
+}
+
+/* ── Illustrated art ─────────────────────────────────────────────── */
+.asd-illustration {
+  transform-origin: center bottom;
+}
+html[data-asd-visual-style="younger"] .asd-illustration {
+  transform: scale(1.07);
+}
+html[data-asd-visual-style="balanced"] .asd-illustration {
+  transform: scale(1);
+}
+html[data-asd-visual-style="clear"] .asd-illustration,
+[data-asd-visual-style="clear"] .asd-illustration {
+  transform: scale(0.9);
+  opacity: 0.9;
+}
+html[data-sensory-visual-intensity="simple"] .asd-illustration {
+  filter: saturate(0.45);
+}
+html[data-sensory-visual-intensity="expressive"] .asd-illustration {
+  filter: saturate(1.12) contrast(1.02);
+}
+
+/* ── Illustrated scene (stories / emotion / simulator backdrops) ── */
+.asd-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.asd-scene-blob {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(14px);
+  opacity: var(--asd-scene-blob);
+  z-index: 0;
+}
+.asd-scene-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Simulation stage ────────────────────────────────────────────── */
+.asd-stage-glow {
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08), 0 22px 60px -18px rgba(91, 33, 182, 0.35);
+}
+html[data-asd-visual-style="younger"] .asd-stage-glow {
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.14), 0 22px 60px -14px rgba(91, 33, 182, 0.4);
+}
+html[data-asd-visual-style="clear"] .asd-stage-glow,
+[data-asd-visual-style="clear"] .asd-stage-glow {
+  box-shadow: 0 6px 20px -10px rgba(91, 33, 182, 0.22);
+}
+
+/* ── Expressive cards ────────────────────────────────────────────── */
+.asd-card-expressive {
+  position: relative;
+}
+.asd-card-expressive::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  border-radius: 1rem 1rem 0 0;
+  opacity: 0.85;
+}
+html[data-asd-visual-style="clear"] .asd-card-expressive::before,
+[data-asd-visual-style="clear"] .asd-card-expressive::before {
+  display: none;
+}
+html[data-asd-visual-style="younger"] .asd-card-rail {
+  background-image: linear-gradient(90deg, var(--asd-rail, #0d9488), var(--asd-rail-2, #2dd4a8));
+}
+html[data-asd-visual-style="clear"] .asd-card-rail,
+[data-asd-visual-style="clear"] .asd-card-rail {
+  filter: saturate(0.5);
+}
+
+/* ── Density: Simple — roomier cards and larger touch targets ────── */
+html[data-sensory-density="simple"] .asd-roomy {
+  gap: 18px;
+}
+html[data-sensory-density="simple"] .asd-touch-target {
+  min-height: 48px;
+}
+
+/* ── Bigger controls for the Younger look ────────────────────────── */
+html[data-asd-visual-style="younger"] .asd-big-control,
+[data-asd-visual-style="younger"] .asd-big-control {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+/* ── Ambient motion (calm, decorative only) ────────────────────────
+   All disabled by the global sensory rules in supportToolThemes.css when
+   animation is Off or the OS asks for reduced motion; kept local too so
+   wrappers outside .support-tool-page still degrade correctly. */
+@keyframes asd-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes asd-twinkle {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+@keyframes asd-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.asd-float { animation: asd-float var(--asd-float-dur, 5.5s) ease-in-out infinite; }
+.asd-twinkle { animation: asd-twinkle 2.4s ease-in-out infinite; }
+.asd-pop-once { animation: asd-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.asd-pulse-soft { animation: asd-pulse-soft 2.2s ease-in-out infinite; }
+@keyframes asd-pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+/* ── Chat surface (conversation practice) ────────────────────────── */
+.asd-chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #b2dfdb transparent;
+}
+
+/* ── Local reduced-motion handling for the ambient/celebration classes */
+@media (prefers-reduced-motion: reduce) {
+  .asd-float, .asd-twinkle, .asd-pop-once, .asd-pulse-soft { animation: none !important; }
+}
+html[data-sensory-animation="off"] .asd-float,
+html[data-sensory-animation="off"] .asd-twinkle,
+html[data-sensory-animation="off"] .asd-pop-once,
+html[data-sensory-animation="off"] .asd-pulse-soft {
+  animation: none !important;
+}

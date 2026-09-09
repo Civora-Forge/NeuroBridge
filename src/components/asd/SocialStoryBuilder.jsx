@@ -22,8 +22,12 @@ import {
   AsdCharacter,
   AsdCelebration,
   AsdChip,
-  AsdProgressDots,
+  AsdDecor,
+  AsdProgressTrack,
+  AsdRewardStars,
+  AsdScene,
   useASDPracticeCounts,
+  useASDVisualStyle,
   PROGRESS_EVENTS,
 } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
@@ -135,6 +139,8 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
   const { speaking, speak, stop } = useReadAloud();
   const { recordEvent } = useASDPracticeCounts(learnerId);
   const { reduced, gentle } = useSensoryReducedMotion();
+  const { style } = useASDVisualStyle();
+  const playful = style === "younger";
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSteps, setDraftSteps] = useState([createEmptyStep()]);
@@ -200,6 +206,9 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
             {justFinished ? (
               <div className="py-6">
                 <AsdCelebration label={`Story finished: ${activeStory.title}`} sub="That's one full story done — small steps count." />
+                <div className="mt-3">
+                  <AsdRewardStars earned={activeSteps.length > 3 ? 3 : 2} label="Story completed" />
+                </div>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={replayStory}>
                     <Repeat size={15} /> Read it again
@@ -225,7 +234,7 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                   </div>
                 </div>
 
-                <AsdProgressDots total={activeSteps.length} current={activeStepIndex} onSelect={setActiveStepIndex} tone="teal" labelPrefix="Scene" />
+                <AsdProgressTrack total={activeSteps.length} current={activeStepIndex} onSelect={setActiveStepIndex} tone="teal" labelPrefix="Scene" />
 
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -243,29 +252,34 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                         <span className="absolute left-3 top-3"><AsdChip tone="teal">Scene {activeStepIndex + 1}</AsdChip></span>
                       </div>
                     ) : (
-                      <div className="relative h-56 w-full" style={{ background: SCENE_GRADIENTS[activeStepIndex % SCENE_GRADIENTS.length] }}>
-                        <div className="absolute inset-0 grid place-items-center">
-                          <motion.span
-                            aria-hidden="true"
-                            className="text-7xl select-none drop-shadow-[0_4px_10px_rgba(13,148,136,0.2)]"
-                            initial={reduced ? false : { scale: 0.6, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: gentle ? 0.3 : 0.4, type: "spring", bounce: reduced ? 0 : 0.32 }}
-                          >
-                            {inferEmojiForText(activeStep.text)}
-                          </motion.span>
-                        </div>
-                        <AsdCharacter size={64} tone={SCENE_TONES[activeStepIndex % SCENE_TONES.length]} ariaHidden className="nb-mascot-float absolute right-4 bottom-3" style={{ animationDelay: "0.6s" }} />
+                      <AsdScene
+                        gradient={SCENE_GRADIENTS[activeStepIndex % SCENE_GRADIENTS.length]}
+                        emoji={inferEmojiForText(activeStep.text)}
+                        emojiSize={64}
+                        blobPalette={activeStepIndex % 4}
+                        className="h-56 w-full"
+                      >
+                        <AsdCharacter
+                          size={60}
+                          tone={SCENE_TONES[activeStepIndex % SCENE_TONES.length]}
+                          ariaHidden
+                          className="asd-illustration nb-mascot-float absolute bottom-3 right-4"
+                          style={{ animationDelay: "0.6s" }}
+                        />
+                        <AsdDecor className="absolute left-4 bottom-4 text-2xl" label="a flower">🌸</AsdDecor>
                         <span className="absolute left-3 top-3"><AsdChip tone="teal">Scene {activeStepIndex + 1}</AsdChip></span>
-                      </div>
+                      </AsdScene>
                     )}
 
-                    {/* Step text */}
+                    {/* Step text — a story "page" */}
                     <motion.div
-                      className="cursor-pointer p-5 select-none"
+                      className="relative cursor-pointer border-t-2 border-[#B2DFDB] p-5 select-none"
                       whileTap={reduced ? undefined : { scale: 0.985 }}
                       onClick={() => speak(activeStep.text)}
                     >
+                      <span aria-hidden="true" className="absolute -top-2.5 right-5 grid h-5 w-5 place-items-center rounded-full bg-[#0D9488] text-white text-[10px] font-black">
+                        {activeStepIndex + 1}
+                      </span>
                       <p className="text-xl md:text-2xl leading-relaxed font-semibold tracking-wide text-[#134E4A]">
                         {activeStep.text}
                       </p>
@@ -281,11 +295,11 @@ export default function SocialStoryBuilder({ role, stories, loading, onCreateSto
                   </Button>
                   {activeStepIndex < activeSteps.length - 1 ? (
                     <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={() => setActiveStepIndex((p) => Math.min(activeSteps.length - 1, p + 1))}>
-                      Next <ChevronRight size={16} />
+                      {playful ? "Next!" : "Next"} <ChevronRight size={16} />
                     </Button>
                   ) : (
                     <Button className="gap-1 rounded-xl h-11 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={finishStory}>
-                      <CheckCircle2 size={16} /> Finish!
+                      <CheckCircle2 size={16} /> {playful ? "Story done!" : "Finish!"}
                     </Button>
                   )}
                 </div>

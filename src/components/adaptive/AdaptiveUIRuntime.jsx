@@ -15,27 +15,27 @@
  *   - Renders the non-intrusive AdaptiveSupportCard
  *   - Opens the InterventionModal on "Start Support" with full interactive flow
  *
- * Suggestion surfacing policy (engine-driven, non-intrusive):
- *   - The Adaptive Support card stays hidden during normal interaction and is
- *     mounted only while the engine's plan carries an active recommendation.
- *   - The Adaptive Engine is the single source of truth for whether an
- *     intervention is appropriate NOW. The UI mirrors the plan (covering both
- *     behavioral-change triggers and context/state triggers): it renders the
- *     recommendation unobtrusively and hides it the moment the plan clears it.
- *     No UI-side timer, cooldown, or evidence gate decides when a suggestion
- *     appears; the engine's own hysteresis stage keeps a sustained target from
- *     re-activating repeatedly.
- *   - React keeps the single card mounted while the same recommendation id is
- *     continuously present, so an unchanged plan never re-pops it.
- *
- * Dismissal semantics: "Not now" (or starting) suppresses that recommendation
- * for the session/context period; a genuinely different future recommendation
- * that the engine offers appears normally.
+ * Intervention event lifecycle:
+ *   - The Adaptive Support card is HIDDEN by default. It becomes visible only
+ *     when the Adaptive Engine produces a new intervention opportunity — i.e.
+ *     the plan carries at least one triggered action AND that action/situation
+ *     maps to a recommendation. Persistent engine labels alone (situation,
+ *     adaptiveState, currentRecommendation, ...) never surface the card.
+ *   - A "new opportunity" is detected when the recommendation id or content
+ *     changes (id, title, description, or reason differ from the previous
+ *     recommendation). An unchanged persistent recommendation from the engine
+ *     does NOT re-show the card after dismissal.
+ *   - When the user dismisses or completes the intervention, the card is
+ *     hidden. It stays hidden as long as the engine continues to carry the
+ *     same recommendation. A genuinely new future recommendation (different id
+ *     or changed content) will appear normally.
+ *   - The engine's hysteresis stage keeps a sustained target from
+ *     re-activating repeatedly, so the same opportunity is not re-emitted.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
@@ -127,7 +127,13 @@ export function deriveUIModeFromPlan(plan) {
 }
 
 /**
- * Derive intervention recommendation for Role 3 popup from the Adaptive plan
+ * Derive intervention recommendation for Role 3 popup from the Adaptive plan.
+ *
+ * Pure mapping from a plan's triggered action parameters (then situation) to a
+ * recommendation. This function does NOT decide whether the opportunity is
+ * "active" — the caller (AdaptiveUIRuntime) only consults it when the engine
+ * actually triggered an action (`plan.actions` non-empty), so persistent
+ * reasoning labels alone never surface the card.
  */
 export function deriveInterventionRecommendation(plan) {
   if (!plan) return null;
@@ -179,7 +185,9 @@ export function deriveInterventionRecommendation(plan) {
     }
   }
 
-  // 2. Check situation
+  // 2. Situation fallback (only meaningful when the engine triggered actions —
+  //    the caller gates on `plan.actions` being non-empty, so an idle engine
+  //    never reaches here via a persistent situation label alone).
   if (plan.situation === "urgent_overload") {
     return {
       id: "sensory_reset",
@@ -270,18 +278,29 @@ export function deriveModuleAdjustments(plan) {
 export default function AdaptiveUIRuntime({ children }) {
   const runtime = useAdaptiveRuntime();
   const derived = useMemo(() => deriveUIModeFromPlan(runtime.plan), [runtime.plan]);
-  const recommendation = useMemo(
-    () => deriveInterventionRecommendation(runtime.plan),
-    [runtime.plan],
-  );
+
+  // An intervention opportunity exists only when the engine actually triggered
+  // an adaptation action. Persistent reasoning labels (plan.situation,
+  // adaptiveState, etc.) do NOT by themselves constitute an opportunity — the
+  // card is hidden by default and appears only while the engine carries an
+  // active, adapted event. Without a triggered action the specific situation
+  // label is irrelevant.
+  const recommendation = useMemo(() => {
+    const plan = runtime.plan;
+    if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
+      return null;
+    }
+    return deriveInterventionRecommendation(plan);
+  }, [runtime.plan]);
 
   // Session-scoped dismissal: "Not now" (or starting) suppresses that same
-  // recommendation id for the session/context period. The Adaptive Engine
-  // remains the single source of truth for whether an intervention is
-  // appropriate NOW; the UI only mirrors the plan (rendering while a
-  // recommendation is present and hiding the moment it clears) and respects
-  // the user's dismissal. A continuously-present recommendation stays mounted
-  // exactly once — an unchanged plan never re-pops it.
+  // recommendation id until a genuinely NEW intervention opportunity arrives.
+  // A new opportunity is detected when the recommendation id or its content
+  // (title, description, reason) changes from the previously shown
+  // recommendation. An unchanged persistent recommendation from the engine
+  // does NOT re-show the card after dismissal — maintaining the
+  // intervention-event lifecycle (hidden → new event → visible → consumed →
+  // hidden).
   const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
     () => new Set(),
   );
@@ -302,11 +321,31 @@ export default function AdaptiveUIRuntime({ children }) {
       ? recommendation
       : null;
 
-  // Reset dismissed IDs whenever a new recommendation appears (including when cleared).
-  // This allows the same recommendation ID to be shown again for a new intervention opportunity.
+  // Track the previously surfaced recommendation to detect whether the engine
+  // has produced a NEW intervention opportunity (as opposed to an unchanged
+  // persistent recommendation, which must NOT re-show a dismissed card).
+  const prevRecommendationRef = useRef(null);
+
   useEffect(() => {
-    setDismissedRecommendationIds(() => new Set());
-  }, [recommendation?.id]);
+    const prev = prevRecommendationRef.current;
+    const now = recommendation;
+
+    const sameOpportunity =
+      prev !== null &&
+      now !== null &&
+      prev.id === now.id &&
+      prev.title === now.title &&
+      prev.description === now.description &&
+      prev.reason === now.reason;
+
+    if (!sameOpportunity) {
+      // A genuinely new recommendation (or clear) restores the dismissed set so
+      // the new opportunity can be surfaced to the user.
+      setDismissedRecommendationIds(() => new Set());
+    }
+
+    prevRecommendationRef.current = now;
+  }, [recommendation]);
 
   const wrapperProps = {
     "data-adaptive-root": "true",

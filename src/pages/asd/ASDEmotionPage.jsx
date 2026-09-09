@@ -4,13 +4,15 @@ import { ArrowLeft, ScanFace } from "lucide-react";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import EmotionDecoderCard from "@/components/asd/EmotionDecoderCard";
+import AsdVisualRoot from "@/components/asd/ui/AsdVisualRoot";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
 export default function ASDEmotionPage() {
   const { reduced, gentle } = useSensoryReducedMotion();
   return (
     <SupportToolThemeProvider theme="asd_social">
-      <SupportToolLayout
+      <AsdVisualRoot>
+        <SupportToolLayout
         title="Emotion Decoder"
         description="Read a real little situation and figure out what someone feels."
       >
@@ -33,6 +35,7 @@ export default function ASDEmotionPage() {
         </motion.header>
         <EmotionDecoderCard />
       </SupportToolLayout>
+      </AsdVisualRoot>
     </SupportToolThemeProvider>
   );
 }

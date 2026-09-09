@@ -1,6 +1,7 @@
 import { History, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDomainById, DIFFICULTY_LEVELS } from "../types/communicationTypes";
+import { AsdRewardStars } from "@/components/asd/ui";
 
 export default function SessionSummaryView({ engine }) {
   const session = engine.session;
@@ -15,22 +16,25 @@ export default function SessionSummaryView({ engine }) {
         <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#0D9488] to-[#06B6D4] flex items-center justify-center">
           <TrendingUp className="w-7 h-7 text-white" />
         </div>
-        <h2 className="font-black text-slate-900">Practice complete</h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <h2 className="font-black text-[#134E4A]">Practice complete</h2>
+        <p className="text-sm text-[#3D6A66] mt-1">
           {domain?.label ?? session.scenario?.domain} ·{" "}
           {DIFFICULTY_LEVELS[session.difficulty]?.label ?? "Moderate"} ·{" "}
           {session.turnCount} exchanges
         </p>
         {evaluation && (
-          <p className="mt-3 text-3xl font-black text-[#0D9488]">{evaluation.overallScore}<span className="text-base text-slate-400 font-semibold">/100</span></p>
+          <p className="mt-3 text-3xl font-black text-[#0D9488]">{evaluation.overallScore}<span className="text-base text-[#3D6A66] font-semibold">/100</span></p>
+        )}
+        {evaluation && evaluation.overallScore >= 70 && (
+          <div className="mt-2"><AsdRewardStars earned={3} label="Session score" /></div>
         )}
       </div>
 
-      <div className="rounded-2xl bg-white border border-slate-200 p-6">
-        <h3 className="font-bold text-slate-800 mb-2">Next suggested level</h3>
-        <p className="text-sm text-slate-600">
+      <div className="rounded-2xl bg-white border border-[#B2DFDB] p-6">
+        <h3 className="font-bold text-[#134E4A] mb-2">Next suggested level</h3>
+        <p className="text-sm text-[#3D6A66]">
           Based on your recent sessions, your next practice level is{" "}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-[#134E4A]">
             {DIFFICULTY_LEVELS[engine.difficulty]?.label ?? "Moderate"}
           </span>{" "}
           ({engine.difficulty}/5). You can change it anytime before you start.
@@ -51,7 +55,7 @@ export default function SessionSummaryView({ engine }) {
         </Button>
       </div>
 
-      <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1">
+      <p className="text-center text-xs text-[#3D6A66] flex items-center justify-center gap-1">
         <Sparkles className="w-3 h-3" /> Consistent practice helps — short sessions count.
       </p>
     </div>

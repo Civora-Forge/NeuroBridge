@@ -280,10 +280,19 @@ function recordNavigationInteraction(pathname) {
   const now = getNowMs();
   recordInteraction({ countLatency: false });
 
-  if (_lastPath === pathname) {
-    _navigationEvents.push({ pathname, timestamp: now, repeated: true });
-  } else {
-    _navigationEvents.push({ pathname, timestamp: now, repeated: false });
+  // The first recorded navigation is the session's landing page — it marks
+  // where the session began, not a task switch away from something else.
+  const isInitialLanding = _navigationEvents.length === 0;
+  const isRepeated = _lastPath === pathname;
+
+  _navigationEvents.push({
+    pathname,
+    timestamp: now,
+    repeated: isRepeated,
+    initial: isInitialLanding,
+  });
+
+  if (!isRepeated) {
     _lastPath = pathname;
   }
 
@@ -493,9 +502,13 @@ export function getInteractionSnapshot() {
   const repeatedNavigation = recentNavs.filter(
     (entry) => entry.repeated,
   ).length;
-  const taskSwitchFrequency = +(
-    recentNavs.filter((entry) => !entry.repeated).length / 5
-  ).toFixed(2);
+  // Actual task switches are unique navigations to a different page; the
+  // landing navigation (where the session began) is not a switch, so a single
+  // fresh page load must not read as "scattered task switching".
+  const switchCount = recentNavs.filter(
+    (entry) => !entry.repeated && !entry.initial,
+  ).length;
+  const taskSwitchFrequency = +(switchCount / 5).toFixed(2);
   const interactionLatency =
     _firstInteractionAfterNavigationAt && _lastNavigationAt
       ? Math.max(

@@ -3,6 +3,7 @@ import { ArrowLeft, MessagesSquare, Volume2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
+import AsdVisualRoot from "@/components/asd/ui/AsdVisualRoot";
 import { useSocialCommunication, COMMUNICATION_VIEWS } from "../hooks/useSocialCommunication";
 import ActivitySetup from "./ActivitySetup";
 import ScenarioBrief from "./ScenarioBrief";
@@ -33,6 +34,7 @@ export default function SocialCommunicationPage() {
 
   return (
     <SupportToolThemeProvider theme="asd_social">
+      <AsdVisualRoot>
       <div
         className={`support-tool-page min-h-screen bg-gradient-to-br from-[#F0FAF7] via-[#DDF6F0] to-[#E0F2FE] ${
           engine.a11y.reduceMotion ? "[&_*]:transition-none" : ""
@@ -91,6 +93,7 @@ export default function SocialCommunicationPage() {
           <main className="flex items-start justify-center">{content}</main>
         </div>
       </div>
+      </AsdVisualRoot>
     </SupportToolThemeProvider>
   );
 }

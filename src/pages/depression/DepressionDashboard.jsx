@@ -117,11 +117,7 @@ const visibleCards = [
     visibleTitle: "Reach out",
     visibleDescription: "Send a kind message or just stay connected.",
   },
-  {
-    moduleId: "support.evidence_journal",
-    visibleTitle: "Notice the good",
-    visibleDescription: "Capture small moments that matter.",
-  },
+  { moduleId: "support.evidence_journal", visibleTitle: "Evidence Journal", visibleDescription: "Capture small moments that matter.", },
 ].map((card) => ({
   ...DEPRESSION_LANDING_TOOLS.find((tool) => tool.moduleId === card.moduleId),
   ...card,

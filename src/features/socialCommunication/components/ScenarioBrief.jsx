@@ -16,7 +16,7 @@ export default function ScenarioBrief({ engine }) {
       <button
         type="button"
         onClick={engine.startNew}
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-[#3D6A66] hover:text-[#0F766E] mb-4"
       >
         <ArrowLeft className="w-4 h-4" /> Change topic
       </button>
@@ -29,31 +29,31 @@ export default function ScenarioBrief({ engine }) {
               {domain?.label ?? scenario.domain}
             </span>
           </div>
-          <p className="text-sm text-violet-50 mt-1">Level: {difficultyLabel}</p>
+          <p className="text-sm text-teal-50 mt-1">Level: {difficultyLabel}</p>
         </div>
 
         <div className="p-6 space-y-5">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Setting</h3>
-            <p className="text-slate-800">{scenario.setting}</p>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-[#3D6A66] mb-1">Setting</h3>
+            <p className="text-[#134E4A]">{scenario.setting}</p>
           </div>
 
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Your goal</h3>
-            <p className="text-slate-800">{scenario.goal}</p>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-[#3D6A66] mb-1">Your goal</h3>
+            <p className="text-[#134E4A]">{scenario.goal}</p>
           </div>
 
           <div className="flex items-start gap-3 rounded-xl bg-[#F0FAF7] border border-[#B2DFDB] p-4">
             <AsdCharacter size={40} ariaHidden tone="cyan" accessory="spark" className="mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold text-slate-800">{scenario.npc?.name}</p>
-              <p className="text-sm text-slate-500">{scenario.npc?.role} — {scenario.npc?.personality}</p>
+              <p className="font-semibold text-[#134E4A]">{scenario.npc?.name}</p>
+              <p className="text-sm text-[#3D6A66]">{scenario.npc?.role} — {scenario.npc?.personality}</p>
             </div>
           </div>
 
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">They start by saying</h3>
-            <p className="text-slate-800 italic">“{scenario.openingLine}”</p>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-[#3D6A66] mb-1">They start by saying</h3>
+            <p className="text-[#134E4A] italic">“{scenario.openingLine}”</p>
           </div>
 
           <div className="rounded-xl bg-[#F0FAF7] border border-[#A7F3D0] p-4 text-sm text-[#0F766E] flex items-start gap-2">
