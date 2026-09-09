@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Brain, Zap, BookOpen, Calculator, Shield, Hand, Ear, Sparkles,
-  Home, ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind,
+  Home, ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
@@ -13,6 +13,7 @@ import AgentChat from "./AgentChat";
 // featureKey: null means always visible (Home)
 const USER_NAV = [
   { title: "Home",        path: "/",            icon: Home,       featureKey: null },
+  { title: "Wellbeing Garden", path: "/garden", icon: Sprout,     featureKey: null },
   { title: "Social & Emotional Support",  path: "/asd",         icon: Brain,      featureKey: FEATURES.ASD },
   { title: "Focus Flow",       path: "/adhd",        icon: Zap,        featureKey: FEATURES.ADHD },
   { title: "Reading Support",  path: "/dyslexia",    icon: BookOpen,   featureKey: FEATURES.DYSLEXIA },
