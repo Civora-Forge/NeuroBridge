@@ -4,13 +4,15 @@ import { ArrowLeft, MessagesSquare } from "lucide-react";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import SocialScenarioSimulatorCard from "@/components/asd/SocialScenarioSimulatorCard";
+import AsdVisualRoot from "@/components/asd/ui/AsdVisualRoot";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
 export default function ASDSocialScenariosPage() {
   const { reduced, gentle } = useSensoryReducedMotion();
   return (
     <SupportToolThemeProvider theme="asd_social">
-      <SupportToolLayout
+      <AsdVisualRoot>
+        <SupportToolLayout
         title="Social Scenario Simulator"
         description="Step into one situation at a time and practise how you would respond."
       >
@@ -33,6 +35,7 @@ export default function ASDSocialScenariosPage() {
         </motion.header>
         <SocialScenarioSimulatorCard />
       </SupportToolLayout>
+      </AsdVisualRoot>
     </SupportToolThemeProvider>
   );
 }

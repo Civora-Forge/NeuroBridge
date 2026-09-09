@@ -16,6 +16,10 @@ import {
 } from "@/support/schemas/supportSchemas";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
+import { contextEngine } from "@/adaptive/context";
+import { contextStore } from "@/adaptive/context/contextStore.js";
+import { resetMoodAgent } from "@/adaptive/context/moodAgent.js";
+import { resetInteractionTracker } from "@/adaptive/context/contextInteractionTracker.js";
 
 vi.mock("@/components/interventions/InterventionModal", () => ({
   __esModule: true,
@@ -304,6 +308,43 @@ describe("resolveCanonicalModuleId", () => {
 });
 
 describe("AdaptiveUIRuntime card behavior", () => {
+  it("lifecycle regression: the app's own fresh-load navigation produces no recommendation", () => {
+    // Mirrors the app startup sequence (ContextProvider mount + location
+    // effect). A fresh page load must NOT surface the support card: the
+    // engine's own landing navigation is not a user task switch, so it must
+    // not read as "scattered" attention and trigger a recommendation.
+    contextEngine.stop();
+    contextStore.reset();
+    resetMoodAgent();
+    resetInteractionTracker();
+
+    contextEngine.init({ initialScreen: "dashboard" });
+    contextEngine.trackNavigation("dashboard", { path: "/" });
+
+    const snapshot = contextEngine.getLatestContextSnapshot();
+    const { plan } = decide({ contextSnapshot: snapshot });
+
+    expect(snapshot.behavior.taskSwitchFrequency).toBe(0);
+    expect(deriveInterventionRecommendation(plan)).toBeNull();
+  });
+
+  it("lifecycle: the same engine path surfaces a recommendation once the user actually switches modules", () => {
+    contextEngine.stop();
+    contextStore.reset();
+    resetMoodAgent();
+    resetInteractionTracker();
+
+    contextEngine.init({ initialScreen: "dashboard" });
+    contextEngine.trackNavigation("dashboard", { path: "/" });
+    contextEngine.trackNavigation("reader", { path: "/reader" });
+
+    const snapshot = contextEngine.getLatestContextSnapshot();
+    const { plan } = decide({ contextSnapshot: snapshot });
+
+    expect(snapshot.behavior.taskSwitchFrequency).toBe(0.2);
+    expect(deriveInterventionRecommendation(plan)).not.toBeNull();
+  });
+
   it("end-to-end: decide() on an anxious state yields a UI action the shell applies", () => {
     const outcome = decide(
       {
@@ -415,6 +456,63 @@ describe("AdaptiveUIRuntime card behavior", () => {
     );
 
     expect(card(container)).toBeNull();
+  });
+
+  it("does not surface the card from a situation label alone when no action triggered", () => {
+    // Regression: persistent engine labels (e.g. situation "cognitive_overload")
+    // with NO triggered action must NOT make the support card visible. The
+    // engine must actually produce an adaptation action for the card to appear.
+    const plan = planWith([], { situation: "cognitive_overload" });
+    const { container, rerender } = render(
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
+    );
+
+    expect(card(container)).toBeNull();
+
+    // Another situation label without an action must stay hidden too.
+    rerender(
+      <Harness
+        runtimeValue={runtimeValue(planWith([], { situation: "emotional_distress" }), stressedSnapshot)}
+      />,
+    );
+    expect(card(container)).toBeNull();
+  });
+
+  it("surfaces an intervention when the engine triggered an action AND reasoning flags a situation", () => {
+    // A stressed snapshot drives the engine to actually adapt (a UI reduction
+    // action) while reasoning reports cognitive overload — that is an active
+    // intervention event, so the card appears.
+    const plan = planWith(
+      [uiAction("a-reduce", { mode: "minimal", reduceAnimations: true })],
+      { situation: "cognitive_overload" },
+    );
+    const { container } = render(
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
+    );
+
+    expect(card(container)).not.toBeNull();
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+    expect(screen.getByText("Personalized Support")).toBeInTheDocument();
+    expect(screen.getByText(/Small steps might help/)).toBeInTheDocument();
+    expect(screen.getByText(/Now · Next · Then/)).toBeInTheDocument();
+    expect(screen.getByText(/High cognitive load detected/)).toBeInTheDocument();
+  });
+
+  it("end-to-end: the real engine shows no card on a calm snapshot and a card on a stressed snapshot", () => {
+    // Acceptance criteria: page loaded / normal interaction -> NO card; a
+    // strong behavioral state -> engine recommendation -> card appears.
+    const calmOutcome = decide({ contextSnapshot: calmSnapshot });
+    const { container: calmContainer } = render(
+      <Harness runtimeValue={runtimeValue(calmOutcome.plan, calmSnapshot)} />,
+    );
+    expect(card(calmContainer)).toBeNull();
+
+    const stressedOutcome = decide({ contextSnapshot: stressedSnapshot });
+    expect(stressedOutcome.plan.actions.length).toBeGreaterThan(0);
+    const { container: stressedContainer } = render(
+      <Harness runtimeValue={runtimeValue(stressedOutcome.plan, stressedSnapshot)} />,
+    );
+    expect(card(stressedContainer)).not.toBeNull();
   });
 
   it("surfaces the suggestion immediately when the engine plan carries a recommendation, regardless of context evidence", () => {

@@ -7,9 +7,12 @@
 
 export { AsdCharacter, getCharacterToneForScenarios } from "./AsdCharacter";
 export { AsdCard, asdToneText } from "./AsdCard";
-export { AsdProgressDots, AsdProgressBar, AsdProgressRing } from "./AsdProgress";
+export { AsdProgressDots, AsdProgressBar, AsdProgressRing, AsdProgressTrack } from "./AsdProgress";
 export { AsdFeedback, AsdCelebration } from "./AsdFeedback";
 export { AsdChip, AsdSticker } from "./AsdChip";
+export { AsdScene } from "./AsdScene";
+export { AsdSpeechBubble, AsdDecor, AsdRewardStars } from "./AsdSpeech";
+export { AsdVisualRoot } from "./AsdVisualRoot";
 export { AsdVisualStyleSelector } from "./AsdVisualStyleSelector";
 export { useASDVisualStyle, useASDPracticeCounts } from "./useASDVisualStyle";
 export {

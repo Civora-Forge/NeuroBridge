@@ -93,12 +93,18 @@ export function resolveInterventionDefinition(recommendationId) {
     return INTERVENTION_REGISTRY[normalized];
   }
 
-  // Alias match
-  for (const item of Object.values(INTERVENTION_REGISTRY)) {
-    if (item.aliases.includes(normalized) || item.aliases.some((a) => normalized.includes(a))) {
-      return item;
-    }
+// Alias exact match first
+for (const item of Object.values(INTERVENTION_REGISTRY)) {
+  if (item.aliases.includes(normalized)) {
+    return item;
   }
+}
+// Substring match fallback
+for (const item of Object.values(INTERVENTION_REGISTRY)) {
+  if (item.aliases.some((a) => normalized.includes(a))) {
+    return item;
+  }
+}
 
   // Domain-based inference
   if (normalized.includes("breath") || normalized.includes("pacing")) {

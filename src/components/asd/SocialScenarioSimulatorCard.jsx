@@ -43,9 +43,14 @@ import {
   AsdCard,
   AsdCharacter,
   AsdChip,
+  AsdDecor,
   AsdFeedback,
   AsdProgressBar,
+  AsdRewardStars,
+  AsdScene,
+  AsdSpeechBubble,
   useASDPracticeCounts,
+  useASDVisualStyle,
   PROGRESS_EVENTS,
 } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
@@ -109,6 +114,8 @@ export default function SocialScenarioSimulatorCard() {
   const apiKey = getGeminiApiKey();
   const { recordEvent } = useASDPracticeCounts(userId);
   const { reduced, gentle } = useSensoryReducedMotion();
+  const { style } = useASDVisualStyle();
+  const playful = style === "younger";
 
   const [category, setCategory] = useState("daily_life");
   const [difficulty, setDifficulty] = useState("easy");
@@ -334,53 +341,82 @@ export default function SocialScenarioSimulatorCard() {
               initial={{ opacity: 0, y: reduced ? 0 : 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: gentle ? 0.3 : 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-              className="overflow-hidden rounded-2xl border-2 border-[#DDD6FE]"
-              style={{ background: STAGE_GRADIENTS[stageKind] }}
+              className="asd-stage-glow overflow-hidden rounded-2xl border-2 border-[#DDD6FE]"
             >
-              <div className="flex items-start gap-3 p-5">
-                <div className="flex flex-col items-center gap-1.5">
-                  <AsdCharacter
-                    size={68}
-                    ariaHidden
-                    tone={npcTone}
-                    accessory={npcAccessory}
-                    className="nb-mascot-float drop-shadow-[0_6px_12px_rgba(109,40,217,0.25)]"
-                  />
-                  <AsdChip tone="violet">NPC</AsdChip>
-                </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <AsdChip tone="violet">{getScenarioCategoryById(scenario.category)?.label ?? "Daily life"}</AsdChip>
-                    <AsdChip tone="neutral">{getScenarioDifficultyById(scenario.difficulty)?.label ?? "Easy"}</AsdChip>
-                  </div>
-                  {scenario.title && <p className="text-xs font-bold uppercase tracking-wide text-[#5B21B6]">{scenario.title}</p>}
-                  <p className="relative rounded-2xl rounded-bl-sm border-2 border-white/70 bg-white/95 px-4 py-3 text-base font-semibold leading-relaxed text-[#312E81] shadow-sm">
-                    {scenario.situation}
-                  </p>
-                  {scenario.role && (
-                    <p className="text-sm italic text-[#6B7280]">Your role: {scenario.role}</p>
-                  )}
-                  {scenario.question && (
-                    <p className="relative ml-8 rounded-2xl rounded-br-sm border-2 border-[#A78BFA] bg-white px-4 py-2.5 text-sm font-bold text-[#5B21B6] shadow-sm">
-                      <span className="mr-1.5" aria-hidden="true">🗨️</span>“{scenario.question}”
-                    </p>
-                  )}
-
-                  {showCues && Array.isArray(cuesToShow) && cuesToShow.length > 0 && (
-                    <div className="rounded-xl bg-white/70 border border-[#DDD6FE] p-3 space-y-1.5">
-                      <p className="text-xs font-black uppercase tracking-wide text-[#6D28D9]">Cues to notice</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cuesToShow.map((cue) => (
-                          <AsdChip key={cue} tone="violet">{cue}</AsdChip>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {showCues && scenario.hint && (
-                    <p className="text-xs italic text-[#6D28D9]">Hint: {scenario.hint}</p>
-                  )}
-                </div>
+              <div className="flex items-center justify-between gap-2 border-b border-[#DDD6FE]/70 bg-white/60 px-4 py-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6D28D9]">
+                  Scenario Simulator
+                </p>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#DDD6FE] bg-[#F5F3FF] px-2.5 py-0.5 text-[11px] font-bold text-[#6D28D9]">
+                    {getScenarioCategoryById(scenario.category)?.label ?? "Daily life"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#DDD6FE] bg-white px-2.5 py-0.5 text-[11px] font-bold text-[#6D28D9]">
+                    {getScenarioDifficultyById(scenario.difficulty)?.label ?? "Easy"}
+                  </span>
+                </span>
               </div>
+
+              <AsdScene
+                gradient={STAGE_GRADIENTS[stageKind]}
+                blobPalette={stageKind}
+                className="relative"
+              >
+                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
+                  <div className="flex shrink-0 flex-col items-center gap-1.5 self-center sm:self-start">
+                    <div className="relative">
+                      <span className="absolute -inset-2 rounded-full bg-[#8B5CF6]/15" aria-hidden="true" />
+                      <AsdCharacter
+                        size={72}
+                        ariaHidden
+                        className="asd-illustration nb-mascot-float relative drop-shadow-[0_6px_12px_rgba(109,40,217,0.25)]"
+                        tone={npcTone}
+                        accessory={npcAccessory}
+                      />
+                      <AsdDecor className="absolute -right-2 -top-1 text-xl" label="a sparkle">✨</AsdDecor>
+                    </div>
+                    <AsdChip tone="violet">They</AsdChip>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2.5">
+                    {scenario.title && <p className="text-xs font-bold uppercase tracking-wide text-[#5B21B6]">{scenario.title}</p>}
+                    <AsdSpeechBubble tone="violet" align="left">
+                      {scenario.situation}
+                    </AsdSpeechBubble>
+                    {scenario.role && (
+                      <p className="text-sm italic text-[#6B7280]">Your role: {scenario.role}</p>
+                    )}
+                    {scenario.question && (
+                      <p className="ml-6 flex items-start gap-2 rounded-2xl rounded-br-sm border-2 border-[#A78BFA] bg-white px-4 py-2.5 text-sm font-bold text-[#5B21B6] shadow-sm">
+                        <span className="mt-0.5" aria-hidden="true">🗨️</span>
+                        <span>“{scenario.question}”</span>
+                      </p>
+                    )}
+
+                    {showCues && Array.isArray(cuesToShow) && cuesToShow.length > 0 && (
+                      <div className="rounded-xl bg-white/80 border border-[#DDD6FE] p-3 space-y-1.5">
+                        <p className="text-xs font-black uppercase tracking-wide text-[#6D28D9]">Cues to notice</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cuesToShow.map((cue) => (
+                            <AsdChip key={cue} tone="violet">{cue}</AsdChip>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showCues && scenario.hint && (
+                      <p className="text-xs italic text-[#6D28D9]">Hint: {scenario.hint}</p>
+                    )}
+                  </div>
+                </div>
+
+                {!result && (
+                  <div className="border-t border-white/50 bg-white/40 px-5 py-3">
+                    <p className="flex items-center gap-2 text-sm font-black text-[#5B21B6]">
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-[#7C3AED] text-white text-[11px]" aria-hidden="true">You</span>
+                      What would you do next?
+                    </p>
+                  </div>
+                )}
+              </AsdScene>
             </motion.div>
 
             {coachNote && (
@@ -425,7 +461,7 @@ export default function SocialScenarioSimulatorCard() {
               )}
               {!result && (
                 <Button onClick={handleSubmit} disabled={!response.trim() || loading} className="gap-2 bg-[#7C3AED] text-white hover:bg-[#6D28D9] shadow-[2px_2px_0_#C4B5FD] font-bold">
-                  <CheckCircle2 size={16} /> Check my response
+                  <CheckCircle2 size={16} /> {playful ? "Try it out!" : "Check my response"}
                 </Button>
               )}
             </div>
@@ -434,13 +470,14 @@ export default function SocialScenarioSimulatorCard() {
             {result && tone && (
               <AsdFeedback
                 kind={tone.kind}
-                title={`${tone.label} · ${result.score}/100`}
+                title={`${playful ? "Nice try!" : "Debrief"} · ${result.score}/100`}
                 action={
                   <Button className="gap-2 w-full sm:w-auto bg-[#7C3AED] text-white hover:bg-[#6D28D9] shadow-[2px_2px_0_#C4B5FD] font-bold" onClick={handleNext}>
-                    Next situation <ArrowRight size={16} />
+                    {playful ? "Next!" : "Next situation"} <ArrowRight size={16} />
                   </Button>
                 }
               >
+                {result.score >= 70 && <div className="pb-1"><AsdRewardStars earned={3} label="Great score" /></div>}
                 {result.usedAi && <p className="text-xs font-semibold text-[#6D28D9]">AI-enhanced feedback</p>}
                 {result.reasoning && <p className="text-sm text-[#5F8A87]">{result.reasoning}</p>}
 

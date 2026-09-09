@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Mic, MicOff, Sparkles, Volume2 } from "lucide-react";
+import { ArrowRight, Mic, MicOff, ScanFace, Sparkles, Volume2 } from "lucide-react";
 import {
   DECODER_ACTIVITY_TYPES,
   DECODER_ACTIVITY_TYPE_IDS,
@@ -42,14 +42,19 @@ import {
   AsdCard,
   AsdCharacter,
   AsdChip,
+  AsdDecor,
   AsdFeedback,
   AsdProgressBar,
+  AsdRewardStars,
+  AsdSpeechBubble,
   useASDPracticeCounts,
+  useASDVisualStyle,
   PROGRESS_EVENTS,
 } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
 const CHARACTER_TONES = ["teal", "sky", "amber", "violet", "rose"];
+const QUICK_FEELINGS = ["Happy", "Worried", "Excited", "Nervous", "Proud", "Frustrated", "Calm", "Confused"];
 
 function useSpeech() {
   const speak = useCallback((text, rate = 0.95, pitch = 1.05) => {
@@ -96,6 +101,8 @@ export default function EmotionDecoderCard() {
   const apiKey = getGeminiApiKey();
   const { recordEvent } = useASDPracticeCounts(userId);
   const { reduced, gentle } = useSensoryReducedMotion();
+  const { style } = useASDVisualStyle();
+  const playful = style === "younger";
 
   const [activityType, setActivityType] = useState(DECODER_ACTIVITY_TYPE_IDS[0]);
   const [difficulty, setDifficulty] = useState(1);
@@ -297,37 +304,50 @@ export default function EmotionDecoderCard() {
               initial={{ opacity: 0, y: reduced ? 0 : 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: gentle ? 0.3 : 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-              className="overflow-hidden rounded-2xl border-2 border-[#FDE68A] bg-gradient-to-br from-[#FFFDF5] to-[#FDF6E3]"
+              className="asd-scene overflow-hidden rounded-2xl border-2 border-[#FCE7BD] shadow-[3px_3px_0_#FDE68A]"
             >
-              <div className="flex items-start gap-3 p-5">
+              <div
+                aria-hidden="true"
+                className="asd-scene-content absolute inset-0"
+                style={{ background: "linear-gradient(150deg,#FFFDF5 0%,#FDF3DC 100%)" }}
+              />
+              <div className="asd-scene-content relative flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
                 <motion.div
                   key={attempts}
                   initial={reduced ? false : { scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 220, damping: 15 }}
-                  className="mt-1"
+                  className="shrink-0 self-center sm:self-start"
                 >
-                  <AsdCharacter
-                    size={64}
-                    ariaHidden
-                    tone={CHARACTER_TONES[characterIndex % CHARACTER_TONES.length]}
-                    accessory={CHARACTER_ACCESSORY[characterIndex % CHARACTER_ACCESSORY.length]}
-                  />
+                  <div className="relative">
+                    <span className="nb-pulse-ring absolute -inset-2 rounded-full bg-[#FDE68A]/60" aria-hidden="true" />
+                    <AsdCharacter
+                      size={76}
+                      ariaHidden
+                      className="asd-illustration relative"
+                      tone={CHARACTER_TONES[characterIndex % CHARACTER_TONES.length]}
+                      accessory={CHARACTER_ACCESSORY[characterIndex % CHARACTER_ACCESSORY.length]}
+                    />
+                    <AsdDecor className="absolute -right-2 -top-1 text-xl" label="a sparkle">✨</AsdDecor>
+                  </div>
                 </motion.div>
                 <div className="min-w-0 flex-1 space-y-2.5">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#D97706]">A little situation</p>
                   <p className="text-base font-semibold leading-relaxed text-[#134E4A]">{scenario.scenario}</p>
                   {scenario.dialogue && (
-                    <p className="relative rounded-2xl rounded-bl-sm border-2 border-[#FDE68A] bg-white px-4 py-2.5 text-sm italic text-[#7C5E10] shadow-sm">
-                      “{scenario.dialogue}”
-                    </p>
+                    <AsdSpeechBubble tone="amber" align="left">
+                      <span className="italic">“{scenario.dialogue}”</span>
+                    </AsdSpeechBubble>
                   )}
-                  <p className="flex items-center gap-2 text-sm font-black text-[#D97706]">
-                    <Sparkles size={14} /> {scenario.question}
+                  <p className="flex items-center gap-2 rounded-xl bg-[#D97706]/10 border border-[#FDE68A] px-3 py-2 text-sm font-black text-[#D97706]">
+                    <ScanFace size={15} /> {scenario.question}
                   </p>
 
                   {showHint && Array.isArray(scenario.cues) && scenario.cues.length > 0 && (
-                    <div className="rounded-xl bg-white/70 border border-[#FDE68A] p-3 space-y-1.5">
-                      <p className="text-xs font-black uppercase tracking-wide text-[#B45309]">Clues to notice</p>
+                    <div className="rounded-xl bg-white/80 border border-[#FDE68A] p-3 space-y-1.5">
+                      <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#B45309]">
+                        <Sparkles size={12} /> Clues to notice
+                      </p>
                       <div className="flex flex-wrap gap-1.5">
                         {scenario.cues.map((cue) => (
                           <AsdChip key={cue} tone="amber">{cue}</AsdChip>
@@ -391,8 +411,24 @@ export default function EmotionDecoderCard() {
                 <p className="text-xs text-amber-600" role="status">{voice.error}</p>
               )}
               {!result && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5" role="group" aria-label="Quick feeling suggestions">
+                  {QUICK_FEELINGS.map((feeling) => (
+                    <button
+                      key={feeling}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => setAnswer(feeling)}
+                      className="rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-3 py-1.5 text-xs font-bold text-[#B45309] transition-colors hover:border-[#D97706] hover:bg-[#FEF3C7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-50"
+                    >
+                      {feeling}
+                    </button>
+                  ))}
+                  <span className="self-center text-[11px] text-[#8B9C98]">or type your own</span>
+                </div>
+              )}
+              {!result && (
                 <Button onClick={handleSubmit} disabled={!answer.trim() || loading} className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold">
-                  Check my answer
+                  {playful ? "Check it!" : "Check my answer"}
                 </Button>
               )}
             </div>
@@ -404,11 +440,12 @@ export default function EmotionDecoderCard() {
                 title={result.correct ? "That's it!" : "Not quite yet."}
                 action={
                   <Button className="gap-2 bg-[#0D9488] text-white hover:bg-[#0F766E] shadow-[2px_2px_0_#B2DFDB] font-bold" onClick={handleNext}>
-                    Next situation <ArrowRight size={16} />
+                    {playful ? "Next!" : "Next situation"} <ArrowRight size={16} />
                   </Button>
                 }
               >
                 {result.feedback}
+                {result.correct && <div className="mt-1"><AsdRewardStars earned={2} label="Emotion decoded" /></div>}
               </AsdFeedback>
             )}
           </div>
