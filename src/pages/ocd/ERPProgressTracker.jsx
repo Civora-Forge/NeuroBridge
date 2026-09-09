@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Brain, Activity, Target, Download, Sparkles, 
   CheckCircle2, ShieldAlert, Award, Calendar, ChevronRight, 
-  Copy, TrendingDown, Flame, Shield, Star, Check, Lock, X 
+  Copy, TrendingDown, Flame, Shield, Star, Check, X
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -12,11 +12,30 @@ import {
   Bar, AreaChart, Area, ReferenceArea, ReferenceLine, Cell 
 } from 'recharts';
 import {
-  getSessions, getJournalEntries, getCompulsionOutcomes, 
-  getResistanceStats, getStreakStats, getCalendarHeatmap, 
-  getMilestones, checkAndEarnMilestones, buildTherapistExport, 
+  getSessions as getLocalSessions, getJournalEntries, getCompulsionOutcomes,
+  getResistanceStats, getStreakStats, getCalendarHeatmap,
+  getMilestones, checkAndEarnMilestones, buildTherapistExport,
   buildWeeklyInsight
 } from '@/support/specialized/ocdStore';
+import { getSessions as getBackendSessions } from '@/api/ocdApi';
+
+/**
+ * Sessions are split across two stores today (see plan doc: OCD state
+ * architecture map) — this screen merges both read-only so it's the one
+ * place that actually shows everything, including sessions the agent
+ * starts/completes via chat, without touching either write path.
+ */
+function normalizeBackendSession(s) {
+  return {
+    id: `backend-${s.id}`,
+    itemTitle: s.title,
+    preSuds: s.pre_suds,
+    postSuds: s.post_suds,
+    durationSec: s.duration_seconds,
+    timestamp: s.completed_at || s.created_at,
+    source: 'backend',
+  };
+}
 
 export default function ERPProgressTracker() {
   const [sessions, setSessions] = useState([]);
@@ -33,17 +52,31 @@ export default function ERPProgressTracker() {
 
   useEffect(() => {
     checkAndEarnMilestones();
-    setSessions(getSessions() || []);
+
+    const localSessions = (getLocalSessions() || []).map((s) => ({ ...s, source: 'local' }));
+
+    getBackendSessions()
+      .then((backendSessions) => {
+        const merged = [...localSessions, ...(backendSessions || []).map(normalizeBackendSession)].sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        );
+        setSessions(merged);
+      })
+      .catch(() => {
+        // Backend unreachable — still show local sessions rather than an empty page.
+        setSessions(localSessions);
+      });
+
     setJournalEntries(getJournalEntries() || []);
     setCompulsionOutcomes(getCompulsionOutcomes() || []);
     setStreakStats(getStreakStats() || { current: 0, longest: 0, total: 0 });
-    
+
     const resStats = getResistanceStats(30) || { resisted: 0, total: 0 };
-    setResistanceStats({ 
-      ...resStats, 
-      percentage: resStats.total > 0 ? Math.round((resStats.resisted / resStats.total) * 100) : 0 
+    setResistanceStats({
+      ...resStats,
+      percentage: resStats.total > 0 ? Math.round((resStats.resisted / resStats.total) * 100) : 0
     });
-    
+
     setHeatmap(getCalendarHeatmap(84) || []);
     setMilestones(getMilestones() || []);
     setInsight(buildWeeklyInsight());
@@ -149,7 +182,7 @@ export default function ERPProgressTracker() {
                 </div>
                 <div className="text-3xl font-bold text-slate-800">{streakStats.current}</div>
                 <div className="text-sm text-slate-500 font-medium mt-1">Active Streak</div>
-                <div className="text-xs text-slate-400 mt-1">Best: {streakStats.longest}</div>
+                <div className="text-xs text-slate-400 mt-1">Days practicing recently</div>
               </div>
 
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -168,7 +201,7 @@ export default function ERPProgressTracker() {
                 </div>
                 <div className="text-3xl font-bold text-slate-800">{resistanceStats.percentage}%</div>
                 <div className="text-sm text-slate-500 font-medium mt-1">Resistance Rate</div>
-                <div className="text-xs text-slate-400 mt-1">{resistanceStats.resisted}/{resistanceStats.total} resisted</div>
+                <div className="text-xs text-slate-400 mt-1">Not a target — resisting isn't always the goal</div>
               </div>
 
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -254,31 +287,23 @@ export default function ERPProgressTracker() {
               </div>
             )}
 
-            {/* Milestones Gallery */}
-            {milestones.length > 0 && (
+            {/* Milestones Gallery — earned only. A visible "locked collection" to
+                complete is a completionist trigger, especially risky for OCD;
+                showing only what's already true avoids that pull. */}
+            {earnedMilestonesCount > 0 && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                 <h3 className="text-slate-800 font-semibold mb-2 flex items-center gap-2 text-lg">
                   <Target className="w-5 h-5 text-violet-500" /> Milestones Earned
                 </h3>
                 <p className="text-xs text-slate-400 mb-4">These mark practice you've already done — there's no benefit to checking back often.</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  {milestones.map((m, i) => {
-                    const earned = !!m.earnedAt;
-                    return (
-                      <div key={i} className={`flex flex-col items-center p-4 rounded-xl border text-center transition-all ${earned ? 'border-violet-200 bg-gradient-to-b from-violet-50 to-white shadow-sm hover:shadow-md' : 'border-slate-100 bg-slate-50/50 opacity-70'}`}>
-                        <div className="text-4xl mb-3 relative flex items-center justify-center w-12 h-12">
-                          {earned ? m.icon : <div className="grayscale opacity-40">{m.icon}</div>}
-                          {!earned && <div className="absolute -bottom-1 -right-1 bg-slate-200 rounded-full p-1 border border-white"><Lock className="w-3 h-3 text-slate-500" /></div>}
-                        </div>
-                        <div className="text-xs font-semibold text-slate-800 line-clamp-2 leading-tight mb-1" title={m.title}>{m.title}</div>
-                        {earned ? (
-                          <div className="text-[10px] font-medium text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full mt-1">{new Date(m.earnedAt).toLocaleDateString()}</div>
-                        ) : (
-                          <div className="text-[10px] text-slate-400 mt-1">Locked</div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {milestones.filter((m) => !!m.earnedAt).map((m, i) => (
+                    <div key={i} className="flex flex-col items-center p-4 rounded-xl border text-center transition-all border-violet-200 bg-gradient-to-b from-violet-50 to-white shadow-sm hover:shadow-md">
+                      <div className="text-4xl mb-3 flex items-center justify-center w-12 h-12">{m.icon}</div>
+                      <div className="text-xs font-semibold text-slate-800 line-clamp-2 leading-tight mb-1" title={m.title}>{m.title}</div>
+                      <div className="text-[10px] font-medium text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full mt-1">{new Date(m.earnedAt).toLocaleDateString()}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -60,12 +60,13 @@ function SortableItem({ item, hId, onRemove }) {
       <div className="flex items-center gap-3 flex-shrink-0">
         {!item.is_completed && (
           <Link
-            to={`/ocd/exposure-tracker?hierarchyId=${hId}&taskId=${item.id}`}
+            to="/ocd/exposure-session"
+            title="Opens the ERP practice timer — it doesn't carry this specific step over yet, so re-enter the details there"
             className="group/btn relative overflow-hidden bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl px-4 py-2.5 text-sm font-bold flex items-center gap-2 shadow-sm hover:shadow-md transition-all"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out" />
             <Play className="w-4 h-4 relative z-10" fill="currentColor" />
-            <span className="hidden sm:inline relative z-10">Start ERP <span className="font-normal opacity-70 ml-1">→</span></span>
+            <span className="hidden sm:inline relative z-10">Practice in ERP Studio</span>
           </Link>
         )}
         <motion.button

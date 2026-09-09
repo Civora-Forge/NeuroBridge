@@ -70,6 +70,11 @@ export default function Home() {
                 </div>
                 <ArrowRight className="w-6 h-6 text-white flex-shrink-0 group-hover:translate-x-1 transition-transform" />
               </Link>
+              <p className="text-xs text-slate-400 mt-2">
+                {isResuming
+                  ? "Because you opened this in the last two weeks — not a recommendation, just where you left off."
+                  : "Because it's first in your toolkit — not a personalized pick."}
+              </p>
             </section>
 
             {/* Everything else stays fully discoverable, just secondary. */}
