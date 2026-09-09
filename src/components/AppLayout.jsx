@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Brain, Zap, BookOpen, Calculator, Shield, Hand, Ear, Sparkles,
@@ -5,6 +6,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
+import { MODULES_REGISTRY } from "@/data/modulesRegistry";
+import { recordModuleVisit, findModuleForPath } from "@/lib/lastVisitedModule";
 import AgentChat from "./AgentChat";
 
 // featureKey: null means always visible (Home)
@@ -42,6 +45,12 @@ export default function AppLayout({ children }) {
       : role === "guardian"
       ? GUARDIAN_NAV
       : USER_NAV.filter((item) => item.featureKey === null || hasFeature(item.featureKey));
+
+  useEffect(() => {
+    if (role !== "user") return;
+    const module = findModuleForPath(location.pathname, MODULES_REGISTRY);
+    if (module) recordModuleVisit(module.id, location.pathname);
+  }, [location.pathname, role]);
 
   function handleLogout() {
     logout();

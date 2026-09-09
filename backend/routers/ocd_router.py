@@ -51,6 +51,77 @@ def read_hierarchies(
         .all()
     )
 
+def _get_owned_hierarchy(db: Session, hierarchy_id: int, user: CurrentUser) -> ocd_models.ExposureHierarchy:
+    hierarchy = (
+        db.query(ocd_models.ExposureHierarchy)
+        .filter(ocd_models.ExposureHierarchy.id == hierarchy_id, ocd_models.ExposureHierarchy.owner_id == user.id)
+        .first()
+    )
+    if not hierarchy:
+        raise HTTPException(status_code=404, detail="Hierarchy not found")
+    return hierarchy
+
+def _get_owned_task(db: Session, task_id: int, user: CurrentUser) -> ocd_models.ExposureTask:
+    task = (
+        db.query(ocd_models.ExposureTask)
+        .join(ocd_models.ExposureHierarchy)
+        .filter(
+            ocd_models.ExposureTask.id == task_id,
+            ocd_models.ExposureHierarchy.owner_id == user.id,
+        )
+        .first()
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Exposure step not found")
+    return task
+
+# --- Exposure Tasks (steps within a hierarchy) ---
+
+@router.post("/hierarchies/{hierarchy_id}/tasks/", response_model=ocd_schemas.ExposureTask)
+def create_task(
+    hierarchy_id: int,
+    task: ocd_schemas.ExposureTaskCreate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    hierarchy = _get_owned_hierarchy(db, hierarchy_id, user)
+    max_order = max([t.order_index for t in hierarchy.tasks], default=-1)
+    db_task = ocd_models.ExposureTask(
+        description=task.description,
+        estimated_suds=task.estimated_suds,
+        order_index=max_order + 1,
+        hierarchy_id=hierarchy.id,
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+@router.patch("/tasks/{task_id}", response_model=ocd_schemas.ExposureTask)
+def update_task(
+    task_id: int,
+    update: ocd_schemas.ExposureTaskUpdate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    task = _get_owned_task(db, task_id, user)
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
+    db.commit()
+    db.refresh(task)
+    return task
+
+@router.delete("/tasks/{task_id}", status_code=204)
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    task = _get_owned_task(db, task_id, user)
+    db.delete(task)
+    db.commit()
+    return None
+
 # --- ERP Sessions ---
 
 @router.post("/sessions/", response_model=ocd_schemas.ERPSession)
