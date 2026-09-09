@@ -16,6 +16,7 @@ import DisorderSelection from "./pages/onboarding/DisorderSelection";
 
 import Login from "./pages/Login";
 import Home from "./pages/Home";
+import GardenPage from "./pages/GardenPage";
 import LoginUser from "./pages/LoginUser";
 import LoginGuardian from "./pages/LoginGuardian";
 import LoginSupport from "./pages/LoginSupport";
@@ -117,6 +118,14 @@ function ShellRoutes() {
           element={
             <ProtectedRoute role="user">
               <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/garden"
+          element={
+            <ProtectedRoute role="user">
+              <GardenPage />
             </ProtectedRoute>
           }
         />

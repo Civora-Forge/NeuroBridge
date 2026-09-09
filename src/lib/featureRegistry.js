@@ -26,6 +26,7 @@ export const FEATURES = /** @type {const} */ ({
   ANXIETY:      "anxiety",
   DEPRESSION:    "depression",
   APD:          "apd",
+  GARDEN:       "garden",
 
   // ── Depression sub-features ───────────────
   DEPRESSION_MVH:               "depression.mvh",
@@ -118,6 +119,10 @@ export const FEATURE_REGISTRY = {
   [FEATURES.APD]: {
     label: "Audio Support",
     disorders: [DISORDERS.APD],
+  },
+  [FEATURES.GARDEN]: {
+    label: "Wellbeing Garden",
+    disorders: Object.values(DISORDERS),
   },
 
   // ── Depression sub-features ───────────────

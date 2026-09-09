@@ -210,8 +210,8 @@ export default function ExposureSessionTimer() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                Delay Coach <span className="bg-cyan-100 text-cyan-700 text-[10px] uppercase tracking-bold px-2 py-0.5 rounded-full font-black">Pro</span>
+              <h1 className="font-bold text-lg text-slate-800">
+                Delay Coach
               </h1>
             </div>
           </div>

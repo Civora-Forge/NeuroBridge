@@ -20,6 +20,21 @@ export const getHierarchies = async () => {
   return response.data;
 };
 
+export const addHierarchyTask = async (hierarchyId, data) => {
+  const response = await ocdApi.post(`/hierarchies/${hierarchyId}/tasks/`, data);
+  return response.data;
+};
+
+export const updateHierarchyTask = async (taskId, data) => {
+  const response = await ocdApi.patch(`/tasks/${taskId}`, data);
+  return response.data;
+};
+
+export const removeHierarchyTask = async (taskId) => {
+  await ocdApi.delete(`/tasks/${taskId}`);
+  return taskId;
+};
+
 export const createSession = async (data) => {
   const response = await ocdApi.post('/sessions/', data);
   return response.data;

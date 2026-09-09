@@ -11,6 +11,12 @@ class ExposureTaskBase(BaseModel):
 class ExposureTaskCreate(ExposureTaskBase):
     pass
 
+class ExposureTaskUpdate(BaseModel):
+    description: Optional[str] = None
+    estimated_suds: Optional[int] = None
+    is_completed: Optional[bool] = None
+    order_index: Optional[int] = None
+
 class ExposureTask(ExposureTaskBase):
     id: int
     hierarchy_id: int
