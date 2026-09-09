@@ -114,6 +114,49 @@ def _get_exposure_hierarchy(args: dict, ctx: ToolContext) -> dict:
     }
 
 
+def _get_owned_exposure_task(db, task_id: int, user: CurrentUser) -> ocd_models.ExposureTask:
+    """Same ownership check as ocd_router.py's _get_owned_task (join through
+    the hierarchy, not a bare task_id lookup) — the agent must not be able to
+    touch another user's exposure task just because it can guess/receive an id."""
+    task = (
+        db.query(ocd_models.ExposureTask)
+        .join(ocd_models.ExposureHierarchy)
+        .filter(
+            ocd_models.ExposureTask.id == task_id,
+            ocd_models.ExposureHierarchy.owner_id == user.id,
+        )
+        .first()
+    )
+    if not task:
+        raise ToolError("That exposure step wasn't found.")
+    return task
+
+
+def _reorder_exposure_task(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    task_id = args.get("task_id")
+    new_order_index = args.get("new_order_index")
+    if task_id is None or new_order_index is None:
+        raise ToolError("I need both which exposure step and its new position to reorder it.")
+    task = _get_owned_exposure_task(db, task_id, user)
+    task.order_index = max(0, int(new_order_index))
+    db.commit()
+    db.refresh(task)
+    return {"id": task.id, "description": task.description, "order_index": task.order_index, "hierarchy_id": task.hierarchy_id}
+
+
+def _delete_exposure_task(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    task_id = args.get("task_id")
+    if task_id is None:
+        raise ToolError("Which exposure step should I remove?")
+    task = _get_owned_exposure_task(db, task_id, user)
+    description = task.description
+    db.delete(task)
+    db.commit()
+    return {"deleted_task_id": task_id, "description": description}
+
+
 def _create_exposure(args: dict, ctx: ToolContext) -> dict:
     db, user = ctx.db, ctx.user
     description = (args.get("description") or "").strip()
@@ -596,6 +639,44 @@ def _get_reading_preferences(args: dict, ctx: ToolContext) -> dict:
     return {"available": True, "has_preferences": True, "preferences": rows[0]}
 
 
+def _get_reading_history(args: dict, ctx: ToolContext) -> dict:
+    """Real, Supabase-backed reading files (src/lib/readingFilesService.js) —
+    a genuine gap found by audit: nothing exposed this before. Deliberately
+    returns only lightweight progress metadata, never the full OCR'd text
+    (that's the reader's job, not something to surface through chat)."""
+    import os
+
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+    if not supabase_url or not anon_key or not ctx.user_token:
+        return {"available": False, "reason": "Reading history isn't available right now."}
+
+    try:
+        response = httpx.get(
+            f"{supabase_url}/rest/v1/reading_files",
+            headers={"Authorization": f"Bearer {ctx.user_token}", "apikey": anon_key},
+            params={"select": "file_name,file_type,page_count,ocr_status,metadata,created_at", "order": "created_at.desc", "limit": "5"},
+            timeout=5.0,
+        )
+        response.raise_for_status()
+        rows = response.json()
+    except Exception:
+        return {"available": False, "reason": "Couldn't reach your reading history right now."}
+
+    return {
+        "available": True,
+        "recent_files": [
+            {
+                "file_name": r.get("file_name"),
+                "page_count": r.get("page_count"),
+                "status": r.get("ocr_status"),
+                "progress": (r.get("metadata") or {}).get("progress"),
+            }
+            for r in rows
+        ],
+    }
+
+
 # ---------------------------------------------------------------------------
 # ASD — backend has no real data store for this yet (see plan). Honest,
 # navigation-only tool: it does not claim to create/fetch anything server-side.
@@ -669,6 +750,30 @@ TOOL_REGISTRY: dict[str, Tool] = {
         ),
         risk_level=RiskLevel.WRITE_CONFIRM,
         handler=_create_exposure,
+    ),
+    "reorder_exposure_task": Tool(
+        name="reorder_exposure_task",
+        description="Change the position of one exposure step within its hierarchy. Call get_exposure_hierarchy first so you know its real task_id.",
+        parameters=_schema(
+            {
+                "task_id": {"type": "integer", "description": "The exposure step's real id, from get_exposure_hierarchy."},
+                "new_order_index": {"type": "integer", "description": "New 0-based position in the hierarchy."},
+            },
+            required=["task_id", "new_order_index"],
+        ),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_reorder_exposure_task,
+    ),
+    "delete_exposure_task": Tool(
+        name="delete_exposure_task",
+        description="Permanently remove one exposure step from a hierarchy. Call get_exposure_hierarchy first so you know its real task_id.",
+        parameters=_schema(
+            {"task_id": {"type": "integer", "description": "The exposure step's real id, from get_exposure_hierarchy."}},
+            required=["task_id"],
+        ),
+        # Irreversible — matches the same care already given to complete_erp_session.
+        risk_level=RiskLevel.WRITE_CONFIRM,
+        handler=_delete_exposure_task,
     ),
     "start_erp_session": Tool(
         name="start_erp_session",
@@ -834,6 +939,13 @@ TOOL_REGISTRY: dict[str, Tool] = {
         parameters=_schema({}),
         risk_level=RiskLevel.READ,
         handler=_get_reading_preferences,
+    ),
+    "get_reading_history": Tool(
+        name="get_reading_history",
+        description="Retrieve the user's recent uploaded reading files and progress (page count, OCR status, how far they've read).",
+        parameters=_schema({}),
+        risk_level=RiskLevel.READ,
+        handler=_get_reading_history,
     ),
     "start_social_scenario": Tool(
         name="start_social_scenario",

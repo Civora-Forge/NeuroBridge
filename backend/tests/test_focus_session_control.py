@@ -226,7 +226,14 @@ def test_voice_shaped_pause_then_resume_then_stop_drives_real_state_transitions_
         r4 = orchestrator.process_message("Stop.")
         assert r4["action"]["command"] == "stop"
         assert r4["action"]["session"]["status"] == "STOPPED"
-        session = db.query(adhd_models.FocusSession).filter_by(user_id=user_a.id).first()
+        # order_by, not .first() on an unordered query: this test only intends to
+        # check the ONE session it created and drove through this whole sequence.
+        session = (
+            db.query(adhd_models.FocusSession)
+            .filter_by(user_id=user_a.id)
+            .order_by(adhd_models.FocusSession.id.desc())
+            .first()
+        )
         assert session.status == "STOPPED"
     finally:
         db.close()

@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser
 from ..database import SessionLocal
 from ..models import agent_models
-from . import agent_tools, context_scope, fast_path, safety
+from . import agent_tools, context_scope, contextual_commands, fast_path, safety
 from .agent_state import TERMINAL_STATES, ExecutionState
 from .agent_tools import RiskLevel, Tool, ToolContext, ToolError, ToolTimeoutError
 from .navigation import FEATURE_LABELS, match_navigation_shortcut, resolve_feature_route
@@ -90,6 +90,8 @@ _FOCUS_CONTROL_COMMANDS = {
 _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "get_ocd": "ocd",
     "create_exposure": "ocd",
+    "reorder_exposure": "ocd",
+    "delete_exposure": "ocd",
     "start_erp": "ocd",
     "record_suds": "ocd",
     "complete_erp": "ocd",
@@ -524,6 +526,29 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 action = None
             else:
                 response_text = f"I couldn't check that right now — {outcome['error'] or 'please try again.'}"
+                action = None
+            self._transition(execution, ExecutionState.COMPLETED, on_event)
+            self._finish(execution, total_start)
+            return {"response": response_text, "action": action, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
+
+        contextual_command = contextual_commands.match_contextual_command(message)
+        if contextual_command:
+            tool_name = contextual_commands.tool_name_for(contextual_command)
+            tool = agent_tools.TOOL_REGISTRY[tool_name]
+            self._transition(execution, ExecutionState.EXECUTING, on_event, tool_name=tool_name)
+            if on_event:
+                on_event({"type": "tool_started", "execution_id": execution.execution_id, "tool": tool_name})
+            outcome = self._execute_tool(tool, {}, execution_id=execution.execution_id, conversation_id=conversation_id)
+            execution.tool_call_count = 1
+            if on_event:
+                on_event({"type": "tool_completed", "execution_id": execution.execution_id, "tool": tool_name, "status": outcome["status"]})
+            if outcome["status"] == "executed":
+                response_text = _render_focus_control_fallback(contextual_command, outcome["result"])
+                action = self._build_action(tool_name, outcome["result"])
+            else:
+                # No active session to act on — still a real, deterministic, honest
+                # answer (from the tool's own ToolError message), never a fabricated one.
+                response_text = outcome["error"] or "There's nothing active to do that with right now."
                 action = None
             self._transition(execution, ExecutionState.COMPLETED, on_event)
             self._finish(execution, total_start)
