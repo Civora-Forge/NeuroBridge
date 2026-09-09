@@ -33,6 +33,7 @@ import {
 } from "../services/sessionHistory";
 import { useCommunicationAdaptation } from "./useCommunicationAdaptation";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import { resolveASDLearnerId } from "@/support/asdLearnerId";
 import { useASDPracticeCounts, PROGRESS_EVENTS } from "@/components/asd/ui";
 
 export const COMMUNICATION_VIEWS = Object.freeze({
@@ -56,8 +57,12 @@ function loadA11y() {
 }
 
 export function useSocialCommunication() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const userId = user?.id ?? null;
+  const learnerId = useMemo(
+    () => (user ? resolveASDLearnerId(user, role || user?.role) : null),
+    [user, role],
+  );
 
   const [view, setView] = useState(COMMUNICATION_VIEWS.LAUNCH);
   const [session, setSession] = useState(null);
@@ -67,7 +72,7 @@ export function useSocialCommunication() {
   const [history, setHistory] = useState([]);
   const [historyStats, setHistoryStats] = useState(null);
   const [a11y, setA11y] = useState(loadA11y);
-  const { recordEvent: recordPracticeEvent } = useASDPracticeCounts(userId);
+  const { recordEvent: recordPracticeEvent } = useASDPracticeCounts(learnerId);
 
   const userPreferences = useMemo(
     () => buildUserPreferencesFragment(user),

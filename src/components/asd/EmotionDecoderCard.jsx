@@ -20,6 +20,7 @@ import { getGeminiApiKey } from "@/features/socialCommunication/services/aiServi
 import { useVoiceInput } from "@/features/socialCommunication/hooks/useVoiceInput";
 import { useModuleAdaptation } from "@/hooks/useModuleAdaptation";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import { resolveASDLearnerId } from "@/support/asdLearnerId";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,12 +95,13 @@ function friendlyAdaptationNote(signals) {
 const CHARACTER_ACCESSORY = ["leaf", "star", "spark", "flower", "book"];
 
 export default function EmotionDecoderCard() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const userId = user?.id ?? null;
+  const learnerId = useMemo(() => (user ? resolveASDLearnerId(user, role || user?.role) : null), [user, role]);
   const speak = useSpeech();
   const voice = useVoiceInput();
   const apiKey = getGeminiApiKey();
-  const { recordEvent } = useASDPracticeCounts(userId);
+  const { recordEvent } = useASDPracticeCounts(learnerId);
   const { reduced, gentle } = useSensoryReducedMotion();
   const { style } = useASDVisualStyle();
   const playful = style === "younger";

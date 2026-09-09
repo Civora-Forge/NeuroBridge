@@ -6,39 +6,16 @@
  *   - Animation (Off / Reduced / Normal)
  *   - Interface density (Simple / Standard)
  *
- * Persists to localStorage under a module-scoped key.
- * Reads from and writes to a data attribute on the wrapper element
- * so CSS can respond to these preferences.
+ * The controls read from and write to the shared reactive sensory store, which
+ * persists to the existing localStorage key and mirrors the preferences onto
+ * <html> data attributes so CSS responds immediately. Choosing a setting is
+ * reflected everywhere at once — no page refresh needed.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Settings, Eye, Sparkles, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const STORAGE_KEY = "neurobridge-sensory-preferences";
-
-const DEFAULTS = {
-  visualIntensity: "comfortable",
-  animation: "normal",
-  density: "standard",
-};
-
-function loadPreferences() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
-  } catch {
-    return { ...DEFAULTS };
-  }
-}
-
-function savePreferences(prefs) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    /* silent */
-  }
-}
+import { useSensoryPreferences } from "@/stores/sensoryPreferencesStore";
 
 function SegmentedControl({ value, onChange, options, icon: Icon, label }) {
   return (
@@ -69,31 +46,7 @@ function SegmentedControl({ value, onChange, options, icon: Icon, label }) {
 
 export default function SensorySettings({ moduleKey = "global", className = "" }) {
   const [open, setOpen] = useState(false);
-  const [prefs, setPrefs] = useState(loadPreferences);
-
-  const update = useCallback(
-    (key, val) => {
-      setPrefs((prev) => {
-        const next = { ...prev, [key]: val };
-        savePreferences(next);
-        return next;
-      });
-    },
-    []
-  );
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.sensoryVisual = prefs.visualIntensity;
-    root.dataset.sensoryAnimation = prefs.animation;
-    root.dataset.sensoryDensity = prefs.density;
-
-    if (prefs.animation === "off") {
-      root.classList.add("sensory-no-animation");
-    } else {
-      root.classList.remove("sensory-no-animation");
-    }
-  }, [prefs]);
+  const { visualIntensity, animation, density, setPreference } = useSensoryPreferences();
 
   return (
     <div className={`rounded-2xl border border-[#C7D2FE] bg-white/80 backdrop-blur ${className}`}>
@@ -128,8 +81,8 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
               <SegmentedControl
                 label="Visual Intensity"
                 icon={Eye}
-                value={prefs.visualIntensity}
-                onChange={(v) => update("visualIntensity", v)}
+                value={visualIntensity}
+                onChange={(v) => setPreference("visualIntensity", v)}
                 options={[
                   { value: "simple", label: "Simple" },
                   { value: "comfortable", label: "Comfortable" },
@@ -139,8 +92,8 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
               <SegmentedControl
                 label="Animation"
                 icon={Sparkles}
-                value={prefs.animation}
-                onChange={(v) => update("animation", v)}
+                value={animation}
+                onChange={(v) => setPreference("animation", v)}
                 options={[
                   { value: "off", label: "Off" },
                   { value: "reduced", label: "Reduced" },
@@ -150,8 +103,8 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
               <SegmentedControl
                 label="Interface Density"
                 icon={LayoutGrid}
-                value={prefs.density}
-                onChange={(v) => update("density", v)}
+                value={density}
+                onChange={(v) => setPreference("density", v)}
                 options={[
                   { value: "simple", label: "Simple" },
                   { value: "standard", label: "Standard" },
@@ -169,4 +122,7 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
   );
 }
 
-export { loadPreferences, DEFAULTS };
+export {
+  loadSensoryPreferences as loadPreferences,
+  SENSORY_PREFERENCES_DEFAULTS as DEFAULTS,
+} from "@/stores/sensoryPreferencesStore";
