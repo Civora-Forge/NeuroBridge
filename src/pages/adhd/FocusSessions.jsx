@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Sun, Moon, Coffee, Crosshair, Tag, Brain, CalendarDays, ClipboardList, Heart, Leaf, Play, SlidersHorizontal, Sparkles, Target } from 'lucide-react';
+import { Sun, Moon, Coffee, Crosshair, Tag, Brain, CalendarDays, ClipboardList, Heart, Leaf, Play, SlidersHorizontal, Sparkles, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
@@ -337,6 +337,12 @@ const FocusSessions = () => {
   });
   const adaptiveConfig = adaptation.configuration;
 
+  // Setup screen keeps one obvious action (choose a length, press Start).
+  // Micro-goals, today's stats, and the plan reminder are real but secondary —
+  // tucked behind a single disclosure instead of all competing for attention
+  // at once. Once a block is running/paused there's nothing left to decide,
+  // so those panels are shown plainly again.
+  const [showExtras, setShowExtras] = useState(false);
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState('focus');
   const [focusMinutes, setFocusMinutes] = useState(initialFocusMinutes);
@@ -681,9 +687,36 @@ const FocusSessions = () => {
 
           <aside className="space-y-3">
             <TaskInput intent={intent} setIntent={setIntent} tag={tag} setTag={setTag} isActive={isActive} />
-            <MicroGoals goals={microGoals} setGoals={setMicroGoals} />
-            <StatsRow sessions={completedCount} totalMinutes={totalFocusedMinutes} streak={streak} weeklyMinutes={weeklyMinutes} />
-            <FocusCues />
+
+            {phase === 'setup' && !showExtras ? (
+              <button
+                type="button"
+                onClick={() => setShowExtras(true)}
+                className="flex w-full items-center justify-between rounded-2xl border border-[#dce8d5] bg-white px-4 py-3 text-xs font-semibold text-[#438f48] shadow-sm hover:bg-[#f5fff3] transition-colors"
+                aria-expanded={false}
+              >
+                <span>Micro-goals, today's stats &amp; the plan</span>
+                <ChevronDown size={16} />
+              </button>
+            ) : (
+              <>
+                {phase === 'setup' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowExtras(false)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-[#dce8d5] bg-white px-4 py-3 text-xs font-semibold text-[#438f48] shadow-sm hover:bg-[#f5fff3] transition-colors"
+                    aria-expanded={true}
+                  >
+                    <span>Hide extra tools</span>
+                    <ChevronUp size={16} />
+                  </button>
+                )}
+                <MicroGoals goals={microGoals} setGoals={setMicroGoals} />
+                <StatsRow sessions={completedCount} totalMinutes={totalFocusedMinutes} streak={streak} weeklyMinutes={weeklyMinutes} />
+                <FocusCues />
+              </>
+            )}
+
             {phase === 'celebration' && <CelebrationBanner onStartBreak={startBreak} onSkip={skipToNext} intent={intent} focusMinutes={focusMinutes} />}
             {phase === 'break' && <BreakMode secondsLeft={breakSecondsLeft} tip={breakTip} onEnd={resetToSetup} />}
             {!user?.id && <p role="alert" className="rounded-xl border border-[#6D9F46] bg-[#E2EDDA] p-3 text-xs text-[#29451E]">Sign in to save Focus Session progress and outcomes. The timer still works locally.</p>}

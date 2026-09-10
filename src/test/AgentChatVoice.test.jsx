@@ -3,6 +3,7 @@ import { render, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AgentChat from "@/components/AgentChat";
 import { findNavTarget } from "@/lib/findNavTarget";
+import { applyPresetGlobally } from "@/lib/presentationPreferences";
 import focusSessionControlStore from "@/stores/focusSessionControlStore";
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
@@ -12,6 +13,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 vi.mock("@/lib/findNavTarget", () => ({ findNavTarget: vi.fn() }));
+vi.mock("@/lib/presentationPreferences", () => ({ applyPresetGlobally: vi.fn() }));
 
 // jsdom doesn't implement scrollIntoView — AgentChat calls it on every message-list update.
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -76,6 +78,7 @@ beforeEach(() => {
   cancelPendingAction.mockClear();
   mockNavigate.mockClear();
   findNavTarget.mockReset();
+  applyPresetGlobally.mockClear();
   resetVoiceState();
   storeMessages = [];
   pendingConfirmationState = null;
@@ -463,5 +466,35 @@ describe("AgentChat — FOCUS_SESSION_CONTROL routing (operate the real timer, n
 
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(focusSessionControlStore.getState().pendingCommand).toBeNull();
+  });
+});
+
+describe("AgentChat — PRESENTATION_PRESET routing ('make this simpler' applies instantly, no navigation)", () => {
+  it("applies the preset globally the moment the message finalizes — no navigation, no cursor", () => {
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Switched to a simpler view.", streaming: false,
+        action_payload: { type: "PRESENTATION_PRESET", preset_id: "focus" },
+      },
+    ];
+    renderChat();
+
+    expect(applyPresetGlobally).toHaveBeenCalledWith("focus");
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(findNavTarget).not.toHaveBeenCalled();
+  });
+
+  it("does not re-apply the same preset action on an unrelated re-render", () => {
+    storeMessages = [
+      {
+        id: "m1", role: "model", content: "Switched to a simpler view.", streaming: false,
+        action_payload: { type: "PRESENTATION_PRESET", preset_id: "low_stimulation" },
+      },
+    ];
+    const { rerender } = renderChat();
+    expect(applyPresetGlobally).toHaveBeenCalledTimes(1);
+
+    rerender(<MemoryRouter><AgentChat /></MemoryRouter>);
+    expect(applyPresetGlobally).toHaveBeenCalledTimes(1);
   });
 });

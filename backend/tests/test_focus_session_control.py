@@ -188,11 +188,26 @@ def test_voice_shaped_pause_then_resume_then_stop_drives_real_state_transitions_
     db = SessionLocal()
     try:
         start_call = FakeResponse(parts=[FakePart(function_call=FakeFunctionCall("start_focus_session", {"duration_minutes": 25}))])
-        install_fake_gemini([start_call])
+        # A single-item fake response list would make the fake keep returning
+        # the SAME function-call response every round (found while debugging
+        # this exact test) — the round loop would then re-execute
+        # start_focus_session on every round until max-steps, silently
+        # creating multiple duplicate sessions. A final text response lets
+        # the turn actually complete after one real execution.
+        final = FakeResponse(parts=[FakePart()], text="Started your focus session.")
+        install_fake_gemini([start_call, final])
         orchestrator = agent_service.AgentOrchestrator(db, user_a)
         r1 = orchestrator.process_message("Start a focus session.")
+        assert r1["state"] == "COMPLETED"
         assert r1["action"]["type"] == "FOCUS_SESSION_CONTROL"
         assert r1["action"]["command"] == "start"
+    finally:
+        db.close()
+
+    db = SessionLocal()
+    try:
+        only_one_session = db.query(adhd_models.FocusSession).filter_by(user_id=user_a.id).count()
+        assert only_one_session == 1  # not 4 duplicate rows from repeated max-round execution
     finally:
         db.close()
 
@@ -226,7 +241,14 @@ def test_voice_shaped_pause_then_resume_then_stop_drives_real_state_transitions_
         r4 = orchestrator.process_message("Stop.")
         assert r4["action"]["command"] == "stop"
         assert r4["action"]["session"]["status"] == "STOPPED"
-        session = db.query(adhd_models.FocusSession).filter_by(user_id=user_a.id).first()
+        # order_by, not .first() on an unordered query: this test only intends to
+        # check the ONE session it created and drove through this whole sequence.
+        session = (
+            db.query(adhd_models.FocusSession)
+            .filter_by(user_id=user_a.id)
+            .order_by(adhd_models.FocusSession.id.desc())
+            .first()
+        )
         assert session.status == "STOPPED"
     finally:
         db.close()

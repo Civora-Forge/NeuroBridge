@@ -604,6 +604,7 @@ export default function GuardianDashboard() {
                 <button
                   key={id}
                   onClick={() => setActiveWardId(id)}
+                  aria-pressed={taskWardId === id}
                   className={`text-xs px-3 py-1.5 rounded-xl border transition font-medium ${
                     taskWardId === id
                       ? "bg-violet-500/15 border-violet-400/50 text-violet-500"
@@ -621,12 +622,14 @@ export default function GuardianDashboard() {
                 value={taskDraft.title}
                 onChange={(e) => setTaskDraft((prev) => ({ ...prev, title: e.target.value }))}
                 placeholder="Task title"
+                aria-label="Task title"
                 className="sm:col-span-2 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50"
               />
               <input
                 type="time"
                 value={taskDraft.time}
                 onChange={(e) => setTaskDraft((prev) => ({ ...prev, time: e.target.value }))}
+                aria-label="Task time"
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50"
               />
             </div>

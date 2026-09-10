@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useId } from "react";
+import useDialogA11y from "@/hooks/useDialogA11y";
 const metaphors = [
     {
         title: "Leaves on a Stream",
@@ -76,17 +77,28 @@ export default function ACTSOSModal({ open, onClose }) {
         onClose();
     };
 
+    const panelRef = useRef(null);
+    const titleId = useId();
+    useDialogA11y(panelRef, open, handleClose);
+
     if (!open) return null;
     const m = metaphors[current];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
             <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"/>
-            <div className="relative neuro-card max-w-md w-full p-8 text-center animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={panelRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="relative neuro-card max-w-md w-full p-8 text-center animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-2">
                     Cognitive Defusion
                 </p>
-                <h2 className="text-2xl font-bold mb-4">{m.title}</h2>
+                <h2 id={titleId} className="text-2xl font-bold mb-4">{m.title}</h2>
 
                 {phase === "read" && (
                     <>

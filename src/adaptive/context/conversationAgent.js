@@ -21,6 +21,7 @@ import { contextEventBus } from "./events/contextEventBus.js";
 import { ContextEvents } from "./events/contextEvents.js";
 import { contextStore } from "./contextStore.js";
 import { createContextSignal } from "./types/contextTypes.js";
+import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
 
 /** Zod Schema for Conversation Analysis Output */
 export const ConversationAnalysisSchema = z.object({
@@ -34,14 +35,6 @@ export const ConversationAnalysisSchema = z.object({
 
 /** @typedef {z.infer<typeof ConversationAnalysisSchema>} ConversationAnalysisResult */
 
-// Default Gemini API configuration
-const DEFAULT_GEMINI_KEY =
-  typeof import.meta !== "undefined" &&
-  import.meta.env &&
-  import.meta.env.VITE_GEMINI_API_KEY;
-
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 const DEFAULT_TIMEOUT_MS = 4000;
 
 /**
@@ -129,15 +122,18 @@ export function heuristicAnalyzeConversation(text) {
 }
 
 /**
- * Call Gemini REST API for structured context extraction with timeout & validation.
+ * Call the backend's Gemini proxy for structured context extraction, with
+ * timeout & validation. Routed through backend/routers/ai_proxy_router.py
+ * rather than calling Gemini directly — see geminiProxyClient.js's docstring
+ * for why (no client-side API key, auth + rate limiting on every call).
  * @param {string} text
- * @param {string} apiKey
+ * @param {object} [user] - current authenticated user, for the auth header.
  * @param {number} timeoutMs
  * @returns {Promise<ConversationAnalysisResult>}
  */
 async function callGeminiForAnalysis(
   text,
-  apiKey = DEFAULT_GEMINI_KEY,
+  user,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   const controller = new AbortController();
@@ -160,28 +156,24 @@ Respond ONLY with a valid JSON object matching this schema:
 User input: "${text.replace(/"/g, '\\"')}"`;
 
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 250,
-          responseMimeType: "application/json",
-        },
-      }),
+    const result = await callGeminiProxy({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 250,
+        responseMimeType: "application/json",
+      },
+      user,
+      fetchImpl: (url, requestInit) => fetch(url, { ...requestInit, signal: controller.signal }),
     });
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`Gemini API returned status ${response.status}`);
+    if (!result.ok) {
+      throw new Error(`Gemini proxy request failed: ${result.error}`);
     }
 
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const rawText = extractGeminiText(result.data);
 
     // Parse JSON output
     let parsedJSON;

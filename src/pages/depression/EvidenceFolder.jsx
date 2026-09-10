@@ -306,6 +306,7 @@ export default function EvidenceFolder() {
                   <input
                     className="h-10 w-full rounded-xl border border-slate-200/80 bg-white pl-9 pr-4 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
                     placeholder="Search entries..."
+                    aria-label="Search entries"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                   />

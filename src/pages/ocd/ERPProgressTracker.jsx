@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, Brain, Activity, Target, Download, Sparkles, 
-  CheckCircle2, ShieldAlert, Award, Calendar, ChevronRight, 
-  Copy, TrendingDown, Flame, Shield, Star, Check, X
+import {
+  ArrowLeft, Brain, Activity, Target, Download, Sparkles,
+  CheckCircle2, ShieldAlert, Calendar, ChevronRight,
+  Copy, TrendingDown, Shield, Star, Check, X
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import {
   getSessions as getLocalSessions, getJournalEntries, getCompulsionOutcomes,
-  getResistanceStats, getStreakStats, getCalendarHeatmap,
+  getCalendarHeatmap,
   getMilestones, checkAndEarnMilestones, buildTherapistExport,
   buildWeeklyInsight
 } from '@/support/specialized/ocdStore';
@@ -41,8 +41,6 @@ export default function ERPProgressTracker() {
   const [sessions, setSessions] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [compulsionOutcomes, setCompulsionOutcomes] = useState([]);
-  const [streakStats, setStreakStats] = useState({ current: 0, longest: 0, total: 0 });
-  const [resistanceStats, setResistanceStats] = useState({ resisted: 0, total: 0, percentage: 0 });
   const [heatmap, setHeatmap] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [insight, setInsight] = useState(null);
@@ -69,14 +67,6 @@ export default function ERPProgressTracker() {
 
     setJournalEntries(getJournalEntries() || []);
     setCompulsionOutcomes(getCompulsionOutcomes() || []);
-    setStreakStats(getStreakStats() || { current: 0, longest: 0, total: 0 });
-
-    const resStats = getResistanceStats(30) || { resisted: 0, total: 0 };
-    setResistanceStats({
-      ...resStats,
-      percentage: resStats.total > 0 ? Math.round((resStats.resisted / resStats.total) * 100) : 0
-    });
-
     setHeatmap(getCalendarHeatmap(84) || []);
     setMilestones(getMilestones() || []);
     setInsight(buildWeeklyInsight());
@@ -136,7 +126,6 @@ export default function ERPProgressTracker() {
   }, [heatmap]);
 
   const earnedMilestonesCount = milestones.filter(m => m.earnedAt).length;
-  const totalMilestonesCount = milestones.length > 0 ? milestones.length : 7;
   const hasData = sessions.length > 0 || journalEntries.length > 0;
 
   return (
@@ -173,44 +162,25 @@ export default function ERPProgressTracker() {
             animate={{ opacity: 1 }}
             className="space-y-8"
           >
-            {/* Hero Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="bg-amber-100 p-2 rounded-lg"><Flame className="w-5 h-5 text-amber-600" /></div>
-                </div>
-                <div className="text-3xl font-bold text-slate-800">{streakStats.current}</div>
-                <div className="text-sm text-slate-500 font-medium mt-1">Active Streak</div>
-                <div className="text-xs text-slate-400 mt-1">Days practicing recently</div>
+            {/* Plain summary — deliberately not a stat dashboard. Big bold
+                numbers in colored tiles read as a scoreboard no matter what
+                the caption says, and a scoreboard is exactly what invites
+                checking it "to see how you're doing." One sentence instead. */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-100 p-2 rounded-lg shrink-0"><Shield className="w-5 h-5 text-indigo-600" /></div>
+                <p className="text-sm text-slate-700">
+                  <span className="font-bold text-slate-900">{sessions.length}</span>{' '}
+                  {sessions.length === 1 ? 'ERP session' : 'ERP sessions'} so far
+                </p>
               </div>
-
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600"></div>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="bg-indigo-100 p-2 rounded-lg"><Shield className="w-5 h-5 text-indigo-600" /></div>
-                </div>
-                <div className="text-3xl font-bold text-slate-800">{sessions.length}</div>
-                <div className="text-sm text-slate-500 font-medium mt-1">ERP Sessions</div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="bg-emerald-100 p-2 rounded-lg"><Award className="w-5 h-5 text-emerald-600" /></div>
-                </div>
-                <div className="text-3xl font-bold text-slate-800">{resistanceStats.percentage}%</div>
-                <div className="text-sm text-slate-500 font-medium mt-1">Resistance Rate</div>
-                <div className="text-xs text-slate-400 mt-1">Not a target — resisting isn't always the goal</div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-400 to-purple-500"></div>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="bg-violet-100 p-2 rounded-lg"><Star className="w-5 h-5 text-violet-600" /></div>
-                </div>
-                <div className="text-3xl font-bold text-slate-800">{earnedMilestonesCount}/{totalMilestonesCount}</div>
-                <div className="text-sm text-slate-500 font-medium mt-1">Milestones Earned</div>
+              <div className="flex items-center gap-3">
+                <div className="bg-violet-100 p-2 rounded-lg shrink-0"><Star className="w-5 h-5 text-violet-600" /></div>
+                <p className="text-sm text-slate-700">
+                  {earnedMilestonesCount > 0
+                    ? <><span className="font-bold text-slate-900">{earnedMilestonesCount}</span> milestone{earnedMilestonesCount === 1 ? '' : 's'} reached</>
+                    : 'No milestones reached yet'}
+                </p>
               </div>
             </div>
 

@@ -55,6 +55,24 @@ export default {
                     border: "hsl(var(--sidebar-border))",
                     ring: "hsl(var(--sidebar-ring))",
                 },
+                // One real Tailwind color per support module (see --mode-* in
+                // index.css). The `<alpha-value>` placeholder lets every
+                // shade take native opacity modifiers (bg-mode-adhd/10,
+                // border-mode-ocd/40, ...) instead of the broken
+                // `bg-[hsl(var(--x)/0.1)]` arbitrary-value pattern, whose
+                // trailing "/0.1)]" Tailwind's JIT misreads as an opacity
+                // suffix and silently drops the whole class.
+                mode: {
+                    asd: "hsl(var(--mode-asd) / <alpha-value>)",
+                    adhd: "hsl(var(--mode-adhd) / <alpha-value>)",
+                    dyslexia: "hsl(var(--mode-dyslexia) / <alpha-value>)",
+                    dyscalculia: "hsl(var(--mode-dyscalculia) / <alpha-value>)",
+                    ocd: "hsl(var(--mode-ocd) / <alpha-value>)",
+                    dyspraxia: "hsl(var(--mode-dyspraxia) / <alpha-value>)",
+                    apd: "hsl(var(--mode-apd) / <alpha-value>)",
+                    anxiety: "hsl(var(--mode-anxiety) / <alpha-value>)",
+                    depression: "hsl(var(--mode-depression) / <alpha-value>)",
+                },
             },
             borderRadius: {
                 lg: "var(--radius)",

@@ -1,47 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabaseClient';
 import { listInterventions } from '@/support/persistence/role4Store';
 import { currentStatusLabel, friendlyToolLabel } from '@/lib/agentEvents';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
-const DEMO_SESSION_KEY = 'nb_agent_demo_session_id';
-
-/**
- * Demo/mock logins (see AuthContext.jsx's MOCK_USERS) have no real Supabase
- * session, so there's no token to send. Instead we generate a random,
- * per-browser session id once and persist it — this keeps one demo visitor's
- * agent data (real DB rows, just under a "demo:" namespaced id) isolated from
- * every other demo visitor, even though they picked the same demo role.
- */
-function getOrCreateDemoSessionId() {
-  try {
-    let id = localStorage.getItem(DEMO_SESSION_KEY);
-    if (!id) {
-      id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem(DEMO_SESSION_KEY, id);
-    }
-    return id;
-  } catch {
-    return `volatile-${Math.random().toString(36).slice(2)}`;
-  }
-}
-
-async function authHeaders(user) {
-  if (user?._supabase) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
-  }
-  if (user?.id) {
-    const sessionId = getOrCreateDemoSessionId();
-    return { Authorization: `Bearer demo:${user.id}:${sessionId}` };
-  }
-  return {};
-}
+import { API_BASE_URL, backendAuthHeaders as authHeaders } from '@/lib/backendAuth';
 
 /**
  * Small, explicit snapshot of frontend-only (localStorage-backed) activity —

@@ -252,6 +252,7 @@ export default function ThoughtTriggerJournal({ onEntryAdded, onNavigateTo }) {
         <div className="relative flex-1">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search entries"
             placeholder="Search entries..."
             className="w-full rounded-md border border-gray-300 bg-gray-50 pl-8 pr-3 py-2 text-sm text-gray-800 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400" />
         </div>

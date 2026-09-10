@@ -111,35 +111,13 @@ const quickCalm = [
   { id: "transition_support", icon: RefreshCcw, label: "Transition", hint: "Now · Next · Then", tile: "bg-gradient-to-br from-[#A5B4FC]/20 to-[#C7D2FE]/20 text-[#4F46E5]" },
 ];
 
-/** Decorative atmosphere for the hero. Denser for younger, minimal for clear. */
-function HeroAmbience({ density = "soft" }) {
-  const items =
-    density === "full"
-      ? [
-          { kind: "bubble", style: { left: "8%", top: "18%", width: 26, height: 26, "--nb-bubble-dur": "9s" } },
-          { kind: "bubble", style: { left: "22%", top: "64%", width: 16, height: 16, "--nb-bubble-dur": "12s", opacity: 0.6 } },
-          { kind: "bubble", style: { right: "12%", top: "30%", width: 20, height: 20, "--nb-bubble-dur": "10s", opacity: 0.7 } },
-          { kind: "leaf", style: { left: "46%", top: "20%", width: 14, height: 14, "--nb-leaf-dur": "11s" } },
-          { kind: "leaf", style: { right: "24%", top: "70%", width: 18, height: 18, "--nb-leaf-dur": "13s", opacity: 0.8 } },
-          { kind: "twinkle", char: "✦", style: { left: "28%", top: "80%", position: "absolute" } },
-          { kind: "twinkle", char: "✦", style: { right: "6%", top: "12%", position: "absolute", animationDelay: "0.6s" } },
-        ]
-      : density === "light"
-        ? [
-            { kind: "bubble", style: { left: "8%", top: "20%", width: 22, height: 22, "--nb-bubble-dur": "11s", opacity: 0.5 } },
-            { kind: "leaf", style: { right: "20%", top: "66%", width: 16, height: 16, "--nb-leaf-dur": "14s", opacity: 0.55 } },
-          ]
-        : [{ kind: "twinkle", char: "✦", style: { right: "10%", top: "16%", position: "absolute" } }];
+/** Decorative — kept deliberately minimal. ASD-specific research flags
+ * multiple simultaneous moving elements as visual clutter/overload risk
+ * even when each one is individually slow — one quiet accent, not seven. */
+function HeroAmbience() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      {items.map((item, index) => {
-        const cls = item.kind === "bubble" ? "nb-bubble" : item.kind === "leaf" ? "nb-leaf" : "nb-twinkle inline-block";
-        return (
-          <span key={index} className={cls} style={item.style}>
-            {item.char ?? null}
-          </span>
-        );
-      })}
+      <span className="nb-bubble" style={{ right: "12%", top: "30%", width: 20, height: 20, "--nb-bubble-dur": "10s", opacity: 0.5 }} />
     </div>
   );
 }
@@ -314,74 +292,32 @@ export default function ASDPage() {
           <main className="min-h-screen bg-[#F4FBF9] text-[#134E4A]">
             <div className="mx-auto w-full max-w-[1240px] px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
 
-              {/* ── Hero header with companions ── */}
-              <motion.header
-                variants={heroVariants}
-                initial="hidden"
-                animate="visible"
-                className="relative overflow-hidden rounded-[24px] border-2 border-[#B2DFDB]/60 bg-gradient-to-br from-[#E9F8F3] via-white to-[#D8F5EC] p-6 sm:p-8 lg:p-10"
-              >
-                <HeroAmbience density={heroDensity} />
-                <div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
-                  <div className="max-w-[680px]">
-                    <motion.p variants={itemVariants} className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#0D9488]">
-                      <span className="nb-twinkle grid h-5 w-5 place-items-center rounded-full bg-[#0D9488] text-white"><Sparkles size={11} /></span>
-                      Your friendly practice space
-                    </motion.p>
-                    <motion.h1 variants={itemVariants} className="mt-2 text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#134E4A] sm:text-5xl lg:text-[56px]">
-                      Feelings & <span className="nb-shimmer bg-gradient-to-r from-[#0D9488] via-[#2DD4A8] to-[#14B8A6] bg-clip-text text-transparent">Friends</span>
-                    </motion.h1>
-                    <motion.p variants={itemVariants} className="mt-3 text-base leading-relaxed text-[#5F8A87] sm:text-lg">
-                      Four gentle tools to understand feelings, practise everyday situations, and build calm conversations — one small step at a time.
-                    </motion.p>
-                    <motion.div variants={itemVariants}>
-                      <AdaptiveGreeting responseTier={0} seed={0} />
-                    </motion.div>
-                  </div>
-                  <motion.div variants={itemVariants} className="hidden lg:flex items-end justify-end gap-4 pr-2">
-                    <div className="relative">
-                      <span className="nb-pulse-ring absolute inset-0 rounded-full bg-[#5EEAD4]/30" aria-hidden="true" />
-                      <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
-                    </div>
-                    <AsdCharacter size={72} tone="cyan" accessory="spark" ariaHidden className="nb-mascot-float -mb-10" style={{ animationDelay: "1.2s" }} />
+            {/* ── Hero header with companions ── */}
+            <motion.header
+              variants={heroVariants}
+              initial="hidden"
+              animate="visible"
+              className="relative overflow-hidden rounded-[24px] border-2 border-[#B2DFDB]/60 bg-gradient-to-br from-[#E9F8F3] via-white to-[#D8F5EC] p-6 sm:p-8 lg:p-10"
+            >
+              <HeroAmbience />
+              <div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="max-w-[680px]">
+                  <motion.p variants={itemVariants} className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#0D9488]">
+                    <span className="nb-twinkle grid h-5 w-5 place-items-center rounded-full bg-[#0D9488] text-white"><Sparkles size={11} /></span>
+                    Your friendly practice space
+                  </motion.p>
+                  <motion.h1 variants={itemVariants} className="mt-2 text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#134E4A] sm:text-5xl lg:text-[56px]">
+                    Feelings & <span className="bg-gradient-to-r from-[#0D9488] via-[#2DD4A8] to-[#14B8A6] bg-clip-text text-transparent">Friends</span>
+                  </motion.h1>
+                  <motion.p variants={itemVariants} className="mt-3 text-base leading-relaxed text-[#5F8A87] sm:text-lg">
+                    Four gentle tools to understand feelings, practise everyday situations, and build calm conversations — one small step at a time.
+                  </motion.p>
+                  <motion.div variants={itemVariants}>
+                    <AdaptiveGreeting responseTier={0} seed={0} />
                   </motion.div>
                 </div>
-
-                {!asdLoading && (
-                  <motion.div variants={itemVariants} className="mt-6 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.14em] text-[#5F8A87]">Your progress</span>
-                    <AsdChip tone="teal">{counts.stories_completed} stories</AsdChip>
-                    <AsdChip tone="amber">{counts.emotions_solved} feelings</AsdChip>
-                    <AsdChip tone="violet">{counts.scenarios_practised} situations</AsdChip>
-                    <AsdChip tone="cyan">{counts.conversations_completed} chats</AsdChip>
-                  </motion.div>
-                )}
-              </motion.header>
-
-              {/* ── Completion / journey strip ── */}
-              {!asdLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: reduced ? 0 : 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: gentle ? 0.3 : 0.48, ease: [0.25, 0.1, 0.25, 1] }}
-                  className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[#D5F5EC] bg-white/85 p-4 shadow-[2px_2px_0_#D5F5EC]"
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#E0F5EE] text-[#0D9488]" aria-hidden="true">
-                    <PartyPopper size={18} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-[#134E4A]">
-                      {totalPractised > 0 ? (
-                        <>You&apos;ve practised <span className="text-[#0D9488]">{totalPractised} {totalPractised === 1 ? "moment" : "moments"}</span> so far.</>
-                      ) : (
-                        "Everything is ready when you are — start with one small scene."
-                      )}
-                    </p>
-                    <p className="text-xs text-[#5F8A87]">Keep going at your own pace; each small step counts.</p>
-                  </div>
-                  <span className="hidden sm:block rounded-full bg-[#F0FAF7] border border-[#B2DFDB] px-3 py-1 text-xs font-bold text-[#0D9488]">
-                    {Math.min(4 + (totalPractised > 0 ? 1 : 0), 5)}/5 unlocked
-                  </span>
+                <motion.div variants={itemVariants} className="hidden lg:flex items-end justify-end gap-4 pr-2">
+                  <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
                 </motion.div>
               )}
 

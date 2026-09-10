@@ -1,9 +1,12 @@
 /**
- * aiService.js — The ONLY place the app talks to an LLM. Mirrors the existing
- * Gemini REST pattern (see src/adaptive/context/conversationAgent.js) and never
- * reaches the model from UI components. The Social Communication Simulator
- * (Conversation Practice), the ASD Emotion Decoder and the ASD Social Scenario
- * Simulator all route every model call through this file.
+ * aiService.js — The ONLY place the app talks to an LLM. Routes every model
+ * call through the backend's `/api/ai/generate` proxy (see
+ * src/lib/geminiProxyClient.js) instead of calling Gemini directly from the
+ * browser — the client-side API key this used to use was bundled into the
+ * public JS and callable by anyone, with no auth, rate limiting, or
+ * server-side visibility. The Social Communication Simulator (Conversation
+ * Practice), the ASD Emotion Decoder and the ASD Social Scenario Simulator
+ * all route every model call through this file.
  *
  * Every call returns a Zod-validated object or `null`. A `null` result means
  * "AI unavailable" and the caller MUST fall back to a deterministic path —
@@ -26,25 +29,26 @@ import {
   SocialScenarioEvaluationSchema,
   SocialScenarioSchema,
 } from "@/support/modules/socialScenarioSimulator/socialScenarioTypes";
+import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
 
-const GEMINI_MODEL_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
-export function getGeminiApiKey() {
-  const key = typeof import.meta !== "undefined" && import.meta?.env
-    ? import.meta.env.VITE_GEMINI_API_KEY
-    : undefined;
-    
-  if (!key && (import.meta.env?.PROD || typeof window !== 'undefined')) {
-    console.error(
-      "ERROR: VITE_GEMINI_API_KEY is missing! Live AI scenarios in ASD modules will not work and will fall back to local pools. Please set VITE_GEMINI_API_KEY in your production environment."
-    );
-  }
-  return key;
+/** Whether the backend has AI configured at all is only knowable server-side
+ * now (no client-side env var to check) — callers use the `null` result from
+ * a generator call as the "unavailable" signal instead of checking this
+ * up front. Kept as `true` so existing call sites that still gate on it
+ * (e.g. "show the AI toggle") keep offering the feature; a real failure
+ * degrades gracefully to the deterministic pool either way. */
+export function isGeminiAvailable() {
+  return true;
 }
 
-export function isGeminiAvailable() {
-  return Boolean(getGeminiApiKey());
+/** Legacy shim: callers historically gated "is AI available" on this being a
+ * truthy client-side API key (`if (apiKey) ...`). There is no client-side key
+ * anymore — the backend proxy holds the real one and is the actual authority
+ * on availability — so this returns a fixed placeholder purely to keep those
+ * existing checks true; it is never sent anywhere (`callGeminiJson` no longer
+ * accepts or forwards an `apiKey`). */
+export function getGeminiApiKey() {
+  return "backend-proxy";
 }
 
 function clampPromptSlice(text, limit = AI_TRANSCRIPT_LIMIT) {
@@ -60,16 +64,13 @@ function clampPromptSlice(text, limit = AI_TRANSCRIPT_LIMIT) {
  */
 export async function callGeminiJson(prompt, schema, options = {}) {
   const {
-    apiKey = getGeminiApiKey(),
     timeoutMs = AI_TIMEOUT_MS,
     temperature = 0.7,
     maxOutputTokens = 900,
     fetchImpl,
+    user,
   } = options;
 
-  if (!apiKey) {
-    return { ok: false, error: "missing_api_key" };
-  }
   if (!prompt || !schema) {
     return { ok: false, error: "invalid_arguments" };
   }
@@ -86,26 +87,22 @@ export async function callGeminiJson(prompt, schema, options = {}) {
       : null;
 
   try {
-    const response = await doFetch(`${GEMINI_MODEL_URL}?key=${encodeURIComponent(apiKey)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature,
-          maxOutputTokens,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: controller ? controller.signal : undefined,
+    const result = await callGeminiProxy({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature,
+        maxOutputTokens,
+        responseMimeType: "application/json",
+      },
+      user,
+      fetchImpl: (url, requestInit) => doFetch(url, { ...requestInit, signal: controller ? controller.signal : undefined }),
     });
 
-    if (!response || !response.ok) {
-      return { ok: false, error: `gemini_http_${response?.status ?? "unknown"}` };
+    if (!result.ok) {
+      return { ok: false, error: result.error };
     }
 
-    const payload = await response.json();
-    const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part?.text ?? "").join("\n") ?? "";
+    const text = extractGeminiText(result.data);
     if (!text.trim()) {
       return { ok: false, error: "empty_response" };
     }

@@ -7,13 +7,20 @@ export default function Questionnaire({ questions = [], answers = {}, onAnswer }
     <div className="space-y-4">
       {/* Progress bar */}
       <div className="flex items-center gap-3 mb-2">
-        <div className="flex-1 h-1.5 rounded-full bg-slate-100">
+        <div
+          className="flex-1 h-1.5 rounded-full bg-slate-100"
+          role="progressbar"
+          aria-valuenow={answered}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-label="Questionnaire progress"
+        >
           <div
             className="h-1.5 rounded-full bg-gradient-to-r from-green-400 to-teal-400 transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-xs text-slate-400 tabular-nums">{answered}/{total}</span>
+        <span className="text-xs text-slate-400 tabular-nums" aria-hidden="true">{answered}/{total}</span>
       </div>
 
       {questions.map((question, idx) => (
@@ -32,6 +39,7 @@ export default function Questionnaire({ questions = [], answers = {}, onAnswer }
                   key={`${question.id}-${option.text}`}
                   type="button"
                   onClick={() => onAnswer(question.id, option.text)}
+                  aria-pressed={active}
                   className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
                     active
                       ? "border-green-400 bg-gradient-to-br from-green-50 to-teal-50 text-green-700 shadow-sm"

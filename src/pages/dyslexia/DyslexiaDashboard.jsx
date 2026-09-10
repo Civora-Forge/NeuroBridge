@@ -34,47 +34,9 @@ import { cn } from "@/lib/utils";
 
 import { useAuth } from "@/context/AuthContext";
 import { fetchUserReadingHistory } from "@/lib/readingFilesService";
+import EmptyState from "@/components/EmptyState";
 
 const RECENT_STORAGE_KEY = "neurobridge-dyslexia-recents";
-
-const fallbackRecentDocuments = [
-  {
-    id: "moonlight-rail",
-    title: "Moonlight Rail Journal",
-    timestamp: "5 min ago",
-    progress: 74,
-    tag: "Last read",
-    source: "Files",
-    thumb: "from-amber-200 via-rose-200 to-sky-200",
-  },
-  {
-    id: "garden-notes",
-    title: "Garden Notes for Week 8",
-    timestamp: "Yesterday",
-    progress: 41,
-    tag: "Draft",
-    source: "Scan text",
-    thumb: "from-emerald-200 via-teal-200 to-cyan-200",
-  },
-  {
-    id: "city-story",
-    title: "City Storyboard Pages",
-    timestamp: "2 days ago",
-    progress: 89,
-    tag: "Almost done",
-    source: "Scan pages",
-    thumb: "from-lime-200 via-yellow-200 to-amber-200",
-  },
-  {
-    id: "photo-caption",
-    title: "Photo Caption Practice",
-    timestamp: "Last week",
-    progress: 57,
-    tag: "Gallery",
-    source: "From gallery",
-    thumb: "from-slate-200 via-indigo-100 to-violet-200",
-  },
-];
 
 const quickStartOptions = [
   {
@@ -127,7 +89,8 @@ function ProgressBar({ progress }) {
 
 export default function DyslexiaDashboard() {
   const { user } = useAuth();
-  const [recentDocuments, setRecentDocuments] = useState(fallbackRecentDocuments);
+  const [recentDocuments, setRecentDocuments] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -148,7 +111,10 @@ export default function DyslexiaDashboard() {
           setRecentDocuments(formatted);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setHistoryLoaded(true);
+      });
 
     return () => {
       mounted = false;
@@ -171,14 +137,12 @@ export default function DyslexiaDashboard() {
                 Dyslexia reading module
               </Badge>
               <div className="space-y-3">
-                <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                  Calm reading that adapts to the reader, not the other way
-                  around.
+                <h1 className="max-w-xl text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                  A calmer way to read.
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-                  A minimalist, accessibility-first reading workspace with warm
-                  paper tones, OpenDyslexic-first typography, and a lightweight
-                  path from capture to focus to audio support.
+                <p className="max-w-md text-base leading-7 text-slate-600">
+                  Bigger, spaced-out text. Read-aloud when you want it.
+                  Change the font, size, and colors any time.
                 </p>
               </div>
             </div>
@@ -239,18 +203,26 @@ export default function DyslexiaDashboard() {
                 Continue Reading
               </h2>
               <p className="text-sm text-slate-600">
-                Recently opened documents with progress and last-opened
-                timestamps.
+                Pick up where you left off.
               </p>
             </div>
-            <Badge
-              variant="secondary"
-              className="h-8 rounded-full px-3 text-slate-700"
-            >
-              {recentDocuments.length} documents
-            </Badge>
+            {recentDocuments.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="h-8 rounded-full px-3 text-slate-700"
+              >
+                {recentDocuments.length} document{recentDocuments.length === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
 
+          {historyLoaded && recentDocuments.length === 0 ? (
+            <EmptyState
+              title="Nothing opened yet"
+              description="Open a file below and it'll show up here so you can jump back in."
+              className="border-white/70 bg-white/80"
+            />
+          ) : (
           <Carousel className="w-full">
             <CarouselContent>
               {recentDocuments.map((document, index) => (
@@ -309,6 +281,7 @@ export default function DyslexiaDashboard() {
               ))}
             </CarouselContent>
           </Carousel>
+          )}
         </section>
 
         <section className="space-y-4">
@@ -317,8 +290,7 @@ export default function DyslexiaDashboard() {
               Start Reading
             </h2>
             <p className="text-sm text-slate-600">
-              Choose a capture path and open the adaptive reader with the right
-              starting point.
+              Open a file, scan a page, or pick a photo.
             </p>
           </div>
 
@@ -370,11 +342,11 @@ export default function DyslexiaDashboard() {
         <section id="settings" className="scroll-mt-24">
           <Card className="overflow-hidden rounded-[1.75rem] border border-black/5 bg-slate-950 text-white">
             <CardHeader>
-              <CardTitle className="text-2xl">Settings preview</CardTitle>
+              <CardTitle className="text-2xl">What you can change</CardTitle>
               <CardDescription className="text-slate-300">
-                The reader exposes the full accessibility panel with font,
-                spacing, color, ruler, dark mode, high contrast, and focus
-                controls.
+                These controls live inside the reader itself, so you can
+                adjust them while reading instead of hunting for a settings
+                page.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">

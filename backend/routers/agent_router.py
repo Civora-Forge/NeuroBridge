@@ -2,7 +2,6 @@ import json
 import os
 import queue
 import threading
-import time
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import StreamingResponse
@@ -14,6 +13,7 @@ from ..auth import get_current_user, CurrentUser
 from ..models import agent_models
 from ..schemas import agent_schemas
 from ..services.agent_service import AgentOrchestrator
+from ..services.rate_limiter import SlidingWindowRateLimiter
 
 router = APIRouter()
 
@@ -25,28 +25,25 @@ _DEMO_RATE_LIMIT_MAX_MESSAGES = 20
 _DEMO_RATE_LIMIT_WINDOW_SECONDS = 3600
 _REAL_RATE_LIMIT_MAX_MESSAGES = int(os.getenv("AGENT_REAL_RATE_LIMIT_PER_HOUR", "60"))
 _REAL_RATE_LIMIT_WINDOW_SECONDS = 3600
-_demo_chat_timestamps: dict[str, list[float]] = {}
-_real_chat_timestamps: dict[str, list[float]] = {}
-# FastAPI runs sync route handlers in a thread pool — two concurrent requests from
-# the same rapidly-double-clicking user could otherwise both read the same "count so
-# far" list before either appends, letting both through past the limit (lost update).
-_rate_limit_lock = threading.Lock()
+_demo_limiter = SlidingWindowRateLimiter(
+    _DEMO_RATE_LIMIT_MAX_MESSAGES,
+    _DEMO_RATE_LIMIT_WINDOW_SECONDS,
+    "Demo mode is limited to a small number of messages per hour. Sign in with a real account for unlimited use, or try again later.",
+)
+_real_limiter = SlidingWindowRateLimiter(
+    _REAL_RATE_LIMIT_MAX_MESSAGES,
+    _REAL_RATE_LIMIT_WINDOW_SECONDS,
+    "You've sent a lot of messages in a short time — please wait a bit before sending more.",
+)
+# Back-compat handles for existing tests, which reach into these directly.
+_demo_chat_timestamps = _demo_limiter._buckets
+_real_chat_timestamps = _real_limiter._buckets
 
 
 def _enforce_rate_limit(user: CurrentUser) -> None:
-    now = time.time()
-    if user.is_demo:
-        bucket, limit, window = _demo_chat_timestamps, _DEMO_RATE_LIMIT_MAX_MESSAGES, _DEMO_RATE_LIMIT_WINDOW_SECONDS
-        message = "Demo mode is limited to a small number of messages per hour. Sign in with a real account for unlimited use, or try again later."
-    else:
-        bucket, limit, window = _real_chat_timestamps, _REAL_RATE_LIMIT_MAX_MESSAGES, _REAL_RATE_LIMIT_WINDOW_SECONDS
-        message = "You've sent a lot of messages in a short time — please wait a bit before sending more."
-    with _rate_limit_lock:
-        recent = [t for t in bucket.get(user.id, []) if now - t < window]
-        if len(recent) >= limit:
-            raise HTTPException(status_code=429, detail=message)
-        recent.append(now)
-        bucket[user.id] = recent
+    limiter = _demo_limiter if user.is_demo else _real_limiter
+    limiter.max_events = _DEMO_RATE_LIMIT_MAX_MESSAGES if user.is_demo else _REAL_RATE_LIMIT_MAX_MESSAGES
+    limiter.check(user.id)
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:

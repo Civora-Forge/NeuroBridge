@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser
 from ..database import SessionLocal
 from ..models import agent_models
-from . import agent_tools, context_scope, fast_path, safety
+from . import agent_tools, context_scope, contextual_commands, fast_path, safety
 from .agent_state import TERMINAL_STATES, ExecutionState
 from .agent_tools import RiskLevel, Tool, ToolContext, ToolError, ToolTimeoutError
 from .navigation import FEATURE_LABELS, match_navigation_shortcut, resolve_feature_route
@@ -90,6 +90,8 @@ _FOCUS_CONTROL_COMMANDS = {
 _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "get_ocd": "ocd",
     "create_exposure": "ocd",
+    "reorder_exposure": "ocd",
+    "delete_exposure": "ocd",
     "start_erp": "ocd",
     "record_suds": "ocd",
     "complete_erp": "ocd",
@@ -103,8 +105,13 @@ _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "update_focus_session": "adhd",
     "get_anxiety": "anxiety",
     "start_grounding": "anxiety",
+    "complete_grounding": "anxiety",
     "get_reading": "dyslexia",
     "start_social_scenario": "asd",
+    "create_daily_routine": "asd",
+    "get_current_routine_step": "asd",
+    "advance_routine_step": "asd",
+    "go_back_routine_step": "asd",
 }
 
 # module key (from context_scope.infer_relevant_modules) -> which context-bundle section
@@ -130,6 +137,48 @@ def _hash_args(args: dict) -> str:
 
 def _is_transient(exc: Exception) -> bool:
     return isinstance(exc, _TRANSIENT_LLM_ERRORS)
+
+
+def _render_focus_control_fallback(command: str, session: dict) -> str:
+    """Same safety-net idea as fast_path's read-tool rendering, for the focus
+    session control tools: if the LLM's own follow-up summary is unavailable,
+    the tool's real result (remaining time, duration) still renders as a
+    proper sentence instead of a bare 'Done.'"""
+    remaining = session.get("remaining_seconds")
+    time_str = f"{remaining // 60}:{remaining % 60:02d}" if remaining is not None else None
+    if command == "start":
+        duration = session.get("duration_minutes")
+        return f"Started a {duration}-minute focus session." if duration else "Started a focus session."
+    if command == "pause":
+        return f"Paused — {time_str} left whenever you're ready to continue." if time_str else "Paused."
+    if command == "resume":
+        return f"Resumed — {time_str} left." if time_str else "Resumed."
+    if command == "stop":
+        return "Stopped the focus session."
+    if command == "set_duration":
+        return f"Updated the session to {session.get('duration_minutes', '?')} minutes."
+    return "Done."
+
+
+def _render_routine_step_result(result: dict) -> str:
+    """Same principle for the ASD routine tools: real position/title data,
+    not a bare 'Done.', whether the LLM's own summary is available or not."""
+    if result.get("finished"):
+        return result.get("message", "Routine complete.")
+    if "steps" in result:  # create_daily_routine
+        return f"Set up a {result.get('total_steps', len(result['steps']))}-step routine."
+    title = result.get("title")
+    if not title:
+        return "Done."
+    return f"Step {result.get('position')} of {result.get('total_steps')}: {title}."
+
+
+# Tools whose real result can be rendered deterministically without a second
+# Gemini call — same fallback safety net as fast_path.py's READ templates,
+# but for these WRITE_LOW routine actions.
+_ROUTINE_RESULT_TOOLS = {
+    "create_daily_routine", "get_current_routine_step", "advance_routine_step", "go_back_routine_step",
+}
 
 
 def _cached_learnings(user_id: str, db: Session) -> dict:
@@ -320,6 +369,11 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         command = _FOCUS_CONTROL_COMMANDS.get(tool_name)
         if command:
             return {"type": "FOCUS_SESSION_CONTROL", "command": command, "path": "/adhd/focus", "session": result}
+        if tool_name == "set_presentation_preset":
+            # No page/navigation involved — applies instantly wherever the user
+            # already is, via presentationPreferences.js (a pure localStorage +
+            # <html> data-attribute write, not tied to any mounted component).
+            return {"type": "PRESENTATION_PRESET", "preset_id": result["preset_id"]}
         mapping = _TOOL_ACTION_MAP.get(tool_name)
         if not mapping:
             return None
@@ -502,6 +556,51 @@ Relevant user context (already retrieved for you — do not re-ask for this):
             self._finish(execution, total_start)
             return {"response": response_text, "action": action, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
 
+        contextual_command = contextual_commands.match_contextual_command(message)
+        if contextual_command:
+            tool_name = contextual_commands.tool_name_for(contextual_command)
+            tool = agent_tools.TOOL_REGISTRY[tool_name]
+            self._transition(execution, ExecutionState.EXECUTING, on_event, tool_name=tool_name)
+            if on_event:
+                on_event({"type": "tool_started", "execution_id": execution.execution_id, "tool": tool_name})
+            outcome = self._execute_tool(tool, {}, execution_id=execution.execution_id, conversation_id=conversation_id)
+            execution.tool_call_count = 1
+            if on_event:
+                on_event({"type": "tool_completed", "execution_id": execution.execution_id, "tool": tool_name, "status": outcome["status"]})
+            if outcome["status"] == "executed":
+                response_text = _render_focus_control_fallback(contextual_command, outcome["result"])
+                action = self._build_action(tool_name, outcome["result"])
+            else:
+                # No active session to act on — still a real, deterministic, honest
+                # answer (from the tool's own ToolError message), never a fabricated one.
+                response_text = outcome["error"] or "There's nothing active to do that with right now."
+                action = None
+            self._transition(execution, ExecutionState.COMPLETED, on_event)
+            self._finish(execution, total_start)
+            return {"response": response_text, "action": action, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
+
+        routine_command = contextual_commands.match_routine_command(message)
+        if routine_command and agent_tools._current_routine_step(self.db, self.user.id) is not None:
+            # Unlike pause/resume/stop, "next"/"repeat"/"go back" are genuinely
+            # ambiguous words on their own — only short-circuit Gemini once we've
+            # confirmed there's real routine state for them to unambiguously refer to.
+            tool_name = contextual_commands.routine_tool_name_for(routine_command)
+            tool = agent_tools.TOOL_REGISTRY[tool_name]
+            self._transition(execution, ExecutionState.EXECUTING, on_event, tool_name=tool_name)
+            if on_event:
+                on_event({"type": "tool_started", "execution_id": execution.execution_id, "tool": tool_name})
+            outcome = self._execute_tool(tool, {}, execution_id=execution.execution_id, conversation_id=conversation_id)
+            execution.tool_call_count = 1
+            if on_event:
+                on_event({"type": "tool_completed", "execution_id": execution.execution_id, "tool": tool_name, "status": outcome["status"]})
+            if outcome["status"] == "executed":
+                response_text = _render_routine_step_result(outcome["result"])
+            else:
+                response_text = outcome["error"] or "I couldn't do that with your routine right now."
+            self._transition(execution, ExecutionState.COMPLETED, on_event)
+            self._finish(execution, total_start)
+            return {"response": response_text, "action": None, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
+
         disclaimer = assessment.message if assessment.level == safety.SafetyLevel.CAUTION else ""
 
         if not api_key:
@@ -553,6 +652,14 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         pending_confirmation: Optional[dict] = None
         any_tool_failed = False
         max_steps_reached = False
+        # Tracks the most recent successfully-executed read tool that has a
+        # deterministic rendering template (see fast_path.py) — a real safety
+        # net for when the LLM itself is unreachable for the follow-up
+        # summarization call (quota, timeout, transient API error): the tool
+        # already ran and its result is real, so "I understand." is a worse
+        # answer than just rendering that data the same way the fast path does.
+        last_renderable_read: Optional[tuple[str, dict]] = None
+        last_renderable_routine: Optional[dict] = None
         self._transition(execution, ExecutionState.EXECUTING, on_event)
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -636,6 +743,10 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 if outcome["status"] == "executed":
                     last_action = self._build_action(call.name, outcome["result"]) or last_action
                     payload = outcome["result"]
+                    if call.name in fast_path.FAST_PATH_TEMPLATES:
+                        last_renderable_read = (call.name, outcome["result"])
+                    if call.name in _ROUTINE_RESULT_TOOLS:
+                        last_renderable_routine = outcome["result"]
                 else:
                     payload = {"error": outcome["error"] or "That action couldn't be completed."}
                     any_tool_failed = True
@@ -687,7 +798,15 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         try:
             response_text = response.text.strip()
         except Exception:
-            response_text = "Done." if last_action else "I understand."
+            if last_renderable_read:
+                tool_name, result = last_renderable_read
+                response_text = fast_path.FAST_PATH_TEMPLATES[tool_name](result)
+            elif last_action and last_action.get("type") == "FOCUS_SESSION_CONTROL":
+                response_text = _render_focus_control_fallback(last_action["command"], last_action.get("session") or {})
+            elif last_renderable_routine is not None:
+                response_text = _render_routine_step_result(last_renderable_routine)
+            else:
+                response_text = "Done." if last_action else "I understand."
 
         if disclaimer:
             response_text = f"{response_text}{disclaimer}"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -47,6 +47,17 @@ export default function UserSettings() {
     user?.privacy ?? { shareActivity: true, shareJournal: false, shareAlerts: true },
   );
   const [saved, setSaved]             = useState(false);
+  const abhaInputId = useId();
+
+  // "Reduce Motion" previously only fed the backend adaptive-content engine
+  // (pacing/copy) — it never touched actual on-screen animation, so turning
+  // it on did not visibly change anything. It now also drives the same
+  // global `.sensory-no-animation` class the module-level Animation control
+  // uses (see src/index.css), so the setting has a real, immediate effect
+  // app-wide, not just inside ASD/Anxiety tool pages.
+  useEffect(() => {
+    document.documentElement.classList.toggle("sensory-no-animation", !!accessibility.reduceMotion);
+  }, [accessibility.reduceMotion]);
 
   function handlePlanToggle(moduleId) {
     setManualModules((prev) => {
@@ -123,7 +134,9 @@ export default function UserSettings() {
         <p className="text-xs text-muted-foreground">
           Your Ayushman Bharat Health Account ID links your NeuroBridge records with India's national health grid.
         </p>
+        <label htmlFor={abhaInputId} className="sr-only">ABHA Health ID</label>
         <input
+          id={abhaInputId}
           type="text"
           value={abhaId}
           onChange={(e) => setAbhaId(e.target.value)}
@@ -151,6 +164,7 @@ export default function UserSettings() {
                 key={id}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => handlePlanToggle(id)}
+                aria-pressed={isOn}
                 className={`relative flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
                   isOn
                     ? "border-primary bg-primary/5 shadow-sm"
@@ -197,6 +211,7 @@ export default function UserSettings() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setSelected(id)}
+                aria-pressed={active}
                 className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all ${
                   active
                     ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
@@ -246,8 +261,8 @@ export default function UserSettings() {
           },
           {
             key: "screenReader",
-            label: "Screen Reader Mode",
-            desc: "Adds ARIA labels and increases tap-target sizes for assistive technologies.",
+            label: "Verbal Communication Style",
+            desc: "Tells the AI assistant and adaptive content to favor clear spoken-style phrasing over visual-only cues — useful if you rely on a screen reader. (Semantic structure, labels, and keyboard support are always on for everyone, not gated behind this.)",
           },
         ].map(({ key, label, desc }) => (
           <div key={key} className="flex items-start gap-4">
