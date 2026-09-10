@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import {
   X, Send, Bot, User, Loader2, ArrowRight, MessageSquareText, CheckCircle2, Clock, Activity,
   Mic, MicOff, Volume2, VolumeX, AlertCircle, RotateCcw,
@@ -177,6 +177,13 @@ export default function AgentChat() {
   const avatarRef = useRef(null);
   const [cursorAnim, setCursorAnim] = useState(null); // { from, to, action } | null
   const announcedActionIdsRef = useRef(new Set());
+  const panelRef = useRef(null);
+  const openButtonRef = useRef(null);
+  const inputRef = useRef(null);
+  const wasOpenRef = useRef(false);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const dialogTitleId = useId();
+  const statusId = useId();
 
   const voice = useAgentVoice();
   // Any authenticated "user"-role account can use the agent — a real Supabase
@@ -192,6 +199,80 @@ export default function AgentChat() {
   // Unmounting (or navigating away) must not leave a stream running in the
   // background against a component that no longer exists.
   useEffect(() => () => abortActiveStream(), [abortActiveStream]);
+
+  // Focus management for the chat panel: the widget is a modal-like floating
+  // panel (role="dialog") rather than a Radix Dialog, so it needs its own
+  // focus-in-on-open / focus-return-on-close / Escape-to-close / Tab-trap —
+  // without these, keyboard and screen-reader users can't reliably reach or
+  // leave it (WCAG 2.4.3, 2.1.2).
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      // Opening: move focus into the panel (the input, if usable; otherwise
+      // the close button) instead of leaving it stranded on the now-hidden
+      // toggle button.
+      const target = canUseAgent ? inputRef.current : panelRef.current?.querySelector("button");
+      target?.focus();
+    } else if (!isOpen && wasOpenRef.current) {
+      // Closing: return focus to the control that opened it, so keyboard
+      // users don't lose their place in the page.
+      openButtonRef.current?.focus();
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen, canUseAgent]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    function onKeyDown(e) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        closeChat();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [isOpen, closeChat]);
+
+  // A single, stable screen-reader-only status region for the agent's
+  // finalized replies and confirmation prompts. The visible message bubbles
+  // toggle aria-live on/off per-bubble as they stream (see below), which is
+  // too fragile to rely on alone — this mirrors just the *final* text once,
+  // per message, so screen reader users reliably hear each new answer without
+  // the interim streaming noise (WCAG 4.1.3 Status Messages).
+  const announcedFinalIndexRef = useRef(-1);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastIndex = messages.length - 1;
+    const last = messages[lastIndex];
+    if (last.role === "model" && !last.streaming && last.content && lastIndex !== announcedFinalIndexRef.current) {
+      announcedFinalIndexRef.current = lastIndex;
+      setLiveAnnouncement(last.content);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (pendingConfirmation) {
+      setLiveAnnouncement("Confirmation required before continuing.");
+    }
+  }, [pendingConfirmation]);
+
+  useEffect(() => {
+    if (error) setLiveAnnouncement(error);
+  }, [error]);
 
   // Auto-send once the browser finishes recognizing a spoken utterance.
   useEffect(() => {
@@ -385,26 +466,63 @@ export default function AgentChat() {
           }}
         />
       )}
+      {/* Mirrors the agent's finalized replies, confirmation prompts, and
+          errors into a stable, always-present live region — independent of
+          whether the chat panel is even open — so screen reader users get an
+          announcement without needing the panel's visible DOM to stay put. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {liveAnnouncement}
+      </div>
+
       {!isOpen && (
         <button
+          ref={openButtonRef}
           onClick={toggleChat}
           className="fixed top-20 right-6 md:top-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
           aria-label="Open AI Assistant"
         >
-          <MessageSquareText className="w-6 h-6" />
+          <MessageSquareText className="w-6 h-6" aria-hidden="true" />
         </button>
       )}
 
       {isOpen && (
-        <div className="fixed top-20 right-6 md:top-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-top-5">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          className="fixed top-20 right-6 md:top-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-top-5"
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
             <div className="flex items-center gap-2">
               <div ref={avatarRef} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary-foreground" />
+                <Bot className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">NeuroBridge Assistant</h3>
-                <p className="text-xs text-muted-foreground">Always here to help</p>
+                <h3 id={dialogTitleId} className="font-semibold text-sm">NeuroBridge Assistant</h3>
+                <p id={statusId} role="status" aria-live="polite" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  {voice.isListening ? (
+                    <>
+                      <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+                      </span>
+                      Listening
+                    </>
+                  ) : isLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                      Thinking
+                    </>
+                  ) : voice.isSpeaking ? (
+                    <>
+                      <Volume2 className="w-3 h-3" aria-hidden="true" />
+                      Speaking
+                    </>
+                  ) : (
+                    "Ready — ask or say what's going on"
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -556,11 +674,11 @@ export default function AgentChat() {
           <div className="p-3 border-t border-border bg-card">
             {voice.isListening ? (
               <div className="flex items-center gap-3 bg-muted rounded-full pl-4 pr-2 py-2.5">
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                 </span>
-                <span className="flex-1 text-sm text-muted-foreground truncate">
+                <span className="flex-1 text-sm text-muted-foreground truncate" role="status" aria-live="polite">
                   {voice.transcript || voice.interimTranscript || "Listening..."}
                 </span>
                 <button
@@ -569,7 +687,7 @@ export default function AgentChat() {
                   className="p-2 rounded-full text-muted-foreground hover:bg-background transition-colors"
                   aria-label="Cancel listening"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -577,17 +695,19 @@ export default function AgentChat() {
                   className="p-2 bg-primary text-primary-foreground rounded-full"
                   aria-label="Stop listening and send"
                 >
-                  <MicOff className="w-4 h-4" />
+                  <MicOff className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="relative flex items-center gap-2">
                 <div className="relative flex-1">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={canUseAgent ? "How can I help you right now?" : "Sign in to chat with the assistant"}
+                    aria-label="Message to the assistant"
                     className="w-full bg-muted border border-border/50 rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-60"
                     disabled={isLoading || !canUseAgent}
                   />
@@ -597,7 +717,7 @@ export default function AgentChat() {
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-primary text-primary-foreground rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors"
                     aria-label="Send message"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
                 {voice.voiceSupported ? (

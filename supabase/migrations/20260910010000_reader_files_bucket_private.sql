@@ -1,0 +1,22 @@
+-- Privacy fix: the reader-files storage bucket was created with public=true
+-- (see 20260826000000_create_reading_files.sql). A "public" Supabase Storage
+-- bucket serves objects to ANY requester via a stable, unauthenticated URL —
+-- the per-owner RLS-style policies created alongside it only govern access
+-- through the authenticated Storage API, not the public object URL, so they
+-- provided no real protection.
+--
+-- Storage paths are `${userId}/${fileId}/${filename}` (see
+-- src/lib/readingFilesService.js) — a UUID-based path is hard to guess, but
+-- "hard to guess" is not access control: the same URL is trivially replayable
+-- if it ever leaks via browser history, a shared link, a referrer header, or
+-- a server/proxy log. Since these files are user-uploaded reading material
+-- for dyslexia support (which may be personal documents, homework with a
+-- child's name, letters, etc.), that public URL is a real disclosure risk.
+--
+-- Flipping the bucket to private makes the existing per-owner storage
+-- policies (SELECT/INSERT/UPDATE/DELETE, scoped to auth.uid() == the first
+-- path segment) the actual enforcement mechanism. The frontend must request
+-- short-lived signed URLs (supabase.storage.from(...).createSignedUrl(...))
+-- instead of the old permanent getPublicUrl() — see the matching change in
+-- src/lib/readingFilesService.js.
+UPDATE storage.buckets SET public = false WHERE id = 'reader-files';

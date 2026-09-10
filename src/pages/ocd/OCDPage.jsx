@@ -1,9 +1,10 @@
 /**
  * OCDPage.jsx — Premium OCD Support Hub
  *
- * A live-data dashboard that shows:
- *  • Hero banner with mood check-in
- *  • Stats strip (streak, sessions, resistance, milestones)
+ * A live-data hub that shows:
+ *  • Hero banner with an optional mood check-in
+ *  • A plain, non-evaluative summary (no streaks/percentages/scores — see
+ *    note below on why gamified metrics are deliberately avoided here)
  *  • Weekly insight panel
  *  • 5 feature cards with live data previews
  *  • Recent activity timeline
@@ -15,11 +16,11 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Timer, Activity, TrendingDown, Brain,
-  Award, Flame, ChevronRight, ShieldAlert, Zap, Star,
+  ChevronRight, ShieldAlert, Zap,
 } from 'lucide-react';
 import {
-  getSessions, getStreakStats, getMilestones,
-  getResistanceStats, getSudsReadings, getJournalEntries,
+  getSessions, getMilestones,
+  getSudsReadings, getJournalEntries,
   buildWeeklyInsight, checkAndEarnMilestones,
 } from '@/support/specialized/ocdStore';
 
@@ -169,29 +170,24 @@ export default function OCDPage() {
   // ── Mood state ───────────────────────────────────────────────────────────────
   const [selectedMood, setSelectedMood] = useState(null);
 
-  // ── Data loading (exact same as before) ──────────────────────────────────────
+  // ── Data loading ───────────────────────────────────────────────────────────
   const sessions     = useMemo(() => getSessions(), []);
   const sudsReadings = useMemo(() => getSudsReadings(), []);
   const entries      = useMemo(() => getJournalEntries(), []);
   const milestones   = useMemo(() => { checkAndEarnMilestones(); return getMilestones(); }, []);
-  const streaks      = useMemo(() => getStreakStats(), []);
-  const resistance   = useMemo(() => getResistanceStats(30), []);
   const insight      = useMemo(() => buildWeeklyInsight(), []);
 
-  const avgDrop = useMemo(() => {
-    const valid = sessions.filter((s) => s.preSuds != null && s.postSuds != null);
-    if (!valid.length) return null;
-    return Math.round(valid.reduce((a, s) => a + (s.preSuds - s.postSuds), 0) / valid.length);
-  }, [sessions]);
-
-  // ── Live data previews for feature cards ─────────────────────────────────────
+  // Deliberately no streaks, percentages, or "X/Y earned" counters here.
+  // For OCD specifically, numeric performance scores and daily-streak framing
+  // can turn practice into something to check and optimize compulsively —
+  // the opposite of what ERP practice needs. Plain, past-tense counts only.
   const livePreviews = useMemo(() => ({
-    '/ocd/exposure-tracker':   sessions.length > 0 ? `${sessions.length} session${sessions.length > 1 ? 's' : ''} logged` : 'Start your first session',
-    '/ocd/exposure-hierarchy': (() => { const h = getSessions(); return `${h.length} exposures tracked`; })(),
-    '/ocd/suds-monitor':       sudsReadings.length > 0 ? `${sudsReadings.length} readings logged` : 'Log your first reading',
-    '/ocd/exposure-session':   resistance.total > 0 ? `${resistance.resistedPct}% resistance rate` : 'Track compulsion delays',
-    '/ocd/progress':           milestones.length > 0 ? `${milestones.length}/7 milestone${milestones.length > 1 ? 's' : ''} earned` : 'Track your milestones',
-  }), [sessions, sudsReadings, resistance, milestones]);
+    '/ocd/exposure-tracker':   sessions.length > 0 ? `${sessions.length} session${sessions.length > 1 ? 's' : ''} so far` : 'Start your first session',
+    '/ocd/exposure-hierarchy': sessions.length > 0 ? `${sessions.length} exposure${sessions.length > 1 ? 's' : ''} on your ladder` : 'Build your first ladder',
+    '/ocd/suds-monitor':       sudsReadings.length > 0 ? `${sudsReadings.length} reading${sudsReadings.length > 1 ? 's' : ''} logged` : 'Log your first reading',
+    '/ocd/exposure-session':   'Practice sitting with an urge',
+    '/ocd/progress':           milestones.length > 0 ? `${milestones.length} milestone${milestones.length > 1 ? 's' : ''} reached` : 'See your progress over time',
+  }), [sessions, sudsReadings, milestones]);
 
   // ── Recent activity: merge sessions + suds + journal, take last 5 ────────────
   const recentActivity = useMemo(() => {
@@ -293,6 +289,7 @@ export default function OCDPage() {
                   <button
                     key={mood.label}
                     onClick={() => setSelectedMood(isSelected ? null : mood.label)}
+                    aria-pressed={isSelected}
                     className={`rounded-2xl px-3 py-2 flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                       isSelected
                         ? 'bg-white text-indigo-700 scale-110 ring-2 ring-white shadow-lg'
@@ -324,84 +321,37 @@ export default function OCDPage() {
           </div>
         </motion.div>
 
-        {/* ══ 2. STATS STRIP ══════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Streak */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08, duration: 0.35 }}
-            className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-amber-100 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mb-3">
-              <Flame size={18} className="text-amber-600" />
-            </div>
-            <p className="text-2xl font-black text-gray-900">
-              {streaks.current > 0 ? `${streaks.current}d` : '—'}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">Active Streak</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {streaks.longest > 0 ? `Best: ${streaks.longest}d` : 'Start today'}
-            </p>
-          </motion.div>
-
-          {/* Sessions */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.14, duration: 0.35 }}
-            className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-indigo-100 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-violet-500" />
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
+        {/* ══ 2. QUIET SUMMARY ════════════════════════════════════════════════
+            Intentionally not a scoreboard: no streaks, no percentages, no
+            "X/Y" completion counters. Those framings invite the same
+            checking/optimizing behavior ERP practice is meant to reduce.
+            This is a plain, past-tense record of what's been done. ══════ */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.35 }}
+          className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-100 flex flex-wrap items-center gap-x-8 gap-y-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
               <Shield size={18} className="text-indigo-600" />
             </div>
-            <p className="text-2xl font-black text-gray-900">{sessions.length}</p>
-            <p className="text-xs text-gray-500 mt-0.5">ERP Sessions</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {avgDrop != null ? `Avg drop: ${avgDrop} pts` : 'No sessions yet'}
+            <p className="text-sm text-gray-700">
+              <span className="font-bold text-gray-900">{sessions.length}</span>{' '}
+              {sessions.length === 1 ? 'ERP session' : 'ERP sessions'} so far
             </p>
-          </motion.div>
-
-          {/* Resistance */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.20, duration: 0.35 }}
-            className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-emerald-100 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-              <Award size={18} className="text-emerald-600" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+              <TrendingDown size={18} className="text-violet-600" />
             </div>
-            <p className="text-2xl font-black text-gray-900">
-              {resistance.total > 0 ? `${resistance.resistedPct}%` : '—'}
+            <p className="text-sm text-gray-700">
+              {milestones.length > 0
+                ? <><span className="font-bold text-gray-900">{milestones.length}</span> milestone{milestones.length === 1 ? '' : 's'} reached</>
+                : 'No milestones reached yet — that’s okay, start when ready'}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">Resistance Rate</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {resistance.total > 0 ? `${resistance.total} attempts` : 'Log first delay'}
-            </p>
-          </motion.div>
-
-          {/* Milestones */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.26, duration: 0.35 }}
-            className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-violet-100 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
-            <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center mb-3">
-              <Star size={18} className="text-violet-600" />
-            </div>
-            <p className="text-2xl font-black text-gray-900">{`${milestones.length}/7`}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Milestones</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {milestones.length > 0 ? `Latest: ${milestones[milestones.length - 1]?.icon ?? '🏅'}` : 'None yet'}
-            </p>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
 
         {/* ══ 3. WEEKLY INSIGHT ═══════════════════════════════════════════════ */}
         {!isEmpty && insight.narratives.length > 0 && (

@@ -8,6 +8,27 @@ import {
 
 export const BUCKET_NAME = "reader-files";
 const LOCAL_STORAGE_HISTORY_KEY = "neurobridge_reading_files_local_v1";
+// The reader-files bucket is private (see the 20260910010000 migration) — a
+// permanent getPublicUrl() would 404 (no anonymous read is allowed) and, more
+// importantly, would defeat the point of making it private if it worked. A
+// signed URL is scoped to the requesting user's own storage policy and
+// expires, so a leaked link (browser history, a proxy log, a shared screen)
+// stops working instead of granting permanent, unauthenticated access to
+// someone's uploaded reading material.
+const SIGNED_URL_TTL_SECONDS = 3600;
+
+async function getSignedPreviewUrl(storagePath) {
+  if (!storagePath) return null;
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+    if (error) return null;
+    return data?.signedUrl || null;
+  } catch {
+    return null;
+  }
+}
 
 function sanitizeFilename(fileName) {
   return fileName.replace(/[^a-zA-Z0-9_.-]/g, "_");
@@ -89,8 +110,7 @@ export async function uploadAndProcessReadingFile({
         console.warn("Supabase storage upload failed, continuing with local processing:", uploadErr.message);
         storagePath = null;
       } else {
-        const { data: pubUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
-        previewUrl = pubUrlData?.publicUrl || null;
+        previewUrl = await getSignedPreviewUrl(storagePath);
       }
     } catch (err) {
       console.warn("Storage upload exception:", err);
@@ -160,12 +180,12 @@ export async function uploadAndProcessReadingFile({
   let extractedText = "";
   try {
     if (isMultiPage) {
-      extractedText = await extractTextFromImages(inputFiles, onProgress);
+      extractedText = await extractTextFromImages(inputFiles, onProgress, user);
     } else if (fileType.startsWith("image/")) {
       onProgress?.({ stage: "ocr", message: "Extracting text using Gemini Vision OCR..." });
-      extractedText = await extractTextFromImage(primaryFile);
+      extractedText = await extractTextFromImage(primaryFile, user);
     } else {
-      extractedText = await extractTextFromFile(primaryFile, onProgress);
+      extractedText = await extractTextFromFile(primaryFile, onProgress, user);
     }
   } catch (ocrErr) {
     console.error("OCR Extraction failed:", ocrErr);
@@ -237,17 +257,15 @@ export async function fetchUserReadingHistory(user) {
         .order("created_at", { ascending: false });
 
       if (!error && Array.isArray(data)) {
-        dbRecords = data.map((item) => {
-          let previewUrl = item.preview_url;
-          if (!previewUrl && item.storage_path) {
-            const { data: pubUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(item.storage_path);
-            previewUrl = pubUrlData?.publicUrl || null;
-          }
-          return {
-            ...item,
-            preview_url: previewUrl,
-          };
-        });
+        dbRecords = await Promise.all(
+          data.map(async (item) => {
+            const previewUrl = item.preview_url || (await getSignedPreviewUrl(item.storage_path));
+            return {
+              ...item,
+              preview_url: previewUrl,
+            };
+          }),
+        );
       }
     } catch (err) {
       console.warn("Error fetching reading files from Supabase:", err);
@@ -287,11 +305,7 @@ export async function getReadingFileById(fileId, user) {
         .single();
 
       if (!error && data) {
-        let previewUrl = data.preview_url;
-        if (!previewUrl && data.storage_path) {
-          const { data: pubUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(data.storage_path);
-          previewUrl = pubUrlData?.publicUrl;
-        }
+        const previewUrl = data.preview_url || (await getSignedPreviewUrl(data.storage_path));
         return { ...data, preview_url: previewUrl };
       }
     } catch (err) {

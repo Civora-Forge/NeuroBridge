@@ -10,7 +10,8 @@
  * - Non-blocking — does not prevent the reader from loading
  */
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
+
 const GEMINI_MODEL = "gemini-3.5-flash";
 
 // ─── Word Difficulty Heuristics ───────────────────────────────────────────────
@@ -109,8 +110,6 @@ export function analyzeSentenceDifficulty(paragraph) {
  * Returns { simplified: string, explanation: string } or null on failure.
  */
 export async function simplifyWord(word) {
-  if (!GEMINI_API_KEY) return null;
-
   const prompt = `You are helping someone with dyslexia understand a difficult word.
 
 Word: "${word}"
@@ -136,7 +135,7 @@ Respond with JSON only (no markdown, no extra text):
  * Returns simplified string or null on failure.
  */
 export async function simplifyText(text) {
-  if (!GEMINI_API_KEY || !text?.trim()) return null;
+  if (!text?.trim()) return null;
 
   const prompt = `You are helping someone with dyslexia read more easily.
 
@@ -166,8 +165,6 @@ Text to simplify:
  * Only analyzes words the heuristic rated >= 1.
  */
 export async function getAIDifficultyAnalysis(words, heuristicScores) {
-  if (!GEMINI_API_KEY) return null;
-
   const difficultWords = words
     .filter((_, i) => heuristicScores[i] >= 1)
     .map((w) => w.replace(/[^a-zA-Z'-]/g, ""))
@@ -216,23 +213,15 @@ Only include words that are genuinely difficult (not everyday words). Be conserv
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function callGemini(prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 2500 },
-    }),
+  const result = await callGeminiProxy({
+    model: GEMINI_MODEL,
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 2500 },
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini error ${response.status}`);
+  if (!result.ok) {
+    throw new Error(result.error || "Gemini request failed");
   }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  return extractGeminiText(result.data) || null;
 }
 
 function extractJSON(text) {

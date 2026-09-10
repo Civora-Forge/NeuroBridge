@@ -11,9 +11,9 @@
  * so CSS can respond to these preferences.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { Settings, Eye, Sparkles, LayoutGrid, ChevronDown, ChevronUp, Type } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { PRESETS, DEFAULT_PRESET_ID, matchPresetId } from "@/lib/presentationPresets";
 import { PREFERENCES_CHANGED_EVENT } from "@/lib/presentationPreferences";
 
@@ -46,20 +46,21 @@ function savePreferences(prefs) {
 function SegmentedControl({ value, onChange, options, icon: Icon, label }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7BA8]">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {Icon && <Icon size={13} />}
         {label}
       </div>
-      <div className="flex gap-1 rounded-xl bg-[#F0F4FF] p-1 border border-[#C7D2FE]">
+      <div className="flex gap-1 rounded-xl bg-secondary p-1 border border-border">
         {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
+            aria-pressed={value === opt.value}
             className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               value === opt.value
-                ? "bg-white text-[#4F6BF6] shadow-sm"
-                : "text-[#6B7BA8] hover:text-[#4F6BF6]"
+                ? "bg-card text-primary shadow-sm"
+                : "text-muted-foreground hover:text-primary"
             }`}
           >
             {opt.label}
@@ -74,6 +75,11 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
   const [open, setOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [prefs, setPrefs] = useState(loadPreferences);
+  const panelId = useId();
+  // Respects the OS-level reduce-motion preference on top of the app's own
+  // Animation setting — this panel's own expand/collapse shouldn't move if
+  // the user (or their OS) has said motion should be minimized.
+  const prefersReducedMotion = useReducedMotion();
 
   const update = useCallback(
     (key, val) => {
@@ -107,7 +113,11 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.sensoryVisual = prefs.visualIntensity;
+    // Must match the attribute name supportToolThemes.css actually selects on
+    // ([data-sensory-visual-intensity=...]) — this was previously written as
+    // `sensoryVisual` (-> data-sensory-visual), which the CSS never matched,
+    // so the Visual Intensity control silently did nothing.
+    root.dataset.sensoryVisualIntensity = prefs.visualIntensity;
     root.dataset.sensoryAnimation = prefs.animation;
     root.dataset.sensoryDensity = prefs.density;
     root.dataset.sensoryTextScale = prefs.textScale ?? "normal";
@@ -122,37 +132,40 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
   const activePresetId = matchPresetId(prefs) ?? DEFAULT_PRESET_ID;
 
   return (
-    <div className={`rounded-2xl border border-[#C7D2FE] bg-white/80 backdrop-blur ${className}`}>
+    <div className={`rounded-2xl border border-border bg-card/80 backdrop-blur ${className}`}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={panelId}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#DDE8FC] text-[#4F6BF6]">
-            <Settings size={14} />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Settings size={14} aria-hidden="true" />
           </div>
-          <span className="text-sm font-semibold text-[#1E2A5E]">How this looks and feels</span>
+          <span className="text-sm font-semibold text-foreground">How this looks and feels</span>
         </div>
         {open ? (
-          <ChevronUp size={16} className="text-[#6B7BA8]" />
+          <ChevronUp size={16} className="text-muted-foreground" aria-hidden="true" />
         ) : (
-          <ChevronDown size={16} className="text-[#6B7BA8]" />
+          <ChevronDown size={16} className="text-muted-foreground" aria-hidden="true" />
         )}
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            id={panelId}
+            initial={prefersReducedMotion ? false : { height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            exit={prefersReducedMotion ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="space-y-4 border-t border-[#C7D2FE] px-4 py-4">
+            <div className="space-y-4 border-t border-border px-4 py-4">
               <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7BA8]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Pick what helps
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -161,14 +174,15 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
                       key={preset.id}
                       type="button"
                       onClick={() => applyPreset(preset.id)}
+                      aria-pressed={activePresetId === preset.id}
                       className={`rounded-xl border p-3 text-left transition-all ${
                         activePresetId === preset.id
-                          ? "border-[#4F6BF6] bg-[#F0F4FF] shadow-sm"
-                          : "border-[#C7D2FE] bg-white hover:bg-[#F8FAFF]"
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-card hover:bg-secondary"
                       }`}
                     >
-                      <div className="text-xs font-bold text-[#1E2A5E]">{preset.label}</div>
-                      <div className="text-[11px] text-[#6B7BA8] mt-0.5 leading-snug">{preset.description}</div>
+                      <div className="text-xs font-bold text-foreground">{preset.label}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{preset.description}</div>
                     </button>
                   ))}
                 </div>
@@ -177,7 +191,8 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="text-[11px] font-semibold text-[#4F6BF6] hover:underline"
+                aria-expanded={showAdvanced}
+                className="text-[11px] font-semibold text-primary hover:underline"
               >
                 {showAdvanced ? "Hide advanced controls" : "Show advanced controls"}
               </button>
@@ -229,7 +244,7 @@ export default function SensorySettings({ moduleKey = "global", className = "" }
                 </div>
               )}
 
-              <p className="text-[11px] text-[#6B7BA8] leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Saved on this device. Change it anytime — nothing else about your data changes.
               </p>
             </div>

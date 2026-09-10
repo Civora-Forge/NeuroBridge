@@ -122,6 +122,7 @@ export default function OnboardingFlow({ onComplete }) {
                   key={challenge.id}
                   type="button"
                   onClick={() => toggleChallenge(challenge.id)}
+                  aria-pressed={active}
                   className={`rounded-xl border px-3 py-3 text-sm font-medium transition-all text-left ${
                     active
                       ? "border-green-400 bg-gradient-to-br from-green-50 to-teal-50 text-green-700 shadow-sm"
@@ -158,10 +159,10 @@ export default function OnboardingFlow({ onComplete }) {
     return (
       <div className="mx-auto max-w-xl">
         <div className="rounded-3xl border border-green-100 bg-white p-12 text-center shadow-sm">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center animate-spin">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center animate-spin" aria-hidden="true">
             <div className="w-6 h-6 rounded-full border-2 border-green-500 border-t-transparent" />
           </div>
-          <p className="text-slate-600 font-medium">Personalising your dashboard…</p>
+          <p className="text-slate-600 font-medium" role="status" aria-live="polite">Personalising your dashboard…</p>
         </div>
       </div>
     );
@@ -171,8 +172,8 @@ export default function OnboardingFlow({ onComplete }) {
   if (step === 5) {
     return (
       <div className="mx-auto max-w-xl">
-        <div className="rounded-3xl border border-green-100 bg-white p-12 text-center shadow-sm">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-lg">
+        <div className="rounded-3xl border border-green-100 bg-white p-12 text-center shadow-sm" role="status" aria-live="polite">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-lg" aria-hidden="true">
             <span className="text-2xl">✓</span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mb-2">Your tools are ready</h2>

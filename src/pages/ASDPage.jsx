@@ -87,17 +87,13 @@ const quickCalm = [
   { id: "transition_support", icon: RefreshCcw, label: "Transition", hint: "Now · Next · Then", tile: "bg-gradient-to-br from-[#A5B4FC]/20 to-[#C7D2FE]/20 text-[#4F46E5]" },
 ];
 
-/** Decorative — the hub reads as one calm, friendly place. */
+/** Decorative — kept deliberately minimal. ASD-specific research flags
+ * multiple simultaneous moving elements as visual clutter/overload risk
+ * even when each one is individually slow — one quiet accent, not seven. */
 function HeroAmbience() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <span className="nb-bubble" style={{ left: "8%", top: "18%", width: 26, height: 26, "--nb-bubble-dur": "9s" }} />
-      <span className="nb-bubble" style={{ left: "22%", top: "64%", width: 16, height: 16, "--nb-bubble-dur": "12s", opacity: 0.6 }} />
-      <span className="nb-bubble" style={{ right: "12%", top: "30%", width: 20, height: 20, "--nb-bubble-dur": "10s", opacity: 0.7 }} />
-      <span className="nb-leaf" style={{ left: "46%", top: "20%", width: 14, height: 14, "--nb-leaf-dur": "11s" }} />
-      <span className="nb-leaf" style={{ right: "24%", top: "70%", width: 18, height: 18, "--nb-leaf-dur": "13s", opacity: 0.8 }} />
-      <span className="nb-twinkle inline-block" style={{ left: "28%", top: "80%", position: "absolute" }}>✦</span>
-      <span className="nb-twinkle inline-block" style={{ right: "6%", top: "12%", position: "absolute", animationDelay: "0.6s" }}>✦</span>
+      <span className="nb-bubble" style={{ right: "12%", top: "30%", width: 20, height: 20, "--nb-bubble-dur": "10s", opacity: 0.5 }} />
     </div>
   );
 }
@@ -248,7 +244,7 @@ export default function ASDPage() {
                     Your friendly practice space
                   </motion.p>
                   <motion.h1 variants={itemVariants} className="mt-2 text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#134E4A] sm:text-5xl lg:text-[56px]">
-                    Feelings & <span className="nb-shimmer bg-gradient-to-r from-[#0D9488] via-[#2DD4A8] to-[#14B8A6] bg-clip-text text-transparent">Friends</span>
+                    Feelings & <span className="bg-gradient-to-r from-[#0D9488] via-[#2DD4A8] to-[#14B8A6] bg-clip-text text-transparent">Friends</span>
                   </motion.h1>
                   <motion.p variants={itemVariants} className="mt-3 text-base leading-relaxed text-[#5F8A87] sm:text-lg">
                     Four gentle tools to understand feelings, practise everyday situations, and build calm conversations — one small step at a time.
@@ -258,11 +254,7 @@ export default function ASDPage() {
                   </motion.div>
                 </div>
                 <motion.div variants={itemVariants} className="hidden lg:flex items-end justify-end gap-4 pr-2">
-                  <div className="relative">
-                    <span className="nb-pulse-ring absolute inset-0 rounded-full bg-[#5EEAD4]/30" aria-hidden="true" />
-                    <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
-                  </div>
-                  <AsdCharacter size={72} tone="cyan" accessory="spark" ariaHidden className="nb-mascot-float -mb-10" style={{ animationDelay: "1.2s" }} />
+                  <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
                 </motion.div>
               </div>
 

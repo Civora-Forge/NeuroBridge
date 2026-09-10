@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,8 +9,19 @@ from ..auth import get_current_user, CurrentUser
 from ..models import ocd_models
 from ..schemas import ocd_schemas
 from ..services import ai_service
+from ..services.rate_limiter import SlidingWindowRateLimiter
 
 router = APIRouter()
+
+# These three endpoints each trigger a real Gemini call (ai_service.*) outside the
+# agent chat loop, so without their own limit a user could bypass the agent's
+# per-hour rate limit entirely by spamming journal entries / ERP sessions / hierarchies.
+_AI_WRITE_RATE_LIMIT_PER_HOUR = int(os.getenv("OCD_AI_RATE_LIMIT_PER_HOUR", "40"))
+_ai_write_limiter = SlidingWindowRateLimiter(
+    _AI_WRITE_RATE_LIMIT_PER_HOUR,
+    3600,
+    "You've created a lot of AI-assisted entries in a short time — please wait a bit before adding more.",
+)
 
 # --- Exposure Hierarchies ---
 
@@ -18,6 +31,8 @@ def create_hierarchy(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
+    _ai_write_limiter.check(user.id)
+
     db_hierarchy = ocd_models.ExposureHierarchy(**hierarchy.model_dump(), owner_id=user.id)
     db.add(db_hierarchy)
     db.commit()
@@ -130,6 +145,8 @@ def create_session(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
+    _ai_write_limiter.check(user.id)
+
     db_session = ocd_models.ERPSession(**session.model_dump(), owner_id=user.id, status="completed")
 
     summary = ai_service.summarize_erp_session(
@@ -195,6 +212,8 @@ def create_journal_entry(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
+    _ai_write_limiter.check(user.id)
+
     db_entry = ocd_models.OCDJournalEntry(**entry.model_dump(), owner_id=user.id)
 
     analysis = ai_service.analyze_journal_entry(

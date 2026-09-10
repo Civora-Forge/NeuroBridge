@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, ShieldCheck, User, Heart, Loader2, Eye, EyeOff, Sparkles, Link2, UserPlus, LogIn, MailCheck } from "lucide-react";
@@ -11,17 +11,17 @@ const ROLES = [
   {
     id: "user",     label: "User",     icon: User,        desc: "Neurodivergent individual",
     border: "border-sky-300",    bg: "bg-sky-50",    hover: "hover:bg-sky-100",
-    iconColor: "text-sky-500",   nameColor: "text-sky-700",   mutedColor: "text-sky-500",
+    iconColor: "text-sky-500",   nameColor: "text-sky-700",   mutedColor: "text-sky-700",
   },
   {
     id: "guardian", label: "Guardian", icon: Heart,       desc: "Family Care-Circle member",
     border: "border-violet-300", bg: "bg-violet-50", hover: "hover:bg-violet-100",
-    iconColor: "text-violet-500", nameColor: "text-violet-700", mutedColor: "text-violet-500",
+    iconColor: "text-violet-500", nameColor: "text-violet-700", mutedColor: "text-violet-700",
   },
   {
     id: "support",    label: "Support",    icon: ShieldCheck, desc: "Therapist / trusted support person",
     border: "border-amber-300",  bg: "bg-amber-50",  hover: "hover:bg-amber-100",
-    iconColor: "text-amber-500", nameColor: "text-amber-700",  mutedColor: "text-amber-500",
+    iconColor: "text-amber-500", nameColor: "text-amber-700",  mutedColor: "text-amber-700",
   },
 ];
 
@@ -49,6 +49,11 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
 
   const from = location.state?.from?.pathname;
   const roleConfig = ROLES.find((r) => r.id === selectedRole);
+  const nameId = useId();
+  const emailId = useId();
+  const passwordId = useId();
+  const confirmPwId = useId();
+  const careLinkIdId = useId();
   function inferDemoAccountByEmail(rawEmail, rawCareLinkId) {
     const normalizedEmail = String(rawEmail || "").toLowerCase().trim();
     const normalizedCareLink = String(rawCareLinkId || "").toUpperCase().trim();
@@ -251,11 +256,13 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                   ].map(({ id, label, icon: Icon }) => (
                     <button
                       key={id}
+                      type="button"
                       onClick={() => switchMode(id)}
+                      aria-pressed={mode === id}
                       className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
                         mode === id
-                          ? "bg-green-50 border border-green-300 text-green-700"
-                          : "text-slate-400 hover:text-slate-700 hover:bg-white"
+                          ? "bg-green-50 border border-green-300 text-green-800"
+                          : "text-slate-600 hover:text-slate-700 hover:bg-white"
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -273,15 +280,17 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                       return (
                         <button
                           key={r.id}
+                          type="button"
                           onClick={() => { setSelectedRole(r.id); setError(""); }}
+                          aria-pressed={active}
                           className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all ${
                             active
                               ? `${r.bg} ${r.border} border`
-                              : "text-slate-400 hover:text-slate-700 hover:bg-white"
+                              : "text-slate-600 hover:text-slate-700 hover:bg-white"
                           }`}
                         >
                           <Icon className={`w-4 h-4 ${active ? r.iconColor : ""}`} />
-                          <span className={active ? r.nameColor : ""}>{r.label}</span>
+                          <span className={active ? r.nameColor : "text-slate-600"}>{r.label}</span>
                         </button>
                       );
                     })}
@@ -295,7 +304,7 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.18 }}
-                    className="text-center text-xs text-slate-400 mb-5"
+                    className="text-center text-xs text-slate-600 mb-5"
                   >
                     {roleConfig?.desc}
                   </motion.p>
@@ -313,8 +322,9 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-1 overflow-hidden"
                       >
-                        <label className="text-xs font-medium text-slate-500 uppercase tracking-widest">Full Name</label>
+                        <label htmlFor={nameId} className="text-xs font-medium text-slate-500 uppercase tracking-widest">Full Name</label>
                         <input
+                          id={nameId}
                           type="text"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
@@ -327,8 +337,9 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
 
                   {/* Email */}
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500 uppercase tracking-widest">Email</label>
+                    <label htmlFor={emailId} className="text-xs font-medium text-slate-500 uppercase tracking-widest">Email</label>
                     <input
+                      id={emailId}
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -340,9 +351,10 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
 
                   {/* Password */}
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500 uppercase tracking-widest">Password</label>
+                    <label htmlFor={passwordId} className="text-xs font-medium text-slate-500 uppercase tracking-widest">Password</label>
                     <div className="relative">
                       <input
+                        id={passwordId}
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -353,6 +365,8 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                       <button
                         type="button"
                         onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -369,14 +383,17 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-1 overflow-hidden"
                       >
-                        <label className="text-xs font-medium text-slate-500 uppercase tracking-widest">Confirm Password</label>
+                        <label htmlFor={confirmPwId} className="text-xs font-medium text-slate-500 uppercase tracking-widest">Confirm Password</label>
                         <div className="relative">
                           <input
+                            id={confirmPwId}
                             type={showConfirm ? "text" : "password"}
                             value={confirmPw}
                             onChange={(e) => setConfirmPw(e.target.value)}
                             placeholder="Repeat password"
                             autoComplete="new-password"
+                            aria-invalid={!!(confirmPw && confirmPw !== password)}
+                            aria-describedby={confirmPw && confirmPw !== password ? `${confirmPwId}-error` : undefined}
                             className={`w-full rounded-xl border bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-400/60 transition ${
                               confirmPw && confirmPw !== password
                                 ? "border-red-400"
@@ -386,13 +403,15 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                           <button
                             type="button"
                             onClick={() => setShowConfirm((v) => !v)}
+                            aria-label={showConfirm ? "Hide password" : "Show password"}
+                            aria-pressed={showConfirm}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
                           >
                             {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                         {confirmPw && confirmPw !== password && (
-                          <p className="text-[11px] text-red-500">Passwords do not match</p>
+                          <p id={`${confirmPwId}-error`} role="alert" className="text-[11px] text-red-500">Passwords do not match</p>
                         )}
                       </motion.div>
                     )}
@@ -407,10 +426,11 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-1 overflow-hidden"
                       >
-                        <label className="text-xs font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <Link2 className="w-3 h-3" /> Ward's Care-Link ID
+                        <label htmlFor={careLinkIdId} className="text-xs font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Link2 className="w-3 h-3" aria-hidden="true" /> Ward's Care-Link ID
                         </label>
                         <input
+                          id={careLinkIdId}
                           type="text"
                           value={careLinkId}
                           onChange={(e) => setCareLinkId(e.target.value)}
@@ -428,6 +448,7 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                   <AnimatePresence>
                     {error && (
                       <motion.p
+                        role="alert"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
@@ -455,7 +476,7 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                 {/* Divider */}
                 <div className="my-6 flex items-center gap-3">
                   <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-xs text-slate-400">Demo Access</span>
+                  <span className="text-xs text-slate-600">Demo Access</span>
                   <div className="flex-1 h-px bg-slate-200" />
                 </div>
 
@@ -486,7 +507,7 @@ export default function Login({ forcedRole = null, hideRoleToggle = false }) {
                   })}
                 </div>
 
-                <p className="mt-5 text-center text-xs text-slate-400">
+                <p className="mt-5 text-center text-xs text-slate-600">
                   <Sparkles className="inline w-3 h-3 mr-1" />
                   Demo credentials are pre-filled. No real data is stored.
                 </p>

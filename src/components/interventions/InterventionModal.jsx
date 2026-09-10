@@ -5,9 +5,10 @@
  * background backdrop blur, escape key handling, and seamless exit transitions.
  */
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { X } from "lucide-react";
 import InterventionResolver from "./InterventionResolver";
+import useDialogA11y from "@/hooks/useDialogA11y";
 
 export default function InterventionModal({
   isOpen,
@@ -18,17 +19,9 @@ export default function InterventionModal({
 }) {
   const overlayRef = useRef(null);
 
-  // Escape key support
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        onClose?.();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  // Focus trap, Escape-to-close, initial focus, and focus restoration —
+  // shared with the other hand-rolled modals (ACTSOSModal, JITAIOverlay).
+  useDialogA11y(overlayRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -37,6 +30,7 @@ export default function InterventionModal({
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
+      aria-label="Intervention"
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
     >
       <div className="relative w-full max-w-lg my-8 animate-in zoom-in-95 duration-200">

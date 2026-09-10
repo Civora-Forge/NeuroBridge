@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import useDialogA11y from "@/hooks/useDialogA11y";
 import GamifiedMotorExercises from "./GamifiedMotorExercises";
 import TaskBreakdown from "./TaskBreakdown";
 import RoutineScheduler from "./RoutineScheduler";
@@ -53,9 +54,14 @@ function JITAIOverlay({ event, onDismiss }) {
     body: "Pause, breathe, and come back when you are ready.",
     cta: "Continue",
   };
+  const panelRef = useRef(null);
+  // No pointer-only escape route existed before (only the CTA button); this
+  // adds Escape-to-dismiss and moves focus into the overlay on open, restoring
+  // it afterward, matching the other hand-rolled dialogs in the app.
+  useDialogA11y(panelRef, true, onDismiss);
 
   return (
-    <div className={styles.jitaiOverlay} role="dialog" aria-modal="true" aria-label={copy.headline}>
+    <div ref={panelRef} className={styles.jitaiOverlay} role="dialog" aria-modal="true" aria-label={copy.headline}>
       <div className={styles.jitaiCard}>
         <p className={styles.jitaiHeadline}>{copy.headline}</p>
         <p className={styles.jitaiBody}>{copy.body}</p>

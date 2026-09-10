@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
 import { MODULES_REGISTRY } from "@/data/modulesRegistry";
 import { recordModuleVisit, findModuleForPath } from "@/lib/lastVisitedModule";
+import { getModeKeyForRoute, modeStyles } from "@/lib/moduleColor";
 import AgentChat from "./AgentChat";
 
 // featureKey: null means always visible (Home)
@@ -59,11 +60,18 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="flex min-h-screen w-full">
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
+
       {/* ── Sidebar (desktop) ─────────────────── */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card p-4 gap-2 sticky top-0 h-screen overflow-y-auto">
+      <aside
+        aria-label="Main navigation"
+        className="hidden md:flex w-64 flex-col border-r border-border bg-card p-4 gap-2 sticky top-0 h-screen overflow-y-auto"
+      >
         <div className="flex items-center gap-3 px-3 py-4 mb-2">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Brain className="w-5 h-5 text-primary-foreground" />
+            <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
           </div>
           <span className="text-xl font-bold tracking-tight">NeuroBridge</span>
         </div>
@@ -76,8 +84,8 @@ export default function AppLayout({ children }) {
           >
             <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
               {role === "support"
-                ? <ShieldCheck className="w-4 h-4 text-amber-500" />                : role === "guardian"
-                ? <Heart className="w-4 h-4 text-violet-500" />                : <User className="w-4 h-4 text-primary" />}
+                ? <ShieldCheck className="w-4 h-4 text-amber-500" aria-hidden="true" />                : role === "guardian"
+                ? <Heart className="w-4 h-4 text-violet-500" aria-hidden="true" />                : <User className="w-4 h-4 text-primary" aria-hidden="true" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate">{user.name}</p>
@@ -89,7 +97,7 @@ export default function AppLayout({ children }) {
         ) : (
           <div className="neuro-card p-3 mb-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-              <User className="w-4 h-4 text-muted-foreground" />
+              <User className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground">Not signed in</p>
@@ -97,23 +105,32 @@ export default function AppLayout({ children }) {
           </div>
         )}
 
-        <nav className="flex flex-col gap-1 flex-1">
+        <nav aria-label="Modules" className="flex flex-col gap-1 flex-1">
           {navItems.map((item) => {
             const isActive =
               item.path === "/"
                 ? location.pathname === "/"
                 : location.pathname.startsWith(item.path);
+            // Home keeps the primary brand color; every module gets its own
+            // recognizable color so "which section am I in" doesn't rely on
+            // reading text alone — same idea as the mode-colored ModuleCards.
+            const c = item.path === "/" ? null : modeStyles(getModeKeyForRoute(item.path));
+            const activeStyle = isActive && c ? { ...c.bgSoft, ...c.text, ...c.borderLeft } : undefined;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                aria-current={isActive ? "page" : undefined}
+                style={activeStyle}
+                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors border-l-4 ${
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-secondary"
+                    ? c
+                      ? "font-semibold"
+                      : "bg-primary text-primary-foreground border-l-transparent"
+                    : "text-foreground hover:bg-secondary border-l-transparent"
                 }`}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                 <span>{item.title}</span>
               </Link>
             );
@@ -148,33 +165,33 @@ export default function AppLayout({ children }) {
       <div className="flex flex-col flex-1 min-w-0">
         <header className="md:hidden flex items-center justify-between border-b border-border bg-card px-4 py-3 sticky top-0 z-40">
           <div className="flex items-center gap-2">
-            <Brain className="w-6 h-6 text-primary" />
+            <Brain className="w-6 h-6 text-primary" aria-hidden="true" />
             <span className="font-bold text-lg">NeuroBridge</span>
           </div>
-          <div className="flex items-center gap-2">
+          <nav aria-label="Account" className="flex items-center gap-2">
             {role === "user" && (
-              <Link to="/settings" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
-                <Settings className="w-4 h-4" />
+              <Link to="/settings" aria-label="Settings" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
+                <Settings className="w-4 h-4" aria-hidden="true" />
               </Link>
             )}
             {isAuthenticated ? (
-              <button onClick={handleLogout} className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
-                <LogOut className="w-4 h-4" />
+              <button onClick={handleLogout} aria-label="Sign out" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
+                <LogOut className="w-4 h-4" aria-hidden="true" />
               </button>
             ) : (
-              <Link to="/login" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
-                <User className="w-4 h-4" />
+              <Link to="/login" aria-label="Sign in" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
+                <User className="w-4 h-4" aria-hidden="true" />
               </Link>
             )}
             {role === "user" && (
               <Link to="/" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
-                <ArrowLeftRight className="w-4 h-4" /> Modes
+                <ArrowLeftRight className="w-4 h-4" aria-hidden="true" /> Modes
               </Link>
             )}
-          </div>
+          </nav>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <main id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full focus:outline-none">
           {children}
         </main>
       </div>

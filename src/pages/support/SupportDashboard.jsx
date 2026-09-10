@@ -31,14 +31,19 @@ export default function SupportDashboard() {
           <p className="mt-3 text-2xl font-bold">12</p>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-green-600"><Leaf className="h-4 w-4" /> Active Alerts</div>
+          <div className={`flex items-center gap-2 ${dropAlert ? "text-red-600" : "text-green-600"}`}>
+            <Leaf className="h-4 w-4" aria-hidden="true" /> Active Alerts
+          </div>
           <p className="mt-3 text-2xl font-bold">{dropAlert ? 1 : 0}</p>
         </Card>
       </div>
 
       <Card className="p-5">
         <h2 className="text-lg font-semibold">Emotional Trend Graph</h2>
-        <div className="mt-4 grid grid-cols-7 gap-2">
+        <p className="sr-only">
+          Mood score by day: {trend.map((item) => `${item.day} ${item.mood}`).join(", ")}.
+        </p>
+        <div className="mt-4 grid grid-cols-7 gap-2" aria-hidden="true">
           {trend.map((item) => (
             <div key={item.day} className="flex flex-col items-center gap-2">
               <div className="h-28 w-8 rounded bg-green-100">

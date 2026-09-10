@@ -198,6 +198,7 @@ export default function AdminDashboard() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search by name, email or profile"
               placeholder="Search by name, email or profile…"
               className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
             />

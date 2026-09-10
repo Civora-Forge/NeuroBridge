@@ -1,13 +1,31 @@
 import os
 import json
 import re
+import time
 import google.generativeai as genai
+from google.api_core.exceptions import DeadlineExceeded, InternalServerError, ServiceUnavailable
 from typing import List
 
 # Configure Gemini
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
+
+# Same model/timeout knobs as the agent orchestrator (backend/services/agent_service.py)
+# — these calls are smaller one-shot generations, not a multi-round chat, so they get a
+# shorter default timeout and a single retry on transient errors only.
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-3.6-flash")
+_TIMEOUT_S = int(os.getenv("AGENT_LLM_TIMEOUT_MS", "15000")) / 1000
+_TRANSIENT_ERRORS = (DeadlineExceeded, ServiceUnavailable, InternalServerError, TimeoutError, ConnectionError)
+
+
+def _generate_with_retry(model: "genai.GenerativeModel", prompt: str):
+    """At most one retry, transient errors only — mirrors agent_service._send_with_retry."""
+    try:
+        return model.generate_content(prompt, request_options={"timeout": _TIMEOUT_S})
+    except _TRANSIENT_ERRORS:
+        time.sleep(0.5)
+        return model.generate_content(prompt, request_options={"timeout": _TIMEOUT_S})
 
 # Mirrors the frontend guard in src/support/specialized/ocdStore.js
 # (containsReassurance) — AI-generated OCD copy must pass through this too,
@@ -28,7 +46,7 @@ def generate_exposure_suggestions(category: str) -> List[str]:
     if not api_key:
         return [f"Sample exposure task for {category}"]
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel(MODEL_NAME)
     prompt = (
         f"Suggest a JSON list of 5 progressive ERP (Exposure and Response Prevention) practice steps, "
         f"ordered from easiest to hardest, for the OCD theme: '{category}'. "
@@ -38,7 +56,7 @@ def generate_exposure_suggestions(category: str) -> List[str]:
     )
 
     try:
-        response = model.generate_content(prompt)
+        response = _generate_with_retry(model, prompt)
         text = response.text.strip()
         if text.startswith("```json"):
             text = text[7:-3]
@@ -58,7 +76,7 @@ def summarize_erp_session(pre_suds: int, post_suds: int, duration: int, resisted
     if not api_key:
         return fallback
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel(MODEL_NAME)
     prompt = f"""
     Write a brief, factual 2-sentence summary of this ERP (Exposure and Response Prevention) session.
     Describe what happened — do not reassure the user, do not claim anything is safe or will be fine,
@@ -71,7 +89,7 @@ def summarize_erp_session(pre_suds: int, post_suds: int, duration: int, resisted
     Notes: {notes}
     """
     try:
-        response = model.generate_content(prompt)
+        response = _generate_with_retry(model, prompt)
         text = response.text.strip()
         return fallback if _contains_reassurance(text) else text
     except Exception:
@@ -84,7 +102,7 @@ def analyze_journal_entry(trigger: str, obsession: str, emotion: str, anxiety: i
     if not api_key:
         return fallback
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel(MODEL_NAME)
     prompt = f"""
     Analyze this OCD journal entry and suggest one small, concrete ERP (Exposure and Response Prevention)
     exercise for it, in 2 sentences total. Do not reassure the user that the feared outcome won't happen,
@@ -97,7 +115,7 @@ def analyze_journal_entry(trigger: str, obsession: str, emotion: str, anxiety: i
     Anxiety: {anxiety}/100
     """
     try:
-        response = model.generate_content(prompt)
+        response = _generate_with_retry(model, prompt)
         text = response.text.strip()
         return fallback if _contains_reassurance(text) else text
     except Exception:

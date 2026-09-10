@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, Activity, Info, X, TrendingUp, 
-  Check, AlertTriangle, BarChart2, ShieldAlert, 
-  Sparkles, Clock, MapPin, Zap
+import {
+  ArrowLeft, Activity, Info, X, TrendingUp,
+  Check, AlertTriangle, BarChart2, ShieldAlert,
+  Sparkles, Clock, MapPin, Zap, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -160,6 +160,8 @@ function VisualSudsScale({ value, onChange }) {
             max="100"
             value={value}
             onChange={(e) => onChange(parseInt(e.target.value))}
+            aria-label="Distress level (SUDS), 0 to 100"
+            aria-valuetext={`${value} out of 100, ${getSudsLevel(value)}`}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
           />
           
@@ -193,6 +195,10 @@ export default function SUDSMonitor() {
   const [hasSpike, setHasSpike] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Charts/trends are useful but re-opening them every visit is exactly the
+  // kind of "check my own anxiety data" loop this tool shouldn't invite —
+  // collapsed by default, one tap away when genuinely wanted.
+  const [showPatterns, setShowPatterns] = useState(false);
 
   const loadData = useCallback(() => {
     const allReadings = getSudsReadings() || [];
@@ -281,24 +287,18 @@ export default function SUDSMonitor() {
           <div className="flex items-center gap-4">
             <Link
               to="/ocd"
+              aria-label="Back to Exposure Practice"
               className="p-2 -ml-2 rounded-full hover:bg-white/60 text-slate-500 hover:text-amber-600 transition-colors shadow-sm bg-white/40 backdrop-blur-sm border border-white"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Link>
             <div>
               <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-amber-600 to-orange-500 bg-clip-text text-transparent">
-                Anxiety Monitor
+                Anxiety Check-in
               </h1>
-              <p className="text-sm font-medium text-slate-500 mt-1">Track your distress levels in real-time</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">Rate how you're feeling right now</p>
             </div>
           </div>
-          <span className="hidden sm:flex items-center gap-2 text-xs font-bold text-amber-700 bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-200 px-3 py-1.5 rounded-full shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-            </span>
-            Live Tracking
-          </span>
         </div>
 
         {/* Spike Alert */}
@@ -311,37 +311,38 @@ export default function SUDSMonitor() {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="mb-6 overflow-hidden"
             >
-              <div className="relative bg-gradient-to-r from-rose-50 to-red-50/50 border border-rose-200 rounded-2xl shadow-sm overflow-hidden">
-                <div className="absolute left-0 inset-y-0 w-1.5 bg-gradient-to-b from-rose-500 to-red-600" />
+              <div className="relative bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="absolute left-0 inset-y-0 w-1.5 bg-slate-300" />
                 <div className="flex items-start gap-4 p-5 pl-6">
-                  <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-rose-100 flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-6 h-6 text-rose-600" />
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-6 h-6 text-slate-500" />
                   </div>
                   <div className="flex-1 min-w-0 pt-1">
-                    <h3 className="font-bold text-rose-950 text-base">High Anxiety Detected</h3>
-                    <p className="text-sm text-rose-800/80 mt-1.5 leading-relaxed font-medium">
-                      You have logged multiple high SUDS readings recently. The discomfort will pass — an urge is not a command. Consider an ERP exercise to build resilience.
+                    <h3 className="font-bold text-slate-800 text-base">A few higher readings lately</h3>
+                    <p className="text-sm text-slate-600 mt-1.5 leading-relaxed font-medium">
+                      That's normal — discomfort during exposure work is expected and it passes. An ERP session can help build tolerance, whenever you're ready.
                     </p>
                     <div className="flex flex-wrap gap-3 mt-4">
                       <button
                         onClick={() => navigate('/ocd/exposure-session')}
-                        className="text-sm font-bold bg-rose-600 text-white px-5 py-2 rounded-xl hover:bg-rose-700 active:scale-95 transition-all shadow-sm shadow-rose-600/20"
+                        className="text-sm font-bold bg-slate-800 text-white px-5 py-2 rounded-xl hover:bg-slate-900 active:scale-95 transition-all"
                       >
-                        Start ERP
+                        Start an ERP session
                       </button>
                       <button
                         onClick={() => setHasSpike(false)}
-                        className="text-sm font-bold bg-white text-rose-700 border border-rose-200 px-5 py-2 rounded-xl hover:bg-rose-50 active:scale-95 transition-all"
+                        className="text-sm font-bold bg-white text-slate-600 border border-slate-200 px-5 py-2 rounded-xl hover:bg-slate-50 active:scale-95 transition-all"
                       >
-                        Dismiss
+                        Not now
                       </button>
                     </div>
                   </div>
                   <button
                     onClick={() => setHasSpike(false)}
-                    className="text-rose-400 hover:text-rose-700 p-2 shrink-0 transition-colors rounded-full hover:bg-rose-100"
+                    className="text-slate-500 hover:text-slate-700 p-2 shrink-0 transition-colors rounded-full hover:bg-slate-100"
+                    aria-label="Dismiss"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -369,7 +370,7 @@ export default function SUDSMonitor() {
 
           {/* Context Tags */}
           <div className="mb-8">
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4">
+            <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-4">
               Context
             </label>
             <div className="flex flex-wrap gap-2.5">
@@ -380,6 +381,7 @@ export default function SUDSMonitor() {
                   <motion.button
                     key={tag}
                     onClick={() => setSelectedTag(tag)}
+                    aria-pressed={isSelected}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.95 }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
@@ -398,7 +400,7 @@ export default function SUDSMonitor() {
 
           {/* Note input */}
           <div className="mb-8">
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4">
+            <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-4">
               Note (Optional)
             </label>
             <input
@@ -484,16 +486,36 @@ export default function SUDSMonitor() {
           )}
         </AnimatePresence>
 
+        {/* Patterns & trends — collapsed by default (see showPatterns note above) */}
+        {(readings.length >= 3 || contextBreakdown.length > 0 || dailyStats.length > 0) && (
+          <button
+            type="button"
+            onClick={() => setShowPatterns((v) => !v)}
+            aria-expanded={showPatterns}
+            className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white/70 px-5 py-3.5 mb-6 text-sm font-bold text-slate-600 hover:bg-white transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-amber-500" />
+              {showPatterns ? "Hide your patterns & trends" : "See your patterns & trends"}
+            </span>
+            {showPatterns ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )}
+
         {/* Analytics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ${showPatterns ? "" : "hidden"}`}>
           {/* SUDS Trend Line Chart */}
           {readings.length >= 3 && (
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/40 p-6 md:col-span-2">
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-amber-500" />
+                <TrendingUp className="w-4 h-4 text-amber-500" aria-hidden="true" />
                 Distress Trend
               </h3>
-              <div className="h-64 w-full">
+              <div
+                className="h-64 w-full"
+                role="img"
+                aria-label={`Line chart of distress (SUDS) readings over time, ranging from ${Math.min(...trendData.map(d => d.value))} to ${Math.max(...trendData.map(d => d.value))}. Most recent reading: ${trendData[trendData.length - 1]?.value} (${getSudsLevel(trendData[trendData.length - 1]?.value ?? 0)}).`}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
@@ -540,11 +562,15 @@ export default function SUDSMonitor() {
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/40 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                  <BarChart2 className="w-4 h-4 text-amber-500" />
+                  <BarChart2 className="w-4 h-4 text-amber-500" aria-hidden="true" />
                   Contexts
                 </h3>
               </div>
-              <div className="h-56">
+              <div
+                className="h-56"
+                role="img"
+                aria-label={`Bar chart of log counts by context. ${contextBreakdown.map(c => `${c.name}: ${c.count} logs, average ${c.avg}`).join('; ')}.`}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={contextBreakdown} 
@@ -628,7 +654,7 @@ export default function SUDSMonitor() {
 
         {/* Insight Card */}
         <AnimatePresence>
-          {insight && (
+          {insight && showPatterns && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -655,7 +681,7 @@ export default function SUDSMonitor() {
         </AnimatePresence>
 
         {/* Footer */}
-        <p className="text-xs text-center text-slate-400 mt-10 mb-6 font-medium max-w-sm mx-auto leading-relaxed px-4">
+        <p className="text-xs text-center text-slate-600 mt-10 mb-6 font-medium max-w-sm mx-auto leading-relaxed px-4">
           This tool supports your daily exposure and response prevention — it does not replace clinical care.
         </p>
 

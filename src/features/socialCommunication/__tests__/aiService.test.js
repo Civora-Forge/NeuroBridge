@@ -88,10 +88,15 @@ describe("callGeminiJson", () => {
     expect(result.error).toContain("500");
   });
 
-  it("returns failure when no api key is configured", async () => {
-    const result = await callGeminiJson("prompt", schema, { apiKey: "", fetchImpl: async () => ({ ok: true, json: async () => ({}) }) });
+  it("returns failure when the backend rejects the request as unauthenticated", async () => {
+    // There is no client-side API key anymore (see aiService.js docstring) —
+    // the backend proxy is the real authority, so an unauthenticated/expired
+    // session surfaces as an HTTP failure from the proxy, same as any other.
+    const result = await callGeminiJson("prompt", schema, {
+      fetchImpl: async () => ({ ok: false, status: 401 }),
+    });
     expect(result.ok).toBe(false);
-    expect(result.error).toBe("missing_api_key");
+    expect(result.error).toContain("401");
   });
 
   it("never throws on a network rejection", async () => {

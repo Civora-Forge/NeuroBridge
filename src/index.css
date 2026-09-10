@@ -24,7 +24,10 @@
     --secondary-foreground: 220 20% 15%;
 
     --muted: 40 15% 94%;
-    --muted-foreground: 220 10% 50%;
+    /* 50% lightness measured ~4.49:1 on --card/--background (white/near-white) —
+       just under the 4.5:1 AA text threshold. Darkened to 46%, which measures
+       ~4.9:1, without changing hue/chroma so it still reads as the same gray. */
+    --muted-foreground: 220 10% 46%;
 
     --accent: 35 90% 55%;
     --accent-foreground: 0 0% 100%;
@@ -39,13 +42,16 @@
     --radius: 1rem;
 
     /* Mode Colors */
-    --mode-asd: 220 70% 55%;
+    /* Matches the ASD hub's own teal brand (#0D9488) so the sidebar accent
+       and the module it points to are the same color — was blue vs. teal. */
+    --mode-asd: 175 74% 32%;
     --mode-adhd: 25 90% 55%;
     --mode-dyslexia: 145 55% 42%;
     --mode-dyscalculia: 270 55% 55%;
     --mode-ocd: 142 72% 36%;
     --mode-dyspraxia: 10 70% 60%;
     --mode-apd: 240 55% 55%;
+    --mode-anxiety: 226 72% 62%;
     --mode-depression: 340 65% 55%;
 
     /* Semantic tokens */
@@ -133,6 +139,51 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* WCAG 2.3.3 (AAA, applied as best practice here): honor the OS-level
+     "reduce motion" preference automatically, in addition to the app's own
+     manual Animation setting above — a user who has already told their OS
+     they don't want motion shouldn't have to tell NeuroBridge a second time. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* WCAG 2.4.7 / 2.4.13 Focus Visible: a single, consistent, high-contrast
+     focus indicator for every keyboard-focusable element, including the many
+     plain <a>/<button>/<Link> elements across the app that don't carry the
+     shadcn focus-visible:ring-* utility classes (e.g. sidebar nav links,
+     .neuro-btn-* buttons). Only shows for keyboard focus, never mouse clicks. */
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Skip-to-content link (WCAG 2.4.1 Bypass Blocks) — visually hidden until
+     it receives keyboard focus, then it's the very first focusable thing. */
+  .skip-to-content {
+    position: fixed;
+    top: -100%;
+    left: 1rem;
+    z-index: 100;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: top 0.15s ease;
+  }
+
+  .skip-to-content:focus {
+    top: 1rem;
   }
 }
 

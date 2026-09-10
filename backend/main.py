@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routers import ocd_router, agent_router, adhd_router, anxiety_router
+from .routers import ocd_router, agent_router, adhd_router, anxiety_router, ai_proxy_router, privacy_router
 
 # Create database tables (in a real app, use Alembic migrations)
 from .models import ocd_models, agent_models, adhd_models, anxiety_models, asd_models
@@ -28,6 +28,8 @@ app.include_router(ocd_router.router, prefix="/api/ocd", tags=["ocd"])
 app.include_router(agent_router.router, prefix="/api/agent", tags=["agent"])
 app.include_router(adhd_router.router, prefix="/api/adhd", tags=["adhd"])
 app.include_router(anxiety_router.router, prefix="/api/anxiety", tags=["anxiety"])
+app.include_router(ai_proxy_router.router, prefix="/api/ai", tags=["ai"])
+app.include_router(privacy_router.router, prefix="/api/privacy", tags=["privacy"])
 
 @app.get("/")
 def read_root():

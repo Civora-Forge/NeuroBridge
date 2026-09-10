@@ -17,26 +17,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODEL = "gemini-3.5-flash";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function callGemini(prompt) {
-  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 3000 },
-    }),
+async function callGemini(prompt, user) {
+  const result = await callGeminiProxy({
+    model: GEMINI_MODEL,
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 3000 },
+    user,
   });
-  if (!res.ok) throw new Error(`Gemini error ${res.status}`);
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  if (!result.ok) throw new Error(result.error || "Gemini request failed");
+  return extractGeminiText(result.data);
 }
 
 function extractJSON(text) {
@@ -218,7 +213,7 @@ Create a concrete 7-day adaptive training plan. Respond with JSON only:
   ]
 }`;
 
-      const text = await callGemini(prompt);
+      const text = await callGemini(prompt, user);
       const plan = extractJSON(text);
 
       if (!plan) throw new Error("Could not parse AI response");

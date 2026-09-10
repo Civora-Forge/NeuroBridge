@@ -1,4 +1,5 @@
 import mammoth from "mammoth";
+import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
 
 let pdfjsLibPromise = null;
 async function getPdfJs() {
@@ -32,12 +33,7 @@ function fileToBase64(file) {
 /**
  * Perform Gemini Vision OCR on an image file using gemini-3.6-flash (with fallbacks)
  */
-export async function extractTextFromImage(file) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API key is missing (VITE_GEMINI_API_KEY).");
-  }
-
+export async function extractTextFromImage(file, user) {
   const base64Data = await fileToBase64(file);
   const mimeType = file.type || "image/jpeg";
 
@@ -45,44 +41,36 @@ export async function extractTextFromImage(file) {
   let lastErrorMsg = "";
 
   for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: "Extract all legible text from this document or image verbatim. Group logical lines into clear paragraphs. Do not add intro text, notes, or commentary.",
+      const result = await callGeminiProxy({
+        model,
+        contents: [
+          {
+            parts: [
+              {
+                text: "Extract all legible text from this document or image verbatim. Group logical lines into clear paragraphs. Do not add intro text, notes, or commentary.",
+              },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Data,
                 },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: base64Data,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
+              },
+            ],
+          },
+        ],
+        user,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        lastErrorMsg = errorData.error?.message || `Status ${response.status}`;
+      if (!result.ok) {
+        lastErrorMsg = result.error || "OCR request failed";
         if (lastErrorMsg.includes("no longer available") || lastErrorMsg.includes("not found")) {
           continue;
         }
         throw new Error(lastErrorMsg);
       }
 
-      const data = await response.json();
-      const extractedText =
-        data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+      const extractedText = extractGeminiText(result.data).trim();
 
       if (!extractedText) {
         throw new Error("No readable text was detected in the provided image.");
@@ -118,7 +106,7 @@ async function pdfPageToImageBlob(page) {
 /**
  * Extract text from document file (.pdf, .docx, .doc, .txt)
  */
-export async function extractTextFromFile(file, onProgress) {
+export async function extractTextFromFile(file, onProgress, user) {
   const fileName = file.name.toLowerCase();
 
   // TXT files
@@ -186,7 +174,7 @@ export async function extractTextFromFile(file, onProgress) {
         });
         const page = await pdf.getPage(i);
         const imageBlob = await pdfPageToImageBlob(page);
-        const pageOcr = await extractTextFromImage(imageBlob);
+        const pageOcr = await extractTextFromImage(imageBlob, user);
         ocrText += pageOcr + "\n\n";
       }
 
@@ -210,7 +198,7 @@ export async function extractTextFromFile(file, onProgress) {
 /**
  * Extract text from multiple images sequentially using Gemini Vision OCR
  */
-export async function extractTextFromImages(files, onProgress) {
+export async function extractTextFromImages(files, onProgress, user) {
   let combinedText = [];
 
   for (let i = 0; i < files.length; i++) {
@@ -221,7 +209,7 @@ export async function extractTextFromImages(files, onProgress) {
       message: `Scanning page ${i + 1} of ${files.length}...`,
     });
 
-    const pageText = await extractTextFromImage(files[i]);
+    const pageText = await extractTextFromImage(files[i], user);
     if (pageText) {
       combinedText.push(pageText);
     }
