@@ -316,12 +316,15 @@ export default function ASDPage() {
                     <AdaptiveGreeting responseTier={0} seed={0} />
                   </motion.div>
                 </div>
-                <motion.div variants={itemVariants} className="hidden lg:flex items-end justify-end gap-4 pr-2">
-                  <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
-                </motion.div>
-              )}
+                {heroDensity !== "minimal" && (
+                  <motion.div variants={itemVariants} className="hidden lg:flex items-end justify-end gap-4 pr-2">
+                    <AsdCharacter size={112} tone="teal" accessory="leaf" name="Your friendly ASD companion" className="nb-mascot-float relative" />
+                  </motion.div>
+                )}
+              </div>
+            </motion.header>
 
-              {/* ── Routine hint ── */}
+            {/* ── Routine hint ── */}
               {nextRoutineTask && !asdLoading && (
                 <motion.div
                   initial={{ opacity: 0, y: reduced ? 0 : 10 }}
