@@ -134,6 +134,17 @@ export async function completeSupportModule(request) {
   if (parsed.command.moduleId === "support.focus_session") {
     try {
       const completed = await completeFocusSessionIntervention({ userId: parsed.command.userId, interventionId: parsed.command.interventionId, outcome });
+      try {
+        const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
+        recordWellbeingInteraction({
+          userId: parsed.command.userId,
+          interactionType: WELLBEING_INTERACTION_TYPES.FOCUS_SESSION_COMPLETED,
+          source: "support.focus_session",
+          metadata: { interventionId: parsed.command.interventionId, outcome },
+        });
+      } catch (e) {
+        // Safe fallback
+      }
       return result(parsed.command, { ok: true, status: ExecutionStatus.COMPLETED, intervention: completed.intervention, lifecycleEvent: completed.lifecycleEvent, outcome: completed.outcome, reasonCodes: ["intervention_completed"], learning: await processFocusInterventionOutcome(completed.intervention) });
     } catch (error) {
       return result(parsed.command, { error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
@@ -157,6 +168,18 @@ export async function completeSupportModule(request) {
       finalConfiguration: outcome.finalConfiguration,
     },
   });
+
+  try {
+    const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
+    recordWellbeingInteraction({
+      userId: parsed.command.userId,
+      interactionType: WELLBEING_INTERACTION_TYPES.SUPPORT_MODULE_COMPLETED,
+      source: parsed.command.moduleId || "support_toolkit",
+      metadata: { interventionId: parsed.command.interventionId, outcome: savedOutcome },
+    });
+  } catch (e) {
+    // Safe fallback
+  }
 
   return { ...transition, status: ExecutionStatus.COMPLETED, outcome: savedOutcome, learning: processInterventionOutcome(transition.intervention) };
 }

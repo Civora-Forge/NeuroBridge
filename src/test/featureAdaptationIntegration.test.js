@@ -6,7 +6,15 @@ import {
   buildTaskBreakdownConfig,
   buildGentleActivityConfig,
   buildAnxietyConfig,
+  buildReframingConfig,
+  buildGroundingConfig,
+  buildTimelineConfig,
+  buildEvidenceJournalConfig,
+  getFeatureConfigBuilder,
 } from '@/adaptive/featureConfiguration';
+import { deriveModuleAdjustments } from '@/components/adaptive/AdaptiveUIRuntime.jsx';
+import { buildModuleContext } from '@/support/framework/moduleContextAdapter';
+import { decide } from '@backend/adaptive/engine/adaptiveEngine';
 import { generateTaskBreakdown, getTaskBreakdownProgress } from '@/support/modules/taskBreakdown/taskBreakdownService';
 
 /* A module-scoped engine decision surfaces as an `adjustments` list of
@@ -19,9 +27,10 @@ const adj = (type, targets) => [{ type, target: targets?.[0] ?? 'speed', value: 
 describe('deriveFeatureSignals', () => {
   it('maps action types to boolean signals and stays inactive without decisions', () => {
     expect(deriveFeatureSignals(adj('DECREASE'))).toMatchObject({ slowPace: true, active: true });
-    expect(deriveFeatureSignals(adj('SIMPLIFY'))).toMatchObject({ simplify: true });
+    expect(deriveFeatureSignals(adj('SIMPLIFY'))).toMatchObject({ simplify: true, reduce: false });
+    expect(deriveFeatureSignals(adj('REDUCE'))).toMatchObject({ reduce: true, simplify: false });
     expect(deriveFeatureSignals(adj('GUIDE'))).toMatchObject({ guide: true });
-    expect(deriveFeatureSignals([])).toMatchObject({ active: false, slowPace: false, simplify: false });
+    expect(deriveFeatureSignals([])).toMatchObject({ active: false, slowPace: false, simplify: false, reduce: false });
   });
 });
 
@@ -74,6 +83,53 @@ describe('Adaptive Reading wiring (dyslexia.adaptive-reading)', () => {
     expect(slow.playbackRate).toBeGreaterThanOrEqual(0.25);
     expect(slow.playbackRate).toBeLessThanOrEqual(2);
     expect(fast.playbackRate).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('Dyslexia module registry fix (regression)', () => {
+  it('resolves the canonical reading module context with real module policies', () => {
+    const context = buildModuleContext('dyslexia.adaptive-reading');
+    expect(context.moduleId).toBe('dyslexia.adaptive-reading');
+    expect(context.modulePolicies.length).toBeGreaterThanOrEqual(3);
+    expect(context.supportedAdaptationDimensions).toContain('PACING');
+  });
+
+  it('flows module decisions through the engine into non-UI adjustments (no inert config)', () => {
+    const context = buildModuleContext('dyslexia.adaptive-reading');
+    const { plan } = decide({
+      contextSnapshot: {
+        mood: { primaryMood: 'overwhelmed', confidence: 0.9 },
+        behavior: { taskSwitchFrequency: 1 },
+      },
+      moduleContext: context,
+    }, { decisionTraceId: 'dyslexia-regression-overload' });
+
+    const adjustments = deriveModuleAdjustments(plan);
+    expect(adjustments.length).toBeGreaterThan(0);
+    expect(adjustments.some((a) => a.target === 'PACING' && a.type === 'DECREASE')).toBe(true);
+    expect(adjustments.some((a) => a.target === 'UI')).toBe(false);
+
+    const cfg = buildReadingConfig({ signals: deriveFeatureSignals(adjustments), estimatedMinutes: 5 });
+    expect(cfg.active).toBe(true);
+    expect(cfg.mode).toBe('slow_paced_reading');
+    expect(cfg.playbackRate).toBe(0.75);
+  });
+
+  it('engages the content reduction path on fatigue, not just overload', () => {
+    const context = buildModuleContext('dyslexia.adaptive-reading');
+    const { plan } = decide({
+      contextSnapshot: {
+        mood: { primaryMood: 'sad', confidence: 0.9 },
+        behavior: { taskSwitchFrequency: 0.1 },
+      },
+      moduleContext: context,
+    }, { decisionTraceId: 'dyslexia-regression-fatigue' });
+
+    const adjustments = deriveModuleAdjustments(plan);
+    expect(adjustments.some((a) => a.target === 'CONTENT' && a.type === 'REDUCE')).toBe(true);
+    const cfg = buildReadingConfig({ signals: deriveFeatureSignals(adjustments), estimatedMinutes: 5 });
+    expect(cfg.active).toBe(true);
+    expect(cfg.reducedWordsPerLine).toBe(true);
   });
 });
 
@@ -135,6 +191,100 @@ describe('Anxiety Hub wiring (anxiety.hub)', () => {
   });
 });
 
+describe('Cognitive Reframing wiring (support.cognitive_reframing)', () => {
+  it('asks fewer, lighter questions on overload', () => {
+    const cfg = buildReframingConfig({ signals: deriveFeatureSignals(adj('SIMPLIFY')), totalQuestions: 3 });
+    expect(cfg.active).toBe(true);
+    expect(cfg.mode).toBe('small_reframes');
+    expect(cfg.visibleQuestions).toBe(2);
+    expect(cfg.guidedPrompts).toBe(false);
+  });
+
+  it('guides the reflection with prompts and reassurance under rumination', () => {
+    const cfg = buildReframingConfig({ signals: deriveFeatureSignals(adj('GUIDE')), totalQuestions: 3 });
+    expect(cfg.mode).toBe('guided_reframe');
+    expect(cfg.guidedPrompts).toBe(true);
+    expect(cfg.reassureCopy).toBe(true);
+    expect(cfg.visibleQuestions).toBe(3);
+  });
+
+  it('never hides every question — a 3-question module keeps at least one', () => {
+    const cfg = buildReframingConfig({ signals: deriveFeatureSignals(adj('SIMPLIFY')), totalQuestions: 3 });
+    expect(cfg.visibleQuestions).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('Anxiety Dissolver / Grounding wiring (support.grounding)', () => {
+  it('promotes the breathing techniques first when guidance invites breathing', () => {
+    const cfg = buildGroundingConfig({ signals: deriveFeatureSignals(adj('GUIDE')) });
+    expect(cfg.active).toBe(true);
+    expect(cfg.mode).toBe('breathing_first');
+    expect(cfg.breathingFirst).toBe(true);
+    expect(cfg.guidedBreathing).toBe(true);
+    expect(cfg.breathingTechniqueIds).toEqual(['4-7-8', 'box_breathing']);
+  });
+
+  it('slows the pacing with reassurance under a panic-level decision', () => {
+    const cfg = buildGroundingConfig({ signals: deriveFeatureSignals(adj('DECREASE')) });
+    expect(cfg.mode).toBe('quiet_slow_pace');
+    expect(cfg.slowPacing).toBe(true);
+    expect(cfg.reassureCopy).toBe(true);
+    expect(cfg.breathingFirst).toBe(false);
+  });
+});
+
+describe('Visual Timeline wiring (support.visual_timeline)', () => {
+  it('reduces visual density on overload without touching the calm layout', () => {
+    const cfg = buildTimelineConfig({ signals: deriveFeatureSignals(adj('REDUCE')) });
+    expect(cfg.active).toBe(true);
+    expect(cfg.mode).toBe('reduced_density');
+    expect(cfg.densityReduced).toBe(true);
+    expect(cfg.calmLayout).toBe(false);
+  });
+
+  it('only activates the calm layout under a SIMPLIFY distress decision', () => {
+    const cfg = buildTimelineConfig({ signals: deriveFeatureSignals(adj('SIMPLIFY')) });
+    expect(cfg.mode).toBe('calm_layout');
+    expect(cfg.calmLayout).toBe(true);
+    expect(cfg.densityReduced).toBe(false);
+  });
+});
+
+describe('Evidence Journal wiring (support.evidence_journal)', () => {
+  it('prioritises the starred wins first when the low-mood REORDER decision fires', () => {
+    const cfg = buildEvidenceJournalConfig({ signals: deriveFeatureSignals(adj('REORDER')) });
+    expect(cfg.active).toBe(true);
+    expect(cfg.mode).toBe('wins_first');
+    expect(cfg.winsFirst).toBe(true);
+    expect(cfg.highlightWins).toBe(true);
+  });
+
+  it('stays neutral without a reorder decision', () => {
+    const cfg = buildEvidenceJournalConfig({ signals: deriveFeatureSignals([]) });
+    expect(cfg.active).toBe(false);
+    expect(cfg.winsFirst).toBe(false);
+  });
+});
+
+describe('config builder registry', () => {
+  it('resolves a builder for every wired canonical module id', () => {
+    for (const id of [
+      'support.focus_session',
+      'support.task_breakdown',
+      'support.gentle_activity',
+      'dyslexia.adaptive-reading',
+      'anxiety.hub',
+      'support.cognitive_reframing',
+      'support.grounding',
+      'support.visual_timeline',
+      'support.evidence_journal',
+    ]) {
+      expect(getFeatureConfigBuilder(id)).toBeTypeOf('function');
+    }
+    expect(getFeatureConfigBuilder('support.social_connection')).toBeNull();
+  });
+});
+
 describe('inactive decisions never force change', () => {
   it('every builder stays inactive and neutral when no decision is active', () => {
     expect(buildFocusConfig({}).active).toBe(false);
@@ -142,5 +292,9 @@ describe('inactive decisions never force change', () => {
     expect(buildTaskBreakdownConfig({}).active).toBe(false);
     expect(buildGentleActivityConfig({}).active).toBe(false);
     expect(buildAnxietyConfig({}).active).toBe(false);
+    expect(buildReframingConfig({}).active).toBe(false);
+    expect(buildGroundingConfig({}).active).toBe(false);
+    expect(buildTimelineConfig({}).active).toBe(false);
+    expect(buildEvidenceJournalConfig({}).active).toBe(false);
   });
 });

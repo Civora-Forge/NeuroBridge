@@ -54,6 +54,15 @@ export default function EmotionCoach() {
     const tags = extractPatternTags(trimmed);
     setInsightTags(tags);
     setPatterns((items) => [{ id: Date.now(), moodLabel: selected?.label || 'Unknown', note: trimmed, tags }, ...items].slice(0, 5));
+    try {
+      import('@/services/wellbeingService.js').then(({ recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES }) => {
+        recordWellbeingInteraction({
+          interactionType: WELLBEING_INTERACTION_TYPES.MOOD_CHECKIN_COMPLETED,
+          source: 'adhd.emotion-coach',
+          metadata: { mood: selected?.label, note: trimmed }
+        });
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   return <SupportToolThemeProvider theme="adhd_focus"><SupportToolLayout className="!m-0 !w-full !max-w-none !gap-0 !p-0"><main className="w-full bg-[#fffefa] px-4 py-5 text-[#202036] sm:px-8 sm:py-6 lg:px-[7vw]">

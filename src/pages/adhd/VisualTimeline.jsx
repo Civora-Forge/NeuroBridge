@@ -21,6 +21,9 @@ import {
   Zap,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+import { useContextStateOptional } from "@/context/ContextProvider";
+import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 
@@ -588,6 +591,17 @@ export default function VisualTimeline() {
   const [density, setDensity] =
     useState("comfortable");
 
+  const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.visual_timeline", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+  const effectiveDensity = adaptiveConfig?.densityReduced
+    ? "compact"
+    : density;
+
   const [blocks, setBlocks] = useState(
     samples.map((block) => ({
       ...block,
@@ -879,7 +893,7 @@ export default function VisualTimeline() {
                   </button>
 
                   <select
-                    value={density}
+                    value={effectiveDensity}
                     onChange={(event) =>
                       setDensity(event.target.value)
                     }
@@ -957,6 +971,26 @@ export default function VisualTimeline() {
                 {/* ADD BAR                                                  */}
                 {/* ======================================================== */}
 
+                {adaptiveConfig?.active && (
+                  <section className="mt-6">
+                    <div className="rounded-[18px] border border-[#e6ddf7] bg-[#faf7ff] px-4 py-3 text-[11px] leading-relaxed">
+                      <p className="font-black text-[#6b4fc0]">
+                        Adapted for you:{" "}
+                        {adaptiveConfig.mode === "reduced_density"
+                          ? "lower visual density"
+                          : adaptiveConfig.mode === "calm_layout"
+                          ? "a calmer layout, one thing at a time"
+                          : "a gentler day view"}
+                      </p>
+                      {adaptation.reason && (
+                        <p className="mt-0.5 text-[#8b7cb9]">
+                          {adaptation.reason}
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
                 <section className="mt-6">
                   <AddBlockBar
                     entry={entry}
@@ -997,7 +1031,7 @@ export default function VisualTimeline() {
 
                     <div
                       className={
-                        density === "compact"
+                        effectiveDensity === "compact"
                           ? "space-y-1"
                           : "space-y-2"
                       }
@@ -1010,7 +1044,7 @@ export default function VisualTimeline() {
                           update={update}
                           snooze={snooze}
                           compact={
-                            density === "compact"
+                            effectiveDensity === "compact"
                           }
                           remove={(blockId) =>
                             setBlocks((items) =>
@@ -1059,7 +1093,11 @@ export default function VisualTimeline() {
                       setDumpEntry={setDumpEntry}
                     />
 
-                    <section className="relative overflow-hidden rounded-[22px] border border-[#ddd4f3] bg-gradient-to-br from-[#fdfbff] via-[#faf7ff] to-[#f5f1ff] p-5">
+                    <section className={`relative overflow-hidden rounded-[22px] border ${
+                      adaptiveConfig?.calmLayout
+                        ? "border-[#cfc0ef] ring-2 ring-[#ddd1ff]"
+                        : "border-[#ddd4f3]"
+                    } bg-gradient-to-br from-[#fdfbff] via-[#faf7ff] to-[#f5f1ff] p-5`}>
                       <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#8b68e8]/10 blur-2xl" />
                       <div className="relative z-10">
                         <div className="flex items-start justify-between gap-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-[#ece4ff] text-[#7452d4]"><Sparkles size={17} /></span><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#8a72be]">Gentle reminder</p><h3 className="mt-0.5 text-[16px] font-black tracking-[-.025em] text-[#252b3e]">Just the next block.</h3></div></div></div>

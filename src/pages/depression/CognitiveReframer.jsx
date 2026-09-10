@@ -3,6 +3,8 @@
 import React, { useRef, useState } from "react";
 import { ArrowRight, Check, CheckCircle2, ChevronRight, Copy, Leaf, Lightbulb, MessageCircle, Quote, RefreshCw, ShieldCheck, Sparkles, Sprout } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import { useContextStateOptional } from '@/context/ContextProvider';
+import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
 import { useInterventionLifecycle } from '@/support/execution';
 import { assessSupportInput } from '@/support/safety';
 import { COGNITIVE_REFRAMING_CONFIGURATION, COGNITIVE_REFRAMING_MODULE_ID } from '@/support/modules/cognitiveReframing/cognitiveReframingTypes';
@@ -207,6 +209,15 @@ function ReframingProgress({ hasAnalysis, complete }) {
 
 export default function CognitiveReframer() {
   const { user } = useAuth();
+  const context = useContextStateOptional()?.context ?? null;
+  const adaptation = useFeatureAdaptation("support.cognitive_reframing", {
+    getAppSnapshot: () => context,
+    userId: user?.id ?? null,
+  });
+  const adaptiveConfig = adaptation.configuration;
+  const guidedPrompts = adaptiveConfig?.guidedPrompts ?? false;
+  const visibleQuestions = adaptiveConfig?.visibleQuestions ?? 3;
+
   const [thought, setThought] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [showReframe, setShowReframe] = useState(false);
@@ -323,6 +334,25 @@ export default function CognitiveReframer() {
                   </div>
                 )}
 
+                {/* Adaptive Notice */}
+                {adaptiveConfig?.active && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-[13px] leading-relaxed backdrop-blur-sm">
+                    <p className="font-black text-emerald-900">
+                      Adapted for you:{" "}
+                      {adaptiveConfig.mode === "guided_reframe"
+                        ? "a gentler, guided review"
+                        : adaptiveConfig.mode === "small_reframes"
+                        ? "fewer questions, lighter load"
+                        : adaptiveConfig.mode === "gentle_pacing"
+                        ? "a slower, steady pace"
+                        : "a softer approach"}
+                    </p>
+                    {adaptation.reason && (
+                      <p className="mt-0.5 text-emerald-900/70">{adaptation.reason}</p>
+                    )}
+                  </div>
+                )}
+
                 {/* Main Input Section */}
                 <section className="rounded-[24px] border border-indigo-200/80 bg-indigo-50/30 p-5 shadow-md shadow-slate-900/[0.02] transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-6">
                   <label htmlFor="thought" className="flex items-start gap-3.5 text-[16px] font-black text-slate-900">
@@ -397,12 +427,16 @@ export default function CognitiveReframer() {
                         </span>
                         <div>
                           <h3 className="text-[15px] font-black text-slate-900">Try these questions</h3>
-                          <p className="text-[12px] font-medium text-slate-500">There is no need to answer perfectly.</p>
+                          <p className="text-[12px] font-medium text-slate-500">
+                            {guidedPrompts
+                              ? "Start with the first one whenever you are ready — no need to rush."
+                              : "There is no need to answer perfectly."}
+                          </p>
                         </div>
                       </div>
 
                       <ol className="grid gap-3 text-[14px] leading-relaxed text-slate-700 sm:grid-cols-3">
-                        {analysis.questions.map((question, idx) => (
+                        {analysis.questions.slice(0, visibleQuestions).map((question, idx) => (
                           <li key={idx} className="flex flex-col rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 shadow-sm transition-all hover:bg-white hover:border-emerald-200">
                             <span className="mb-3 grid h-6 w-6 place-items-center rounded-lg bg-emerald-100 text-[11px] font-black text-emerald-900">
                               {idx + 1}

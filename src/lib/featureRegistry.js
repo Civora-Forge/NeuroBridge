@@ -26,6 +26,7 @@ export const FEATURES = /** @type {const} */ ({
   ANXIETY:      "anxiety",
   DEPRESSION:    "depression",
   APD:          "apd",
+  GARDEN:       "garden",
 
   // ── Depression sub-features ───────────────
   DEPRESSION_MVH:               "depression.mvh",
@@ -52,7 +53,7 @@ export const FEATURES = /** @type {const} */ ({
   // ── Dyslexia sub-features ───────────────────
   DYSLEXIA_READER:           "dyslexia.reader-mode",
   DYSLEXIA_WORDBANK:         "dyslexia.word-bank",
-  DYSLEXIA_ADAPTIVE_READING: "dyslexia.adaptive-reading-module",
+  DYSLEXIA_ADAPTIVE_READING: "dyslexia.adaptive-reading",
 
   // ── Dyspraxia sub-features ──────────────────
   DYSPRAXIA_DECOMPOSE: "dyspraxia.task-decompose",
@@ -118,6 +119,10 @@ export const FEATURE_REGISTRY = {
   [FEATURES.APD]: {
     label: "Audio Support",
     disorders: [DISORDERS.APD],
+  },
+  [FEATURES.GARDEN]: {
+    label: "Wellbeing Garden",
+    disorders: Object.values(DISORDERS),
   },
 
   // ── Depression sub-features ───────────────
@@ -282,7 +287,6 @@ const DYSLEXIA_MODULE_GRANTS = {
   [FEATURES.DYSLEXIA_READER]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_READER],
   [FEATURES.DYSLEXIA_WORDBANK]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_WORDBANK],
   [FEATURES.DYSLEXIA_ADAPTIVE_READING]: [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
-  "dyslexia.adaptive-reading": [FEATURES.DYSLEXIA, FEATURES.DYSLEXIA_ADAPTIVE_READING],
 };
 
 const LEGACY_FEATURE_SUPPORT_ALIASES = Object.fromEntries(

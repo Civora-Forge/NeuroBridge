@@ -12,17 +12,30 @@
  *
  * Role 3 Integration:
  *   - Derives intervention recommendations from the active plan
- *   - Renders the persistent, non-intrusive AdaptiveSupportCard
+ *   - Renders the non-intrusive AdaptiveSupportCard
  *   - Opens the InterventionModal on "Start Support" with full interactive flow
  *
- * Dismissal semantics: dismissing (or starting) a recommendation keeps the card
- * visible in its neutral state and suppresses only that same recommendation; a
- * genuinely different future recommendation appears normally.
+ * Intervention event lifecycle:
+ *   - The Adaptive Support card is HIDDEN by default. It becomes visible only
+ *     when the Adaptive Engine produces a new intervention opportunity — i.e.
+ *     the plan carries at least one triggered action AND that action/situation
+ *     maps to a recommendation. Persistent engine labels alone (situation,
+ *     adaptiveState, currentRecommendation, ...) never surface the card.
+ *   - A "new opportunity" is detected when the recommendation id or content
+ *     changes (id, title, description, or reason differ from the previous
+ *     recommendation). An unchanged persistent recommendation from the engine
+ *     does NOT re-show the card after dismissal.
+ *   - When the user dismisses or completes the intervention, the card is
+ *     hidden. It stays hidden as long as the engine continues to carry the
+ *     same recommendation. A genuinely new future recommendation (different id
+ *     or changed content) will appear normally.
+ *   - The engine's hysteresis stage keeps a sustained target from
+ *     re-activating repeatedly, so the same opportunity is not re-emitted.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
@@ -114,7 +127,13 @@ export function deriveUIModeFromPlan(plan) {
 }
 
 /**
- * Derive intervention recommendation for Role 3 popup from the Adaptive plan
+ * Derive intervention recommendation for Role 3 popup from the Adaptive plan.
+ *
+ * Pure mapping from a plan's triggered action parameters (then situation) to a
+ * recommendation. This function does NOT decide whether the opportunity is
+ * "active" — the caller (AdaptiveUIRuntime) only consults it when the engine
+ * actually triggered an action (`plan.actions` non-empty), so persistent
+ * reasoning labels alone never surface the card.
  */
 export function deriveInterventionRecommendation(plan) {
   if (!plan) return null;
@@ -166,7 +185,9 @@ export function deriveInterventionRecommendation(plan) {
     }
   }
 
-  // 2. Check situation
+  // 2. Situation fallback (only meaningful when the engine triggered actions —
+  //    the caller gates on `plan.actions` being non-empty, so an idle engine
+  //    never reaches here via a persistent situation label alone).
   if (plan.situation === "urgent_overload") {
     return {
       id: "sensory_reset",
@@ -203,7 +224,9 @@ export function deriveInterventionRecommendation(plan) {
   return null;
 }
 
-/** Human-readable labels for module-targeted engine actions. */
+/**
+ * Human-readable labels for module-targeted engine actions.
+ */
 const MODULE_ACTION_LABELS = {
   "PACING:DECREASE": "Slower pacing",
   "PACING:SIMPLIFY": "Gentler pacing",
@@ -255,13 +278,29 @@ export function deriveModuleAdjustments(plan) {
 export default function AdaptiveUIRuntime({ children }) {
   const runtime = useAdaptiveRuntime();
   const derived = useMemo(() => deriveUIModeFromPlan(runtime.plan), [runtime.plan]);
-  const recommendation = useMemo(
-    () => deriveInterventionRecommendation(runtime.plan),
-    [runtime.plan],
-  );
 
-  // Session-scoped dismissal: suppressing one recommendation keeps the card in
-  // its neutral state and never blocks a genuinely different future offer.
+  // An intervention opportunity exists only when the engine actually triggered
+  // an adaptation action. Persistent reasoning labels (plan.situation,
+  // adaptiveState, etc.) do NOT by themselves constitute an opportunity — the
+  // card is hidden by default and appears only while the engine carries an
+  // active, adapted event. Without a triggered action the specific situation
+  // label is irrelevant.
+  const recommendation = useMemo(() => {
+    const plan = runtime.plan;
+    if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
+      return null;
+    }
+    return deriveInterventionRecommendation(plan);
+  }, [runtime.plan]);
+
+  // Session-scoped dismissal: "Not now" (or starting) suppresses that same
+  // recommendation id until a genuinely NEW intervention opportunity arrives.
+  // A new opportunity is detected when the recommendation id or its content
+  // (title, description, reason) changes from the previously shown
+  // recommendation. An unchanged persistent recommendation from the engine
+  // does NOT re-show the card after dismissal — maintaining the
+  // intervention-event lifecycle (hidden → new event → visible → consumed →
+  // hidden).
   const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
     () => new Set(),
   );
@@ -278,11 +317,35 @@ export default function AdaptiveUIRuntime({ children }) {
   };
 
   const activeRecommendation =
-    recommendation &&
-    recommendation.id &&
-    !dismissedRecommendationIds.has(recommendation.id)
+    recommendation && !dismissedRecommendationIds.has(recommendation.id)
       ? recommendation
       : null;
+
+  // Track the previously surfaced recommendation to detect whether the engine
+  // has produced a NEW intervention opportunity (as opposed to an unchanged
+  // persistent recommendation, which must NOT re-show a dismissed card).
+  const prevRecommendationRef = useRef(null);
+
+  useEffect(() => {
+    const prev = prevRecommendationRef.current;
+    const now = recommendation;
+
+    const sameOpportunity =
+      prev !== null &&
+      now !== null &&
+      prev.id === now.id &&
+      prev.title === now.title &&
+      prev.description === now.description &&
+      prev.reason === now.reason;
+
+    if (!sameOpportunity) {
+      // A genuinely new recommendation (or clear) restores the dismissed set so
+      // the new opportunity can be surfaced to the user.
+      setDismissedRecommendationIds(() => new Set());
+    }
+
+    prevRecommendationRef.current = now;
+  }, [recommendation]);
 
   const wrapperProps = {
     "data-adaptive-root": "true",
@@ -307,6 +370,7 @@ export default function AdaptiveUIRuntime({ children }) {
           id: activeRecommendation.id,
           title: activeRecommendation.title || meta.title,
           description: activeRecommendation.description || meta.description,
+          reason: activeRecommendation.reason || null,
         }
       : null;
 
@@ -314,16 +378,20 @@ export default function AdaptiveUIRuntime({ children }) {
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
-      {/* Role 3: Persistent, non-intrusive Adaptive Support Card */}
-      <AdaptiveSupportCard
-        recommendation={cardRecommendation}
-        onStartSupport={(id) => {
-          // Start Support opens the intervention and suppresses the same offer.
-          dismissRecommendation(id);
-          setActiveInterventionModal(id);
-        }}
-        onDismiss={(id) => dismissRecommendation(id)}
-      />
+      {/* Role 3: Non-intrusive Adaptive Support Card — mirrors the engine plan
+          exactly: mounted while the plan carries a recommendation, hidden the
+          moment it clears. */}
+      {activeRecommendation && (
+        <AdaptiveSupportCard
+          recommendation={cardRecommendation}
+          onStartSupport={(id) => {
+            // Start Support opens the intervention and suppresses the same offer.
+            dismissRecommendation(id);
+            setActiveInterventionModal(id);
+          }}
+          onDismiss={(id) => dismissRecommendation(id)}
+        />
+      )}
 
       {/* Role 3: Active Intervention Modal */}
       <InterventionModal

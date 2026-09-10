@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
 import SocialStoryBuilder from "@/components/asd/SocialStoryBuilder";
+import AsdVisualRoot from "@/components/asd/ui/AsdVisualRoot";
 import { useASDData } from "@/hooks/useASDData";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
@@ -12,7 +13,8 @@ export default function ASDStoriesPage() {
   const { reduced, gentle } = useSensoryReducedMotion();
   return (
     <SupportToolThemeProvider theme="asd_social">
-      <SupportToolLayout
+      <AsdVisualRoot>
+        <SupportToolLayout
         title="Social Stories"
         description="Interactive illustrated stories with read-aloud for everyday situations."
       >
@@ -43,6 +45,7 @@ export default function ASDStoriesPage() {
           onDeleteStory={asd.deleteStory}
         />
       </SupportToolLayout>
+      </AsdVisualRoot>
     </SupportToolThemeProvider>
   );
 }

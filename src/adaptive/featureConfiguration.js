@@ -10,18 +10,24 @@
  *
  * Canonical supported module surface (matches `moduleAdaptationSets` in
  * `supportModuleRegistry`):
- *   - support.focus_session    → buildFocusConfig
- *   - support.task_breakdown   → buildTaskBreakdownConfig
- *   - support.gentle_activity  → buildGentleActivityConfig
- *   - dyslexia.adaptive-reading→ buildReadingConfig
- *   - anxiety.hub              → buildAnxietyConfig
+ *   - support.focus_session     → buildFocusConfig
+ *   - support.task_breakdown    → buildTaskBreakdownConfig
+ *   - support.gentle_activity   → buildGentleActivityConfig
+ *   - dyslexia.adaptive-reading → buildReadingConfig
+ *   - anxiety.hub               → buildAnxietyConfig
+ *   - support.cognitive_reframing → buildReframingConfig
+ *   - support.grounding         → buildGroundingConfig
+ *   - support.visual_timeline   → buildTimelineConfig
+ *   - support.evidence_journal  → buildEvidenceJournalConfig
  *
  * The generic `deriveFeatureSignals` mirrors the proven pattern used by the
  * ASD consumers (`SocialScenarioSimulatorCard`, `EmotionDecoderCard`), so all
  * feature surfaces derive their adaptive signals the same way. Signals are
  * derived purely from the engine action TYPE (DECREASE / SIMPLIFY / REDUCE /
  * GUIDE / DECOMPOSE / REORDER / MODIFY) with absolute targets ignored, keeping
- * the mapping stable.
+ * the mapping stable. REDUCE keeps its own signal so density-focused policies
+ * (`visual_timeline.reduce_density_on_overload`) can be told apart from
+ * SIMPLIFY calm-layout policies even though SIMPLIFY also activates reduce.
  *
  * Every builder returns an object with `active` (whether any adaptation should
  * apply) and `mode` (a compact label for the effective adaptation mode) plus
@@ -50,7 +56,8 @@ export function deriveFeatureSignals(adjustments = []) {
     );
 
   return {
-    simplify: has(["SIMPLIFY", "REDUCE"]),
+    simplify: has(["SIMPLIFY"]),
+    reduce: has(["REDUCE"]),
     decompose: has(["DECOMPOSE"]),
     slowPace: has(["DECREASE"]),
     guide: has(["GUIDE"]),
@@ -127,16 +134,17 @@ export function buildReadingConfig({
 } = {}) {
   const slow = Boolean(signals.slowPace);
   const simplify = Boolean(signals.simplify);
+  const reduce = Boolean(signals.reduce);
   const guide = Boolean(signals.guide);
 
   const baseRate = slow ? 0.75 : 1;
-  const focusMode = simplify;
-  const readingRuler = simplify || slow;
-  const reducedWordsPerLine = simplify;
+  const focusMode = simplify || reduce;
+  const readingRuler = simplify || reduce || slow;
+  const reducedWordsPerLine = simplify || reduce;
 
   return {
-    active: (signals?.active ?? false) || slow || simplify,
-    mode: slow ? "slow_paced_reading" : simplify ? "focus_layout" : guide ? "guided_reading" : "normal",
+    active: (signals?.active ?? false) || slow || simplify || reduce,
+    mode: slow ? "slow_paced_reading" : simplify || reduce ? "focus_layout" : guide ? "guided_reading" : "normal",
     playbackRate: clamp(baseRate, 0.25, 2),
     enableFocusMode: focusMode,
     enableReadingRuler: readingRuler,
@@ -259,6 +267,130 @@ export function buildAnxietyConfig({
   };
 }
 
+/** Default number of reflection questions shown when nothing adapts. */
+const DEFAULT_REFRAME_QUESTIONS = 3;
+
+/**
+ * Cognitive Reframing configuration.
+ *
+ * Adapted surface (`CognitiveReframer`):
+ *   - visibleQuestions → how many of the native reflection questions
+ *     (`analysis.questions`) are shown. The overload policy
+ *     (`cognitive_reframing.small_reframes_on_overload` → SIMPLIFY/TASK on
+ *     cognitiveLoad) shrinks the ask to fewer, lighter questions.
+ *   - guidedPrompts → surfaces the native explanation line more prominently
+ *     under the rumination GUIDE policy
+ *     (`cognitive_reframing.guide_on_rumination` → GUIDE/ASSISTANCE on mood).
+ *   - reassureCopy → the page already frames questions as "no need to answer
+ *     perfectly"; this surfaces that reassurance whenever any support decision
+ *     is active.
+ */
+export function buildReframingConfig({
+  signals = {},
+  totalQuestions = DEFAULT_REFRAME_QUESTIONS,
+} = {}) {
+  const guide = Boolean(signals.guide);
+  const simplify = Boolean(signals.simplify);
+  const slow = Boolean(signals.slowPace);
+  const max = Math.max(1, totalQuestions);
+
+  const visibleQuestions = simplify
+    ? clamp(Math.max(1, totalQuestions - 1), 1, max)
+    : totalQuestions;
+
+  return {
+    active: (signals?.active ?? false) || guide || simplify || slow,
+    mode: guide ? "guided_reframe" : slow ? "gentle_pacing" : simplify ? "small_reframes" : "normal",
+    visibleQuestions,
+    guidedPrompts: guide,
+    reassureCopy: guide || simplify || slow,
+  };
+}
+
+/**
+ * Anxiety Dissolver (Grounding) configuration.
+ *
+ * Adapted surface (`AnxietyDissolver`):
+ *   - breathingFirst → the grounded page renders the four native techniques in
+ *     a derived order; the stress GUIDE policy
+ *     (`grounding.guide_breathing_on_stress` → GUIDE/TASK on stressLevel)
+ *     promotes the two breathing practices first.
+ *   - slowPacing → the panic DECREASE policy
+ *     (`grounding.slow_pace_on_panic` → DECREASE/PACING on panicked mood)
+ *     surfaces a quieter-pace note and longer pause reminder.
+ *   - guidedBreathing → text callout before the steps when GUIDE is active
+ *     ("Start with a slow inhale..."), so breathing guidance lands natively.
+ */
+export function buildGroundingConfig({
+  signals = {},
+  breathingTechniqueIds = ["4-7-8", "box_breathing"],
+} = {}) {
+  const guide = Boolean(signals.guide);
+  const slow = Boolean(signals.slowPace);
+  const simplify = Boolean(signals.simplify);
+
+  return {
+    active: (signals?.active ?? false) || guide || slow,
+    mode: guide ? "breathing_first" : slow ? "quiet_slow_pace" : simplify ? "reduced_stimulation" : "normal",
+    breathingFirst: guide,
+    guidedBreathing: guide,
+    slowPacing: slow,
+    breathingTechniqueIds: guide ? breathingTechniqueIds : [],
+    reassureCopy: guide || slow,
+  };
+}
+
+/**
+ * Visual Timeline configuration.
+ *
+ * Adapted surface (`VisualTimeline`, which already owns a native density select
+ * with "comfortable"/"compact" and a calm reminder card):
+ *   - densityReduced → the overload policy
+ *     (`visual_timeline.reduce_density_on_overload` → REDUCE/CONTENT on
+ *     cognitiveLoad) relaxes visual density by forcing the native "compact"
+ *     presentation on top of whatever the user selected.
+ *   - calmLayout → the distress policy
+ *     (`visual_timeline.calm_layout_on_distress` → SIMPLIFY/CONTENT on anxious/
+ *     panicked/overwhelmed mood) emphasises the page's "Just the next block"
+ *     calm reminder card.
+ */
+export function buildTimelineConfig({ signals = {} } = {}) {
+  const reduce = Boolean(signals.reduce);
+  const simplify = Boolean(signals.simplify);
+  const slow = Boolean(signals.slowPace);
+
+  return {
+    active: (signals?.active ?? false) || reduce || simplify,
+    mode: reduce ? "reduced_density" : simplify ? "calm_layout" : slow ? "gentle_pacing" : "normal",
+    densityReduced: reduce,
+    calmLayout: simplify || slow,
+  };
+}
+
+/**
+ * Evidence Journal configuration.
+ *
+ * Adapted surface (`EvidenceFolder`, which already owns per-entry starring):
+ *   - winsFirst → the low-mood REORDER policy
+ *     (`evidence_journal.highlight_wins_on_low_mood` → REORDER/CONTENT on mood
+ *     sad/anxious) prioritises the user's starred entries at the top of the
+ *     list and highlights them as "strongest evidence".
+ *   - highlightWins → surfaces a small encouragement banner pointing at the
+ *     prioritised wins.
+ */
+export function buildEvidenceJournalConfig({ signals = {} } = {}) {
+  const reorder = Boolean(signals.reorder);
+  const guide = Boolean(signals.guide);
+
+  return {
+    active: (signals?.active ?? false) || reorder,
+    mode: reorder ? "wins_first" : "normal",
+    winsFirst: reorder,
+    highlightWins: reorder,
+    guidedPrompt: guide,
+  };
+}
+
 /** The canonical module surface: moduleId → config builder. */
 export const FEATURE_CONFIG_BUILDERS = {
   "support.focus_session": buildFocusConfig,
@@ -266,6 +398,10 @@ export const FEATURE_CONFIG_BUILDERS = {
   "support.gentle_activity": buildGentleActivityConfig,
   "dyslexia.adaptive-reading": buildReadingConfig,
   "anxiety.hub": buildAnxietyConfig,
+  "support.cognitive_reframing": buildReframingConfig,
+  "support.grounding": buildGroundingConfig,
+  "support.visual_timeline": buildTimelineConfig,
+  "support.evidence_journal": buildEvidenceJournalConfig,
 };
 
 /** Resolve the config builder for a canonical module id, or null. */

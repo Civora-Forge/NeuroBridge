@@ -16,6 +16,10 @@ import {
 } from "@/support/schemas/supportSchemas";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
+import { contextEngine } from "@/adaptive/context";
+import { contextStore } from "@/adaptive/context/contextStore.js";
+import { resetMoodAgent } from "@/adaptive/context/moodAgent.js";
+import { resetInteractionTracker } from "@/adaptive/context/contextInteractionTracker.js";
 
 vi.mock("@/components/interventions/InterventionModal", () => ({
   __esModule: true,
@@ -75,6 +79,63 @@ const sensoryResetPlan = () =>
   planWith([
     uiAction("a-stim", { mode: "overwhelm", reduceColorIntensity: true }),
   ]);
+
+// Live ContextSnapshot fixtures matching the production ContextSnapshot shape.
+// The runtime no longer gates surfacing on context evidence — the Adaptive
+// Engine's plan is the single source of truth. The fixtures stay to exercise
+// the end-to-end decide() path.
+const calmSnapshot = {
+  snapshotId: "test-snap-calm",
+  timestamp: "2026-08-01T00:00:00.000Z",
+  behavior: {
+    taskSwitchFrequency: 0.1,
+    correctionRate: 0.05,
+    typingPauseDuration: 500,
+    idleDuration: 5,
+  },
+  deviceInteraction: {
+    focusSessionInterruptions: 0,
+    repeatedNavigation: 0,
+    timeSinceLastInteraction: 4,
+  },
+  activity: {
+    taskSwitching: "low",
+    currentTask: "daily_dashboard",
+    sessionDurationMs: 15 * 60 * 1000,
+  },
+};
+
+const stressedSnapshot = {
+  snapshotId: "test-snap-stressed",
+  timestamp: "2026-08-01T00:00:00.000Z",
+  behavior: {
+    taskSwitchFrequency: 0.8,
+    correctionRate: 0.5,
+    typingPauseDuration: 3000,
+    idleDuration: 10,
+  },
+  deviceInteraction: {
+    focusSessionInterruptions: 2,
+    repeatedNavigation: 3,
+    timeSinceLastInteraction: 4,
+  },
+  activity: {
+    taskSwitching: "high",
+    currentTask: "reading_assignment",
+    sessionDurationMs: 20 * 60 * 1000,
+  },
+};
+
+function runtimeValue(plan, contextSnapshot, extra = {}) {
+  return {
+    plan,
+    trace: null,
+    enabled: true,
+    active: true,
+    contextSnapshot,
+    ...extra,
+  };
+}
 
 describe("deriveUIModeFromPlan", () => {
   it("returns an inactive normal state for a null / empty plan", () => {
@@ -225,7 +286,7 @@ describe("resolveCanonicalModuleId", () => {
     expect(resolveCanonicalModuleId("/depression/reality")).toBe("support.cognitive_reframing");
     expect(resolveCanonicalModuleId("/depression/social")).toBe("support.social_connection");
     expect(resolveCanonicalModuleId("/depression/evidence")).toBe("support.evidence_journal");
-    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading-module");
+    expect(resolveCanonicalModuleId("/dyslexia/adaptive-reading")).toBe("dyslexia.adaptive-reading");
 
     expect(resolveCanonicalModuleId("/asd/emotion")).toBe("asd.emotion-decoder");
     expect(resolveCanonicalModuleId("/asd/social-scenarios")).toBe("asd.social-scenarios");
@@ -247,6 +308,43 @@ describe("resolveCanonicalModuleId", () => {
 });
 
 describe("AdaptiveUIRuntime card behavior", () => {
+  it("lifecycle regression: the app's own fresh-load navigation produces no recommendation", () => {
+    // Mirrors the app startup sequence (ContextProvider mount + location
+    // effect). A fresh page load must NOT surface the support card: the
+    // engine's own landing navigation is not a user task switch, so it must
+    // not read as "scattered" attention and trigger a recommendation.
+    contextEngine.stop();
+    contextStore.reset();
+    resetMoodAgent();
+    resetInteractionTracker();
+
+    contextEngine.init({ initialScreen: "dashboard" });
+    contextEngine.trackNavigation("dashboard", { path: "/" });
+
+    const snapshot = contextEngine.getLatestContextSnapshot();
+    const { plan } = decide({ contextSnapshot: snapshot });
+
+    expect(snapshot.behavior.taskSwitchFrequency).toBe(0);
+    expect(deriveInterventionRecommendation(plan)).toBeNull();
+  });
+
+  it("lifecycle: the same engine path surfaces a recommendation once the user actually switches modules", () => {
+    contextEngine.stop();
+    contextStore.reset();
+    resetMoodAgent();
+    resetInteractionTracker();
+
+    contextEngine.init({ initialScreen: "dashboard" });
+    contextEngine.trackNavigation("dashboard", { path: "/" });
+    contextEngine.trackNavigation("reader", { path: "/reader" });
+
+    const snapshot = contextEngine.getLatestContextSnapshot();
+    const { plan } = decide({ contextSnapshot: snapshot });
+
+    expect(snapshot.behavior.taskSwitchFrequency).toBe(0.2);
+    expect(deriveInterventionRecommendation(plan)).not.toBeNull();
+  });
+
   it("end-to-end: decide() on an anxious state yields a UI action the shell applies", () => {
     const outcome = decide(
       {
@@ -326,19 +424,102 @@ describe("AdaptiveUIRuntime card behavior", () => {
     expect(card(container)).toBeNull();
   });
 
-  it("persists a neutral support card when enabled without a recommendation", () => {
+  it("renders no suggestion card during normal interaction, even when the engine has no recommendation", () => {
     const { container } = render(
-      <Harness runtimeValue={{ plan: planWith([]), trace: null, enabled: true, active: false }} />,
+      <Harness
+        runtimeValue={runtimeValue(planWith([]), stressedSnapshot)}
+      />,
     );
 
-    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
-    expect(screen.getByText("Adaptive Support")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /start support/i })).not.toBeInTheDocument();
+    expect(card(container)).toBeNull();
+    expect(screen.queryByText("Adaptive Support")).not.toBeInTheDocument();
   });
 
-  it("shows the recommendation state with a headline, meta and Start Support", () => {
+  it("renders no suggestion card during normal interaction, even when the engine has no recommendation", () => {
     const { container } = render(
-      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
+      <Harness
+        runtimeValue={runtimeValue(planWith([]), stressedSnapshot)}
+      />,
+    );
+
+    expect(card(container)).toBeNull();
+    expect(screen.queryByText("Adaptive Support")).not.toBeInTheDocument();
+  });
+
+  it("does not pop up on module load merely because the module/plan is active", () => {
+    // An active, adapting module with no recommendation-carrying plan params.
+    const plan = planWith([
+      uiAction("a-focus", { mode: "focus", reduceDistractions: true }),
+    ]);
+    const { container } = render(
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
+    );
+
+    expect(card(container)).toBeNull();
+  });
+
+  it("does not surface the card from a situation label alone when no action triggered", () => {
+    // Regression: persistent engine labels (e.g. situation "cognitive_overload")
+    // with NO triggered action must NOT make the support card visible. The
+    // engine must actually produce an adaptation action for the card to appear.
+    const plan = planWith([], { situation: "cognitive_overload" });
+    const { container, rerender } = render(
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
+    );
+
+    expect(card(container)).toBeNull();
+
+    // Another situation label without an action must stay hidden too.
+    rerender(
+      <Harness
+        runtimeValue={runtimeValue(planWith([], { situation: "emotional_distress" }), stressedSnapshot)}
+      />,
+    );
+    expect(card(container)).toBeNull();
+  });
+
+  it("surfaces an intervention when the engine triggered an action AND reasoning flags a situation", () => {
+    // A stressed snapshot drives the engine to actually adapt (a UI reduction
+    // action) while reasoning reports cognitive overload — that is an active
+    // intervention event, so the card appears.
+    const plan = planWith(
+      [uiAction("a-reduce", { mode: "minimal", reduceAnimations: true })],
+      { situation: "cognitive_overload" },
+    );
+    const { container } = render(
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
+    );
+
+    expect(card(container)).not.toBeNull();
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+    expect(screen.getByText("Personalized Support")).toBeInTheDocument();
+    expect(screen.getByText(/Small steps might help/)).toBeInTheDocument();
+    expect(screen.getByText(/Now · Next · Then/)).toBeInTheDocument();
+    expect(screen.getByText(/High cognitive load detected/)).toBeInTheDocument();
+  });
+
+  it("end-to-end: the real engine shows no card on a calm snapshot and a card on a stressed snapshot", () => {
+    // Acceptance criteria: page loaded / normal interaction -> NO card; a
+    // strong behavioral state -> engine recommendation -> card appears.
+    const calmOutcome = decide({ contextSnapshot: calmSnapshot });
+    const { container: calmContainer } = render(
+      <Harness runtimeValue={runtimeValue(calmOutcome.plan, calmSnapshot)} />,
+    );
+    expect(card(calmContainer)).toBeNull();
+
+    const stressedOutcome = decide({ contextSnapshot: stressedSnapshot });
+    expect(stressedOutcome.plan.actions.length).toBeGreaterThan(0);
+    const { container: stressedContainer } = render(
+      <Harness runtimeValue={runtimeValue(stressedOutcome.plan, stressedSnapshot)} />,
+    );
+    expect(card(stressedContainer)).not.toBeNull();
+  });
+
+  it("surfaces the suggestion immediately when the engine plan carries a recommendation, regardless of context evidence", () => {
+    // No persistence window, no evidence gate: the engine's plan is the single
+    // source of truth. Even calm context evidence doesn't suppress it.
+    const { container } = render(
+      <Harness runtimeValue={runtimeValue(guidedBreathingPlan(), calmSnapshot)} />,
     );
 
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
@@ -346,6 +527,30 @@ describe("AdaptiveUIRuntime card behavior", () => {
     expect(screen.getByText(/A short pause might help/)).toBeInTheDocument();
     expect(screen.getByText(/Guided Breathing/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start support/i })).toBeInTheDocument();
+  });
+
+  it("hides the suggestion the moment the engine plan stops carrying a recommendation", () => {
+    const { container, rerender } = render(
+      <Harness runtimeValue={runtimeValue(guidedBreathingPlan(), stressedSnapshot)} />,
+    );
+
+    expect(card(container)).not.toBeNull();
+
+    rerender(<Harness runtimeValue={runtimeValue(planWith([]), stressedSnapshot)} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("keeps a single continuously-present recommendation mounted (no duplicate rendering, no re-pop)", () => {
+    // Fresh decide() results carry the same recommendation under the same
+    // unchanged condition. The card must not remount or duplicate.
+    const { container, rerender } = render(
+      <Harness runtimeValue={runtimeValue(guidedBreathingPlan(), stressedSnapshot)} />,
+    );
+    expect(card(container)).not.toBeNull();
+
+    rerender(<Harness runtimeValue={runtimeValue(guidedBreathingPlan(), stressedSnapshot)} />);
+    expect(container.querySelectorAll('[data-adaptive-support-card="true"]')).toHaveLength(1);
+    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
   });
 
   it("still applies the derived UI mode to the wrapper alongside the card", () => {
@@ -357,7 +562,7 @@ describe("AdaptiveUIRuntime card behavior", () => {
       }),
     ]);
     const { container } = render(
-      <Harness runtimeValue={{ plan, trace: null, enabled: true, active: true }} />,
+      <Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />,
     );
 
     expect(rootAttr(container).getAttribute("data-adaptive-mode")).toBe("low_stimulation");
@@ -367,43 +572,46 @@ describe("AdaptiveUIRuntime card behavior", () => {
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
   });
 
-  it("opens the intervention modal on Start Support and returns the card to neutral", () => {
+  it("opens the intervention modal on Start Support and hides the card", () => {
     const { container } = render(
-      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
+      <Harness runtimeValue={runtimeValue(guidedBreathingPlan(), stressedSnapshot)} />,
     );
+    expect(card(container)).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /start support/i }));
 
     const modal = screen.getByTestId("intervention-modal");
     expect(modal).toBeInTheDocument();
     expect(modal.getAttribute("data-auto-start")).toBe("true");
-    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
+    expect(card(container)).toBeNull();
   });
 
-  it("dismissing a recommendation keeps the card visible in its neutral state", () => {
-    const { container } = render(
-      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
-    );
+  it("respects Not-now dismissal: the same recommendation stays suppressed for the session", () => {
+    const stressed = runtimeValue(guidedBreathingPlan(), stressedSnapshot);
+    const { container, rerender } = render(<Harness runtimeValue={stressed} />);
+
+    expect(card(container)).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss support/i }));
+    expect(card(container)).toBeNull();
+
+    // The same condition persisting must not re-surface the suggestion, even
+    // after the engine re-decides with the same recommendation.
+    rerender(<Harness runtimeValue={stressed} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("a genuinely different recommendation appears after dismissing the previous one", () => {
+    const guided = runtimeValue(guidedBreathingPlan(), stressedSnapshot);
+    const sensory = runtimeValue(sensoryResetPlan(), stressedSnapshot);
+    const { container, rerender } = render(<Harness runtimeValue={guided} />);
+
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
 
     fireEvent.click(screen.getByRole("button", { name: /dismiss support/i }));
+    expect(card(container)).toBeNull();
 
-    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
-    expect(screen.queryByRole("button", { name: /start support/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Adaptive Support")).toBeInTheDocument();
-  });
-
-  it("a genuinely different recommendation reappears after dismissing the previous one", () => {
-    const { container, rerender } = render(
-      <Harness runtimeValue={{ plan: guidedBreathingPlan(), trace: null, enabled: true, active: true }} />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /dismiss support/i }));
-    expect(card(container).getAttribute("data-adaptive-card-state")).toBe("neutral");
-
-    rerender(
-      <Harness runtimeValue={{ plan: sensoryResetPlan(), trace: null, enabled: true, active: true }} />,
-    );
+    rerender(<Harness runtimeValue={sensory} />);
 
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
     expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();

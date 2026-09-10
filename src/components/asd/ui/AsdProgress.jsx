@@ -4,6 +4,7 @@
  * All respect `useSensoryReducedMotion` for animated transitions.
  */
 
+import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 
@@ -101,6 +102,113 @@ export function AsdProgressRing({ value, max = 1, size = 44, stroke = 5, tone = 
         />
       </svg>
       <span className="absolute text-sm font-black text-[#134E4A]">{center ?? Math.round(pct * 100)}</span>
+    </div>
+  );
+}
+
+/**
+ * AsdProgressTrack — a path-style progress indicator for step-based features
+ * (social stories, simulations). Renders numbered/checkable stops connected
+ * by a track line so the user feels they are moving through a scene sequence.
+ * Keyboard interactivity is preserved when `onSelect` is provided.
+ */
+export function AsdProgressTrack({ total, current, onSelect, tone = "teal", labelPrefix = "Scene", labels = null }) {
+  const palette = toneColors[tone] ?? toneColors.teal;
+  const { reduced } = useSensoryReducedMotion();
+  if (total <= 0) return null;
+
+  return (
+    <div
+      className="flex w-full items-center"
+      role="group"
+      aria-label={`${labelPrefix} ${Math.min(current + 1, total)} of ${total}`}
+    >
+      {Array.from({ length: total }, (_, index) => {
+        const state = index === current ? "active" : index < current ? "done" : "idle";
+        const showLabel = labels && labels[index];
+        return (
+          <div key={index} className="flex flex-1 items-center last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              {onSelect ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(index)}
+                  aria-label={`${labelPrefix} ${index + 1}`}
+                  aria-current={state === "active" ? "step" : undefined}
+                  className="group relative grid place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+                >
+                  {state === "done" ? (
+                    <span
+                      className="grid h-7 w-7 place-items-center rounded-full text-white"
+                      style={{ backgroundColor: palette.done }}
+                    >
+                      <Check size={15} strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <span
+                      className={`grid h-7 w-7 place-items-center rounded-full border-2 text-xs font-black transition-all ${
+                        state === "active"
+                          ? `scale-110 text-white ${reduced ? "" : "asd-pop-once"}`
+                          : "bg-white"
+                      }`}
+                      style={{
+                        borderColor: state === "active" ? palette.active : palette.idle,
+                        backgroundColor: state === "active" ? palette.active : "#fff",
+                        color: state === "idle" ? "#8B9C98" : "#fff",
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                  )}
+                  {showLabel && (
+                    <span
+                      className={`absolute top-full mt-1 hidden max-w-16 truncate text-[10px] font-semibold sm:block ${
+                        state === "idle" ? "text-[#8B9C98]" : "text-[#0D9488]"
+                      }`}
+                    >
+                      {showLabel}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <span className="relative grid place-items-center" aria-hidden="true">
+                  {state === "done" ? (
+                    <span className="grid h-7 w-7 place-items-center rounded-full text-white" style={{ backgroundColor: palette.done }}>
+                      <Check size={15} strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <span
+                      className={`grid h-7 w-7 place-items-center rounded-full border-2 text-xs font-black ${state === "active" ? "scale-110 text-white asd-pop-once" : "bg-white"}`}
+                      style={{
+                        borderColor: state === "active" ? palette.active : palette.idle,
+                        backgroundColor: state === "active" ? palette.active : "#fff",
+                        color: state === "idle" ? "#8B9C98" : "#fff",
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+            {index < total - 1 && (
+              <span
+                aria-hidden="true"
+                className="mx-1 h-1 flex-1 overflow-hidden rounded-full"
+                style={{ backgroundColor: palette.idle, opacity: 0.7 }}
+              >
+                <motion.span
+                  className="block h-full rounded-full"
+                  style={{ backgroundColor: index < current ? palette.done : "#fff" }}
+                  initial={reduced ? false : { width: 0 }}
+                  animate={{ width: index < current ? "100%" : "0%" }}
+                  transition={{ duration: reduced ? 0 : 0.4, ease: "easeOut" }}
+                />
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
