@@ -216,7 +216,7 @@ User input: "${text.replace(/"/g, '\\"')}"`;
  * @param {string} text - User message or input text
  * @param {object} [options]
  * @param {boolean} [options.useAI=true] - Whether to attempt AI call (false forces fast heuristic analysis)
- * @param {string} [options.apiKey] - Optional custom Gemini API key
+ * @param {object} [options.user] - current authenticated user, for the backend proxy's auth header
  * @param {number} [options.timeoutMs] - Optional custom timeout
  * @returns {Promise<ConversationAnalysisResult> | ConversationAnalysisResult}
  */
@@ -290,7 +290,7 @@ export function analyzeConversation(text, options = {}) {
   };
 
   if (useAI) {
-    return callGeminiForAnalysis(text, options.apiKey, options.timeoutMs).then(
+    return callGeminiForAnalysis(text, options.user, options.timeoutMs).then(
       processResult,
     );
   } else {

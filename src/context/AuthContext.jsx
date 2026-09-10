@@ -3,6 +3,7 @@ import { resolveEnabledFeatures } from "@/lib/featureRegistry";
 import { DISORDERS } from "@/lib/disorders";
 import { pushWardNote } from "@/support/stores/careSyncStore";
 import { supabase } from "@/lib/supabaseClient";
+import { clearAllLocalAppData } from "@/lib/clearLocalAppData";
 
 function buildProfileFromSupabase(supabaseUser) {
   const meta = supabaseUser?.user_metadata ?? {};
@@ -500,7 +501,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("nb_auth");
+    clearAllLocalAppData();
     supabase.auth.signOut().catch(() => {});
     setUser(null);
     setIsAuthenticated(false);

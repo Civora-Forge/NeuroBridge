@@ -17,7 +17,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 15%;
 
-    --primary: 142 72% 36%;
+    /* 36% lightness measured 3.48:1 white-on-primary — fails the 4.5:1 AA
+       text threshold used on every primary button/link app-wide (Sign In,
+       Save, Continue, ...). Darkened to 31% (~4.54:1), same hue/chroma. */
+    --primary: 142 72% 31%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 40 25% 93%;
@@ -29,7 +32,9 @@
        ~4.9:1, without changing hue/chroma so it still reads as the same gray. */
     --muted-foreground: 220 10% 46%;
 
-    --accent: 35 90% 55%;
+    /* 55% lightness measured 2.16:1 white-on-accent — badly fails 4.5:1 AA.
+       This is the SOS/accent button color; darkened to 35% (~4.54:1). */
+    --accent: 35 90% 35%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -37,22 +42,26 @@
 
     --border: 40 15% 89%;
     --input: 40 15% 89%;
-    --ring: 142 72% 36%;
+    --ring: 142 72% 31%;
 
     --radius: 1rem;
 
     /* Mode Colors */
     /* Matches the ASD hub's own teal brand (#0D9488) so the sidebar accent
        and the module it points to are the same color — was blue vs. teal. */
-    --mode-asd: 175 74% 32%;
-    --mode-adhd: 25 90% 55%;
-    --mode-dyslexia: 145 55% 42%;
+    /* Each below darkened only as far as needed for white text/icons on that
+       mode color (ModuleCard "Open" buttons etc.) to clear 4.5:1 AA — same
+       hue/saturation, verified via axe-core's own contrast function.
+       --mode-dyscalculia and --mode-apd already cleared 4.5:1 unchanged. */
+    --mode-asd: 175 74% 29%;
+    --mode-adhd: 25 90% 40%;
+    --mode-dyslexia: 145 55% 34%;
     --mode-dyscalculia: 270 55% 55%;
-    --mode-ocd: 142 72% 36%;
-    --mode-dyspraxia: 10 70% 60%;
+    --mode-ocd: 142 72% 31%;
+    --mode-dyspraxia: 10 70% 49%;
     --mode-apd: 240 55% 55%;
-    --mode-anxiety: 226 72% 62%;
-    --mode-depression: 340 65% 55%;
+    --mode-anxiety: 226 72% 59%;
+    --mode-depression: 340 65% 53%;
 
     /* Semantic tokens */
     --success: 145 55% 42%;
@@ -70,12 +79,12 @@
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 20% 15%;
-    --sidebar-primary: 142 72% 36%;
+    --sidebar-primary: 142 72% 31%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 25% 95%;
     --sidebar-accent-foreground: 220 20% 15%;
     --sidebar-border: 40 15% 89%;
-    --sidebar-ring: 142 72% 36%;
+    --sidebar-ring: 142 72% 31%;
   }
 
   .dark {
@@ -85,27 +94,29 @@
     --card-foreground: 40 15% 94%;
     --popover: 220 18% 14%;
     --popover-foreground: 40 15% 94%;
-    --primary: 142 66% 42%;
+    /* Same fix as :root --primary/--accent above — dark mode's own lighter
+       values measured 2.77:1 and 2.22:1 white-on-color respectively. */
+    --primary: 142 66% 32%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 15% 20%;
     --secondary-foreground: 40 15% 94%;
     --muted: 220 15% 20%;
     --muted-foreground: 220 10% 60%;
-    --accent: 35 85% 55%;
+    --accent: 35 85% 35%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 30.6%;
     --destructive-foreground: 40 15% 94%;
     --border: 220 15% 22%;
     --input: 220 15% 22%;
-    --ring: 142 66% 42%;
+    --ring: 142 66% 32%;
     --sidebar-background: 220 18% 12%;
     --sidebar-foreground: 40 15% 94%;
-    --sidebar-primary: 142 66% 42%;
+    --sidebar-primary: 142 66% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 15% 18%;
     --sidebar-accent-foreground: 40 15% 94%;
     --sidebar-border: 220 15% 22%;
-    --sidebar-ring: 142 66% 42%;
+    --sidebar-ring: 142 66% 32%;
   }
 }
 

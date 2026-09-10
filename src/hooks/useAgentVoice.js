@@ -1,9 +1,9 @@
 /**
  * useAgentVoice
  *
- * Voice input/output for the NeuroBridge Agent chat. Reuses the same
- * browser-native Web Speech API approach as useVoiceRecording.js (no backend
- * transcription endpoint, no API key exposure) but scoped to a single
+ * Voice input/output for the NeuroBridge Agent chat, using the browser-native
+ * Web Speech API (no backend transcription endpoint, no raw audio ever
+ * captured or persisted, no API key exposure) scoped to a single
  * capture-a-command flow rather than continuous dictation, plus optional
  * text-to-speech for agent responses via the browser's SpeechSynthesis API.
  *

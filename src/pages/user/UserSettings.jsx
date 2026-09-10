@@ -4,10 +4,12 @@ import { motion } from "framer-motion";
 import {
   User, Shield, Brain, Zap, BookOpen, Calculator, Hand, Wind, Sparkles,
   Check, LogOut, Save, Heart, Eye, CheckCircle2, Ear, LayoutGrid,
+  Download, Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { SUPPORT_MODULE_REGISTRY } from "@backend/adaptive/reasoning/disorderFeatureRegistry";
 import { deriveDisordersFromModules } from "@backend/adaptive/reasoning/interventionRanking";
+import { API_BASE_URL, backendAuthHeaders } from "@/lib/backendAuth";
 
 // ─────────────────────────────────────────────
 //  Neuro-category options (mirrors Index.jsx)
@@ -49,6 +51,11 @@ export default function UserSettings() {
   const [saved, setSaved]             = useState(false);
   const abhaInputId = useId();
 
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [privacyActionError, setPrivacyActionError] = useState("");
+
   // "Reduce Motion" previously only fed the backend adaptive-content engine
   // (pacing/copy) — it never touched actual on-screen animation, so turning
   // it on did not visibly change anything. It now also drives the same
@@ -89,6 +96,53 @@ export default function UserSettings() {
 
   function handleGoToProfile() {
     if (selectedProfile) navigate(`/${selectedProfile}`);
+  }
+
+  async function handleExportData() {
+    setPrivacyActionError("");
+    setExporting(true);
+    try {
+      const headers = await backendAuthHeaders(user);
+      if (!headers.Authorization) {
+        throw new Error("Sign in to export your data.");
+      }
+      const res = await fetch(`${API_BASE_URL}/api/privacy/export`, { headers });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const data = await res.json();
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `neurobridge-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPrivacyActionError(err.message || "Could not export your data. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleDeleteAllData() {
+    setPrivacyActionError("");
+    setDeleting(true);
+    try {
+      const headers = await backendAuthHeaders(user);
+      if (!headers.Authorization) {
+        throw new Error("Sign in to delete your data.");
+      }
+      const res = await fetch(`${API_BASE_URL}/api/privacy/data`, { method: "DELETE", headers });
+      if (!res.ok) throw new Error(`Deletion failed (${res.status})`);
+      setConfirmingDelete(false);
+      handleLogout();
+    } catch (err) {
+      setPrivacyActionError(err.message || "Could not delete your data. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -269,6 +323,7 @@ export default function UserSettings() {
             <button
               role="switch"
               aria-checked={accessibility[key]}
+              aria-label={label}
               onClick={() => toggleAccess(key)}
               className={`relative flex-shrink-0 mt-0.5 w-11 h-6 rounded-full transition-colors ${
                 accessibility[key] ? "bg-primary" : "bg-border"
@@ -321,6 +376,7 @@ export default function UserSettings() {
             <button
               role="switch"
               aria-checked={privacy[key]}
+              aria-label={label}
               onClick={() => setPrivacy((p) => ({ ...p, [key]: !p[key] }))}
               className={`relative flex-shrink-0 mt-0.5 w-11 h-6 rounded-full transition-colors ${
                 privacy[key] ? "bg-violet-500" : "bg-border"
@@ -341,6 +397,66 @@ export default function UserSettings() {
             </div>
           </div>
         ))}
+      </section>
+
+      {/* Privacy — data export & deletion */}
+      <section className="neuro-card p-6 space-y-4 border-l-4 border-l-rose-500">
+        <h2 className="font-semibold flex items-center gap-2">
+          <Shield className="w-4 h-4 text-rose-500" /> Your Data
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Download a copy of everything NeuroBridge has stored about you (OCD/ADHD/anxiety/ASD activity,
+          your agent chat history, and app preferences), or permanently delete it.
+        </p>
+
+        {privacyActionError && (
+          <p className="text-xs text-rose-600 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> {privacyActionError}
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleExportData}
+            disabled={exporting}
+            className="neuro-btn-outline flex items-center justify-center gap-2 text-sm flex-1 disabled:opacity-60"
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Download my data
+          </button>
+
+          {!confirmingDelete ? (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              className="flex items-center justify-center gap-2 text-sm flex-1 rounded-xl border-2 border-rose-500 text-rose-600 px-4 py-2.5 font-medium hover:bg-rose-50"
+            >
+              <Trash2 className="w-4 h-4" /> Delete all my data
+            </button>
+          ) : (
+            <div className="flex-1 space-y-2">
+              <p className="text-xs font-medium text-rose-600">
+                This permanently deletes all your OCD/ADHD/anxiety/ASD activity and chat history. This cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteAllData}
+                  disabled={deleting}
+                  className="flex-1 flex items-center justify-center gap-2 text-sm rounded-xl bg-rose-600 text-white px-4 py-2.5 font-medium hover:bg-rose-700 disabled:opacity-60"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Yes, delete everything
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleting}
+                  className="neuro-btn-outline text-sm px-4"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Save */}

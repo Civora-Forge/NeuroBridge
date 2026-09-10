@@ -558,7 +558,16 @@ export default function AgentChat() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background/50">
+          {/* tabIndex + aria-label make this independently-scrolling region
+              reachable and operable via keyboard (arrow/Page keys once
+              focused) without making it an implicit live region — the
+              dedicated sr-only status region above already owns
+              announcements, and role="log" here would double them up. */}
+          <div
+            className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background/50"
+            tabIndex={0}
+            aria-label="Conversation with the assistant"
+          >
             {!canUseAgent && (
               <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
