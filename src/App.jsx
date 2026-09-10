@@ -15,7 +15,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import DisorderSelection from "./pages/onboarding/DisorderSelection";
 
 import Login from "./pages/Login";
-import Home from "./pages/Home";
 import GardenPage from "./pages/GardenPage";
 import LoginUser from "./pages/LoginUser";
 import LoginGuardian from "./pages/LoginGuardian";
@@ -112,23 +111,16 @@ function ShellRoutes() {
           }
         />
 
-        {/* Any authenticated user */}
+        {/* Any authenticated user — the wellbeing garden is the dashboard now */}
         <Route
           path="/"
-          element={
-            <ProtectedRoute role="user">
-              <Home />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/garden"
           element={
             <ProtectedRoute role="user">
               <GardenPage />
             </ProtectedRoute>
           }
         />
+        <Route path="/garden" element={<Navigate to="/" replace />} />
         <Route
           path="/tool/:moduleId"
           element={

@@ -173,12 +173,32 @@ def _render_routine_step_result(result: dict) -> str:
     return f"Step {result.get('position')} of {result.get('total_steps')}: {title}."
 
 
+def _render_grounding_fallback(tool_name: str, result: dict) -> str:
+    """Same principle for the anxiety grounding tools: name the real exercise
+    that was actually started/completed, not a bare 'Done.'"""
+    exercise = (result.get("exercise_type") or "").replace("_", " ").strip()
+    if tool_name == "complete_grounding_activity":
+        pre, post = result.get("pre_anxiety"), result.get("post_anxiety")
+        if exercise and pre is not None and post is not None:
+            return f"Logged your {exercise} session — anxiety went from {pre} to {post}."
+        return f"Logged your {exercise} session." if exercise else "Done."
+    if exercise:
+        return f"Started a {exercise} grounding exercise for you."
+    return "Started a grounding exercise for you."
+
+
 # Tools whose real result can be rendered deterministically without a second
 # Gemini call — same fallback safety net as fast_path.py's READ templates,
 # but for these WRITE_LOW routine actions.
 _ROUTINE_RESULT_TOOLS = {
     "create_daily_routine", "get_current_routine_step", "advance_routine_step", "go_back_routine_step",
 }
+
+# Same fallback safety net, for the anxiety grounding tools — without this,
+# a transient follow-up-call failure right after a real grounding session
+# was started/completed fell through to a bare "Done.", leaving the user
+# with no idea which exercise the agent actually started for them.
+_GROUNDING_RESULT_TOOLS = {"start_grounding_activity", "complete_grounding_activity"}
 
 
 def _cached_learnings(user_id: str, db: Session) -> dict:
@@ -660,6 +680,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         # answer than just rendering that data the same way the fast path does.
         last_renderable_read: Optional[tuple[str, dict]] = None
         last_renderable_routine: Optional[dict] = None
+        last_renderable_grounding: Optional[tuple[str, dict]] = None
         self._transition(execution, ExecutionState.EXECUTING, on_event)
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -747,6 +768,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                         last_renderable_read = (call.name, outcome["result"])
                     if call.name in _ROUTINE_RESULT_TOOLS:
                         last_renderable_routine = outcome["result"]
+                    if call.name in _GROUNDING_RESULT_TOOLS:
+                        last_renderable_grounding = (call.name, outcome["result"])
                 else:
                     payload = {"error": outcome["error"] or "That action couldn't be completed."}
                     any_tool_failed = True
@@ -805,6 +828,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 response_text = _render_focus_control_fallback(last_action["command"], last_action.get("session") or {})
             elif last_renderable_routine is not None:
                 response_text = _render_routine_step_result(last_renderable_routine)
+            elif last_renderable_grounding is not None:
+                response_text = _render_grounding_fallback(*last_renderable_grounding)
             else:
                 response_text = "Done." if last_action else "I understand."
 

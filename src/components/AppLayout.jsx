@@ -2,19 +2,19 @@ import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Brain, Zap, BookOpen, Calculator, Shield, Hand, Ear, Sparkles,
-  Home, ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout,
+  ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
 import { MODULES_REGISTRY } from "@/data/modulesRegistry";
 import { recordModuleVisit, findModuleForPath } from "@/lib/lastVisitedModule";
+import { recordModuleUsage } from "@/lib/moduleUsage";
 import { getModeKeyForRoute, modeStyles } from "@/lib/moduleColor";
 import AgentChat from "./AgentChat";
 
 // featureKey: null means always visible (Home)
 const USER_NAV = [
-  { title: "Home",        path: "/",            icon: Home,       featureKey: null },
-  { title: "Wellbeing Garden", path: "/garden", icon: Sprout,     featureKey: null },
+  { title: "Home",        path: "/",            icon: Sprout,     featureKey: null },
   { title: "Social & Emotional Support",  path: "/asd",         icon: Brain,      featureKey: FEATURES.ASD },
   { title: "Focus Flow",       path: "/adhd",        icon: Zap,        featureKey: FEATURES.ADHD },
   { title: "Reading Support",  path: "/dyslexia",    icon: BookOpen,   featureKey: FEATURES.DYSLEXIA },
@@ -51,7 +51,10 @@ export default function AppLayout({ children }) {
   useEffect(() => {
     if (role !== "user") return;
     const module = findModuleForPath(location.pathname, MODULES_REGISTRY);
-    if (module) recordModuleVisit(module.id, location.pathname);
+    if (module) {
+      recordModuleVisit(module.id, location.pathname);
+      recordModuleUsage(module.id);
+    }
   }, [location.pathname, role]);
 
   function handleLogout() {
@@ -114,7 +117,7 @@ export default function AppLayout({ children }) {
                 : location.pathname.startsWith(item.path);
             // Home keeps the primary brand color; every module gets its own
             // recognizable color so "which section am I in" doesn't rely on
-            // reading text alone — same idea as the mode-colored ModuleCards.
+            // reading text alone — same idea as the mode-colored dashboard cards.
             const c = item.path === "/" ? null : modeStyles(getModeKeyForRoute(item.path));
             const activeStyle = isActive && c ? { ...c.bgSoft, ...c.text, ...c.borderLeft } : undefined;
             return (

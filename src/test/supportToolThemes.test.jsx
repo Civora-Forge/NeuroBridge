@@ -7,7 +7,7 @@ import {
   resolveSupportToolTheme,
   supportToolThemeContrastChecks,
 } from "@/theme/supportToolThemes";
-import homeSource from "../pages/Home.jsx?raw";
+import homeSource from "../pages/GardenPage.jsx?raw";
 import loginSource from "../pages/LoginUser.jsx?raw";
 import taskSource from "../pages/adhd/TaskBreakdown.jsx?raw";
 import focusSource from "../pages/adhd/FocusSessions.jsx?raw";

@@ -336,6 +336,9 @@ export default function AgentChat() {
 
     if (isFocusControl && location.pathname === action.path) {
       useFocusSessionControlStore.getState().dispatch({ command: action.command, session: action.session });
+      // Already on the focus page, but the chat overlay is still covering
+      // it — close it so the real, just-applied timer state is visible.
+      closeChat();
       return;
     }
 
@@ -343,6 +346,7 @@ export default function AgentChat() {
     if (!targetEl || !avatarRef.current) {
       if (isFocusControl) {
         navigate(action.path, { state: { focusSessionCommand: { command: action.command, session: action.session } } });
+        closeChat();
       } else {
         handleAction(action);
       }
@@ -401,6 +405,12 @@ export default function AgentChat() {
     if (!action) return;
     if (action.type === "NAVIGATE" || action.type === "NAVIGATE_WITH_DATA") {
       navigate(action.path, { state: action.data });
+      // The chat panel is a fixed-width overlay that covers most of a phone
+      // screen — leaving it open here would land the user on a page (e.g. a
+      // now-running focus timer) they can't actually see. Close it so the
+      // real result of the action is visible, same as a human assistant
+      // stepping aside after doing something for you.
+      closeChat();
     }
   };
 
@@ -459,6 +469,7 @@ export default function AgentChat() {
               navigate(cursorAnim.action.path, {
                 state: { focusSessionCommand: { command: cursorAnim.action.command, session: cursorAnim.action.session } },
               });
+              closeChat();
             } else {
               handleAction(cursorAnim.action);
             }

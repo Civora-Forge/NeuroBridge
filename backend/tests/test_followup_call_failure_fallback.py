@@ -111,6 +111,61 @@ def test_followup_call_failure_on_a_focus_control_action_renders_the_real_sessio
     assert result["response"] == "Started a 25-minute focus session."
 
 
+def test_followup_call_failure_on_start_grounding_renders_the_real_exercise_started(user_a, monkeypatch):
+    """Discovered from a live user report: the chat text claimed a grounding
+    exercise was "started", but a transient follow-up-call failure right
+    after the real start_grounding_activity call was silently swallowed into
+    a bare 'Done.', leaving the user with no idea what was actually started."""
+    import google.generativeai as genai
+
+    monkeypatch.setattr(agent_service, "api_key", "fake-key")
+
+    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall("start_grounding_activity", {"anxiety_level": 8}))])
+    chat = _FailSecondCallChat(tool_call)
+    monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _FailSecondCallModel(chat))
+
+    db = SessionLocal()
+    try:
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("I am not feeling OK")
+    finally:
+        db.close()
+
+    assert result["response"] == "Started a 5-4-3-2-1 Senses grounding exercise for you."
+
+
+def test_followup_call_failure_on_complete_grounding_renders_the_real_before_after(user_a, monkeypatch):
+    import google.generativeai as genai
+
+    monkeypatch.setattr(agent_service, "api_key", "fake-key")
+
+    from backend.models import anxiety_models
+    db = SessionLocal()
+    try:
+        session = anxiety_models.GroundingSession(user_id=user_a.id, exercise_type="Box Breathing", pre_anxiety=8)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        session_id = session.id
+    finally:
+        db.close()
+
+    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall(
+        "complete_grounding_activity", {"session_id": session_id, "post_anxiety": 3}
+    ))])
+    chat = _FailSecondCallChat(tool_call)
+    monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _FailSecondCallModel(chat))
+
+    db = SessionLocal()
+    try:
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("that helped, I'm at a 3 now")
+    finally:
+        db.close()
+
+    assert result["response"] == "Logged your Box Breathing session — anxiety went from 8 to 3."
+
+
 def test_followup_call_failure_with_truly_no_renderable_tool_falls_back_to_the_old_safe_platitude(user_a, monkeypatch):
     """A write_low tool with neither a fast_path template nor a
     FOCUS_SESSION_CONTROL mapping (record_suds) still gets the honest,
