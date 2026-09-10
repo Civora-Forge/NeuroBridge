@@ -108,6 +108,10 @@ _OUTCOME_MODULE_BY_TOOL_PREFIX = {
     "complete_grounding": "anxiety",
     "get_reading": "dyslexia",
     "start_social_scenario": "asd",
+    "create_daily_routine": "asd",
+    "get_current_routine_step": "asd",
+    "advance_routine_step": "asd",
+    "go_back_routine_step": "asd",
 }
 
 # module key (from context_scope.infer_relevant_modules) -> which context-bundle section
@@ -154,6 +158,27 @@ def _render_focus_control_fallback(command: str, session: dict) -> str:
     if command == "set_duration":
         return f"Updated the session to {session.get('duration_minutes', '?')} minutes."
     return "Done."
+
+
+def _render_routine_step_result(result: dict) -> str:
+    """Same principle for the ASD routine tools: real position/title data,
+    not a bare 'Done.', whether the LLM's own summary is available or not."""
+    if result.get("finished"):
+        return result.get("message", "Routine complete.")
+    if "steps" in result:  # create_daily_routine
+        return f"Set up a {result.get('total_steps', len(result['steps']))}-step routine."
+    title = result.get("title")
+    if not title:
+        return "Done."
+    return f"Step {result.get('position')} of {result.get('total_steps')}: {title}."
+
+
+# Tools whose real result can be rendered deterministically without a second
+# Gemini call — same fallback safety net as fast_path.py's READ templates,
+# but for these WRITE_LOW routine actions.
+_ROUTINE_RESULT_TOOLS = {
+    "create_daily_routine", "get_current_routine_step", "advance_routine_step", "go_back_routine_step",
+}
 
 
 def _cached_learnings(user_id: str, db: Session) -> dict:
@@ -554,6 +579,28 @@ Relevant user context (already retrieved for you — do not re-ask for this):
             self._finish(execution, total_start)
             return {"response": response_text, "action": action, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
 
+        routine_command = contextual_commands.match_routine_command(message)
+        if routine_command and agent_tools._current_routine_step(self.db, self.user.id) is not None:
+            # Unlike pause/resume/stop, "next"/"repeat"/"go back" are genuinely
+            # ambiguous words on their own — only short-circuit Gemini once we've
+            # confirmed there's real routine state for them to unambiguously refer to.
+            tool_name = contextual_commands.routine_tool_name_for(routine_command)
+            tool = agent_tools.TOOL_REGISTRY[tool_name]
+            self._transition(execution, ExecutionState.EXECUTING, on_event, tool_name=tool_name)
+            if on_event:
+                on_event({"type": "tool_started", "execution_id": execution.execution_id, "tool": tool_name})
+            outcome = self._execute_tool(tool, {}, execution_id=execution.execution_id, conversation_id=conversation_id)
+            execution.tool_call_count = 1
+            if on_event:
+                on_event({"type": "tool_completed", "execution_id": execution.execution_id, "tool": tool_name, "status": outcome["status"]})
+            if outcome["status"] == "executed":
+                response_text = _render_routine_step_result(outcome["result"])
+            else:
+                response_text = outcome["error"] or "I couldn't do that with your routine right now."
+            self._transition(execution, ExecutionState.COMPLETED, on_event)
+            self._finish(execution, total_start)
+            return {"response": response_text, "action": None, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
+
         disclaimer = assessment.message if assessment.level == safety.SafetyLevel.CAUTION else ""
 
         if not api_key:
@@ -612,6 +659,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         # already ran and its result is real, so "I understand." is a worse
         # answer than just rendering that data the same way the fast path does.
         last_renderable_read: Optional[tuple[str, dict]] = None
+        last_renderable_routine: Optional[dict] = None
         self._transition(execution, ExecutionState.EXECUTING, on_event)
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -697,6 +745,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                     payload = outcome["result"]
                     if call.name in fast_path.FAST_PATH_TEMPLATES:
                         last_renderable_read = (call.name, outcome["result"])
+                    if call.name in _ROUTINE_RESULT_TOOLS:
+                        last_renderable_routine = outcome["result"]
                 else:
                     payload = {"error": outcome["error"] or "That action couldn't be completed."}
                     any_tool_failed = True
@@ -753,6 +803,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 response_text = fast_path.FAST_PATH_TEMPLATES[tool_name](result)
             elif last_action and last_action.get("type") == "FOCUS_SESSION_CONTROL":
                 response_text = _render_focus_control_fallback(last_action["command"], last_action.get("session") or {})
+            elif last_renderable_routine is not None:
+                response_text = _render_routine_step_result(last_renderable_routine)
             else:
                 response_text = "Done." if last_action else "I understand."
 

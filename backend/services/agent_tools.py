@@ -23,7 +23,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
-from ..models import adhd_models, agent_models, anxiety_models, ocd_models
+from ..models import adhd_models, agent_models, anxiety_models, asd_models, ocd_models
 from . import ai_service
 from .navigation import FEATURE_ROUTES, resolve_feature_route
 
@@ -678,12 +678,123 @@ def _get_reading_history(args: dict, ctx: ToolContext) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# ASD — backend has no real data store for this yet (see plan). Honest,
-# navigation-only tool: it does not claim to create/fetch anything server-side.
+# ASD — start_social_scenario remains honest, navigation-only (no backend
+# data store for that specific feature). Routine/schedule support below IS
+# real, backend-persisted state — predictability and step-by-step structure
+# are the actual research-grounded ASD need, not a stereotype.
 # ---------------------------------------------------------------------------
 
 def _start_social_scenario(args: dict, ctx: ToolContext) -> dict:
     return {"path": FEATURE_ROUTES["asd_social_scenarios"], "context_hint": args.get("scenario_context")}
+
+
+def _current_routine_step(db, user_id: str):
+    return (
+        db.query(asd_models.RoutineStep)
+        .filter_by(user_id=user_id, is_current=True, is_completed=False)
+        .first()
+    )
+
+
+def _serialize_routine_step(step, total: int, position: int) -> dict:
+    return {
+        "id": step.id, "title": step.title, "description": step.description,
+        "position": position, "total_steps": total,
+    }
+
+
+def _create_daily_routine(args: dict, ctx: ToolContext) -> dict:
+    """Replaces any existing (incomplete) routine with a fresh one — a
+    routine is a today-scoped plan, not a permanent record, so starting a
+    new one is expected to supersede rather than accumulate."""
+    db, user = ctx.db, ctx.user
+    steps = args.get("steps") or []
+    if not steps or not isinstance(steps, list):
+        raise ToolError("What are the steps for this routine?")
+
+    db.query(asd_models.RoutineStep).filter_by(user_id=user.id, is_completed=False).delete()
+
+    created = []
+    for i, title in enumerate(steps):
+        step = asd_models.RoutineStep(
+            user_id=user.id, title=str(title).strip(), order_index=i, is_current=(i == 0),
+        )
+        db.add(step)
+        created.append(step)
+    db.commit()
+    for step in created:
+        db.refresh(step)
+
+    return {"steps": [{"id": s.id, "title": s.title} for s in created], "total_steps": len(created)}
+
+
+def _get_current_routine_step(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    step = _current_routine_step(db, user.id)
+    if not step:
+        raise ToolError("There's no active routine right now.")
+    total = db.query(asd_models.RoutineStep).filter_by(user_id=user.id).count()
+    position = db.query(asd_models.RoutineStep).filter(
+        asd_models.RoutineStep.user_id == user.id, asd_models.RoutineStep.order_index <= step.order_index,
+    ).count()
+    return _serialize_routine_step(step, total, position)
+
+
+def _advance_routine_step(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    step = _current_routine_step(db, user.id)
+    if not step:
+        raise ToolError("There's no active routine right now.")
+    step.is_current = False
+    step.is_completed = True
+    next_step = (
+        db.query(asd_models.RoutineStep)
+        .filter(
+            asd_models.RoutineStep.user_id == user.id,
+            asd_models.RoutineStep.order_index > step.order_index,
+            asd_models.RoutineStep.is_completed == False,  # noqa: E712
+        )
+        .order_by(asd_models.RoutineStep.order_index.asc())
+        .first()
+    )
+    if next_step:
+        next_step.is_current = True
+    db.commit()
+    if not next_step:
+        return {"finished": True, "message": "That was the last step — the routine is complete."}
+    db.refresh(next_step)
+    total = db.query(asd_models.RoutineStep).filter_by(user_id=user.id).count()
+    position = db.query(asd_models.RoutineStep).filter(
+        asd_models.RoutineStep.user_id == user.id, asd_models.RoutineStep.order_index <= next_step.order_index,
+    ).count()
+    result = _serialize_routine_step(next_step, total, position)
+    result["finished"] = False
+    return result
+
+
+def _go_back_routine_step(args: dict, ctx: ToolContext) -> dict:
+    db, user = ctx.db, ctx.user
+    step = _current_routine_step(db, user.id)
+    if not step:
+        raise ToolError("There's no active routine right now.")
+    prev_step = (
+        db.query(asd_models.RoutineStep)
+        .filter(asd_models.RoutineStep.user_id == user.id, asd_models.RoutineStep.order_index < step.order_index)
+        .order_by(asd_models.RoutineStep.order_index.desc())
+        .first()
+    )
+    if not prev_step:
+        raise ToolError("This is already the first step.")
+    step.is_current = False
+    prev_step.is_current = True
+    prev_step.is_completed = False
+    db.commit()
+    db.refresh(prev_step)
+    total = db.query(asd_models.RoutineStep).filter_by(user_id=user.id).count()
+    position = db.query(asd_models.RoutineStep).filter(
+        asd_models.RoutineStep.user_id == user.id, asd_models.RoutineStep.order_index <= prev_step.order_index,
+    ).count()
+    return _serialize_routine_step(prev_step, total, position)
 
 
 # ---------------------------------------------------------------------------
@@ -953,6 +1064,37 @@ TOOL_REGISTRY: dict[str, Tool] = {
         parameters=_schema({"scenario_context": {"type": "string", "description": "Brief description of the upcoming social situation."}}),
         risk_level=RiskLevel.READ,
         handler=_start_social_scenario,
+    ),
+    "create_daily_routine": Tool(
+        name="create_daily_routine",
+        description="Create a real step-by-step daily routine/visual schedule for the user, replacing any unfinished one.",
+        parameters=_schema(
+            {"steps": {"type": "array", "items": {"type": "string"}, "description": "The routine's steps, in order, e.g. ['Brush teeth', 'Get dressed', 'Eat breakfast']."}},
+            required=["steps"],
+        ),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_create_daily_routine,
+    ),
+    "get_current_routine_step": Tool(
+        name="get_current_routine_step",
+        description="Check what the current/next step in the user's active daily routine is, without changing anything.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.READ,
+        handler=_get_current_routine_step,
+    ),
+    "advance_routine_step": Tool(
+        name="advance_routine_step",
+        description="Mark the current routine step done and move to the next one.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_advance_routine_step,
+    ),
+    "go_back_routine_step": Tool(
+        name="go_back_routine_step",
+        description="Move back to the previous step in the user's active daily routine.",
+        parameters=_schema({}),
+        risk_level=RiskLevel.WRITE_LOW,
+        handler=_go_back_routine_step,
     ),
     "navigate_to_feature": Tool(
         name="navigate_to_feature",
