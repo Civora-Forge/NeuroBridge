@@ -208,7 +208,7 @@ def execute_tool(
 
     is_replay = outcome.get("idempotent_replay", False)
     if outcome["status"] == "executed":
-        message = "This was already completed." if is_replay else "Done."
+        message = "This was already completed." if is_replay else (outcome.get("message") or "Done.")
     elif outcome["status"] == "denied":
         message = outcome.get("error") or "That action isn't available."
     else:

@@ -64,6 +64,45 @@ def test_confirmed_create_exposure_persists_and_logs(login_as, user_a):
         db.close()
 
 
+def test_confirmed_delete_exposure_task_reports_what_was_removed_not_a_bare_done(login_as, user_a):
+    """delete_exposure_task has no card_type (nowhere useful to navigate after
+    deleting a step), so unlike create_exposure/start_erp_session it used to
+    fall all the way through to the router's hardcoded "Done." — the user got
+    no confirmation of what was actually deleted. Discovered while auditing
+    the same "agent acted but didn't show it" bug class as the focus-timer
+    visibility issue."""
+    client = login_as(user_a)
+    db = SessionLocal()
+    try:
+        conv = _make_conversation(db, user_a.id)
+        conv_id = conv.id
+        hierarchy = ocd_models.ExposureHierarchy(title="Contamination", category="contamination", owner_id=user_a.id)
+        db.add(hierarchy)
+        db.flush()
+        task = ocd_models.ExposureTask(description="Touch a doorknob", estimated_suds=40, order_index=0, hierarchy_id=hierarchy.id)
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        task_id = task.id
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/agent/tool/execute",
+        json={"conversation_id": conv_id, "tool_name": "delete_exposure_task", "tool_args": {"task_id": task_id}},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "executed"
+    assert body["message"] == 'Removed "Touch a doorknob" from your hierarchy.'
+
+    db = SessionLocal()
+    try:
+        assert db.query(ocd_models.ExposureTask).filter_by(id=task_id).first() is None
+    finally:
+        db.close()
+
+
 def test_execute_endpoint_rejects_conversation_owned_by_another_user(login_as, user_a, user_b):
     db = SessionLocal()
     try:

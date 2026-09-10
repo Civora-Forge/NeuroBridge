@@ -10,58 +10,73 @@ const ocdApi = axios.create({
   },
 });
 
-export const createHierarchy = async (data) => {
-  const response = await ocdApi.post('/hierarchies/', data);
+// Every one of these requires a real, authenticated backend user (see
+// backend/auth.py's get_current_user) — without an Authorization header
+// every call here 401s and the calling page silently shows an empty state,
+// which was a real, live bug (confirmed via the network tab: agent-created
+// hierarchies/sessions were invisible because this file never sent the
+// header the backend requires at all). Callers pass `headers` from
+// `backendAuthHeaders(user)` (src/lib/backendAuth.js) — the same resolver
+// the agent chat store uses, so a demo login and a real Supabase session
+// both work identically here.
+
+export const createHierarchy = async (data, headers = {}) => {
+  const response = await ocdApi.post('/hierarchies/', data, { headers });
   return response.data;
 };
 
-export const getHierarchies = async () => {
-  const response = await ocdApi.get('/hierarchies/');
+export const getHierarchies = async (headers = {}) => {
+  const response = await ocdApi.get('/hierarchies/', { headers });
   return response.data;
 };
 
-export const addHierarchyTask = async (hierarchyId, data) => {
-  const response = await ocdApi.post(`/hierarchies/${hierarchyId}/tasks/`, data);
+export const addHierarchyTask = async (hierarchyId, data, headers = {}) => {
+  const response = await ocdApi.post(`/hierarchies/${hierarchyId}/tasks/`, data, { headers });
   return response.data;
 };
 
-export const updateHierarchyTask = async (taskId, data) => {
-  const response = await ocdApi.patch(`/tasks/${taskId}`, data);
+export const updateHierarchyTask = async (taskId, data, headers = {}) => {
+  const response = await ocdApi.patch(`/tasks/${taskId}`, data, { headers });
   return response.data;
 };
 
-export const removeHierarchyTask = async (taskId) => {
-  await ocdApi.delete(`/tasks/${taskId}`);
+export const removeHierarchyTask = async (taskId, headers = {}) => {
+  await ocdApi.delete(`/tasks/${taskId}`, { headers });
   return taskId;
 };
 
-export const createSession = async (data) => {
-  const response = await ocdApi.post('/sessions/', data);
+export const createSession = async (data, headers = {}) => {
+  const response = await ocdApi.post('/sessions/', data, { headers });
   return response.data;
 };
 
-export const getSessions = async () => {
-  const response = await ocdApi.get('/sessions/');
+export const getSessions = async (headers = {}) => {
+  const response = await ocdApi.get('/sessions/', { headers });
   return response.data;
 };
 
-export const createSudsLog = async (data) => {
-  const response = await ocdApi.post('/suds/', data);
+export const completeSession = async (sessionId, data, headers = {}) => {
+  const response = await ocdApi.patch(`/sessions/${sessionId}/complete`, data, { headers });
   return response.data;
 };
 
-export const getSudsLogs = async () => {
-  const response = await ocdApi.get('/suds/');
+export const createSudsLog = async (data, headers = {}) => {
+  const response = await ocdApi.post('/suds/', data, { headers });
   return response.data;
 };
 
-export const createJournalEntry = async (data) => {
-  const response = await ocdApi.post('/journal/', data);
+export const getSudsLogs = async (headers = {}) => {
+  const response = await ocdApi.get('/suds/', { headers });
   return response.data;
 };
 
-export const getJournalEntries = async () => {
-  const response = await ocdApi.get('/journal/');
+export const createJournalEntry = async (data, headers = {}) => {
+  const response = await ocdApi.post('/journal/', data, { headers });
+  return response.data;
+};
+
+export const getJournalEntries = async (headers = {}) => {
+  const response = await ocdApi.get('/journal/', { headers });
   return response.data;
 };
 

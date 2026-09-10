@@ -153,61 +153,6 @@ export default function GardenPage() {
         </div>
       </header>
 
-      {/* ── Spotlighted Tools (top 2, picked from what you actually use) ── */}
-      {allModules.length === 0 ? (
-        <section className="rounded-[28px] border border-[#e4ede6] dark:border-emerald-800/40 bg-[#fbfdfc] dark:bg-[#14261c]/80 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <p className="font-bold text-[#163323] dark:text-emerald-50">No tools enabled yet</p>
-            <p className="text-sm text-[#4b725c] dark:text-emerald-300/80 mt-1">
-              Complete onboarding to build your toolkit — your garden will still grow while you do.
-            </p>
-          </div>
-          <Link
-            to="/onboarding/disorders"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white bg-[#3b7a57] hover:bg-[#326749] shadow-sm hover:shadow transition-all flex-shrink-0"
-          >
-            Start onboarding <ArrowRight className="w-4 h-4" />
-          </Link>
-        </section>
-      ) : (
-        <section aria-labelledby="spotlight-heading">
-          <p id="spotlight-heading" className="text-xs font-bold uppercase tracking-wider text-[#638774] dark:text-emerald-400/70 mb-3">
-            Your tools right now
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {spotlightModules.map((module, index) => (
-              <FeatureSpotlightCard
-                key={module.id}
-                title={module.title}
-                description={module.description}
-                icon={module.icon}
-                launchRoute={module.launchRoute}
-                reason={module.reason}
-                index={index}
-              />
-            ))}
-          </div>
-
-          {remainingModules.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {remainingModules.map((module) => {
-                const c = modeStyles(getModeKeyForRoute(module.launchRoute));
-                return (
-                  <Link
-                    key={module.id}
-                    to={module.launchRoute}
-                    className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm hover:shadow transition-all hover:-translate-y-0.5"
-                    style={{ ...c.bgSofter, ...c.borderSoft, ...c.text }}
-                  >
-                    {module.title}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
-
       {/* ── Main Garden Centerpiece (2-Column Grid) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
         {/* ── Left Column: Large Centered Tree Centerpiece ── */}
@@ -358,6 +303,61 @@ export default function GardenPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Spotlighted Tools (top 2, picked from what you actually use) ── */}
+      {allModules.length === 0 ? (
+        <section className="rounded-[28px] border border-[#e4ede6] dark:border-emerald-800/40 bg-[#fbfdfc] dark:bg-[#14261c]/80 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="font-bold text-[#163323] dark:text-emerald-50">No tools enabled yet</p>
+            <p className="text-sm text-[#4b725c] dark:text-emerald-300/80 mt-1">
+              Complete onboarding to build your toolkit — your garden will still grow while you do.
+            </p>
+          </div>
+          <Link
+            to="/onboarding/disorders"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white bg-[#3b7a57] hover:bg-[#326749] shadow-sm hover:shadow transition-all flex-shrink-0"
+          >
+            Start onboarding <ArrowRight className="w-4 h-4" />
+          </Link>
+        </section>
+      ) : (
+        <section aria-labelledby="spotlight-heading">
+          <p id="spotlight-heading" className="text-xs font-bold uppercase tracking-wider text-[#638774] dark:text-emerald-400/70 mb-3">
+            Your tools right now
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {spotlightModules.map((module, index) => (
+              <FeatureSpotlightCard
+                key={module.id}
+                title={module.title}
+                description={module.description}
+                icon={module.icon}
+                launchRoute={module.launchRoute}
+                reason={module.reason}
+                index={index}
+              />
+            ))}
+          </div>
+
+          {remainingModules.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {remainingModules.map((module) => {
+                const c = modeStyles(getModeKeyForRoute(module.launchRoute));
+                return (
+                  <Link
+                    key={module.id}
+                    to={module.launchRoute}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm hover:shadow transition-all hover:-translate-y-0.5"
+                    style={{ ...c.bgSofter, ...c.borderSoft, ...c.text }}
+                  >
+                    {module.title}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Garden History Gallery Section ─────── */}
       <GardenHistory history={garden.history} />

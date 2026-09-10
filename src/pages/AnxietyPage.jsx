@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { ArrowRight, Heart, Sparkles, Wind, Leaf, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
@@ -103,16 +104,36 @@ function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, a
   );
 }
 
+// The agent's start_grounding_activity tool already picked and started a
+// real exercise (by anxiety level) before navigating here — map its result
+// onto the matching local intervention card so the modal opens automatically
+// instead of dropping the user on the hub as if nothing had happened yet.
+const AGENT_EXERCISE_TO_INTERVENTION_ID = {
+  "Box Breathing": "guided_breathing",
+  "5-4-3-2-1 Senses": "grounding_exercise",
+};
+
 export default function AnxietyPage() {
   const [activeIntervention, setActiveIntervention] = useState(null);
   const { reduced, gentle } = useSensoryReducedMotion();
   const { user } = useAuth();
+  const location = useLocation();
   const context = useContextStateOptional()?.context ?? null;
   const adaptation = useFeatureAdaptation("anxiety.hub", {
     getAppSnapshot: () => context,
     userId: user?.id ?? null,
   });
   const adaptiveConfig = adaptation.configuration;
+
+  const appliedAgentExerciseRef = useRef(false);
+  useEffect(() => {
+    const exerciseType = location.state?.exercise_type;
+    if (!exerciseType || appliedAgentExerciseRef.current) return;
+    appliedAgentExerciseRef.current = true;
+    const interventionId = AGENT_EXERCISE_TO_INTERVENTION_ID[exerciseType];
+    if (interventionId) setActiveIntervention(interventionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When the engine decision promotes breathing, bring the breathing card to
   // the front of the support grid without removing the other options.

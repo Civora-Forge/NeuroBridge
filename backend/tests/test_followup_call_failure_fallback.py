@@ -166,26 +166,88 @@ def test_followup_call_failure_on_complete_grounding_renders_the_real_before_aft
     assert result["response"] == "Logged your Box Breathing session — anxiety went from 8 to 3."
 
 
-def test_followup_call_failure_with_truly_no_renderable_tool_falls_back_to_the_old_safe_platitude(user_a, monkeypatch):
-    """A write_low tool with neither a fast_path template nor a
-    FOCUS_SESSION_CONTROL mapping (record_suds) still gets the honest,
-    minimal fallback — proving the new behavior is additive, not a
-    regression for tools with no deterministic renderer at all."""
+def test_followup_call_failure_on_reorder_exposure_task_renders_the_real_new_position(user_a, monkeypatch):
     import google.generativeai as genai
+    from backend.models import ocd_models
 
     monkeypatch.setattr(agent_service, "api_key", "fake-key")
 
-    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall("record_suds", {"value": 40}))])
+    db = SessionLocal()
+    try:
+        hierarchy = ocd_models.ExposureHierarchy(title="Contamination", category="contamination", owner_id=user_a.id)
+        db.add(hierarchy)
+        db.flush()
+        task = ocd_models.ExposureTask(description="Touch a doorknob", estimated_suds=40, order_index=0, hierarchy_id=hierarchy.id)
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        task_id = task.id
+    finally:
+        db.close()
+
+    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall("reorder_exposure_task", {"task_id": task_id, "new_order_index": 2}))])
     chat = _FailSecondCallChat(tool_call)
     monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _FailSecondCallModel(chat))
 
     db = SessionLocal()
     try:
         orchestrator = agent_service.AgentOrchestrator(db, user_a)
-        result = orchestrator.process_message("log my suds at 40")
+        result = orchestrator.process_message("move touch a doorknob to position 3")
     finally:
         db.close()
 
-    # record_suds has no fast_path template and no _TOOL_ACTION_MAP/FOCUS_SESSION_CONTROL
-    # entry at all, so last_action stays None -> the original, most-minimal fallback.
+    assert result["response"] == 'Moved "Touch a doorknob" to position 3.'
+
+
+def test_followup_call_failure_on_record_suds_renders_the_real_value(user_a, monkeypatch):
+    import google.generativeai as genai
+
+    monkeypatch.setattr(agent_service, "api_key", "fake-key")
+
+    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall("record_suds", {"value": 65}))])
+    chat = _FailSecondCallChat(tool_call)
+    monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _FailSecondCallModel(chat))
+
+    db = SessionLocal()
+    try:
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("log my suds at 65")
+    finally:
+        db.close()
+
+    assert result["response"] == "Logged a SUDS reading of 65."
+
+
+def test_followup_call_failure_with_truly_no_renderable_tool_falls_back_to_the_old_safe_platitude(user_a, monkeypatch):
+    """A pure READ tool with no fast_path template and no action mapping
+    (get_task_breakdown) still gets the honest, minimal fallback — proving
+    the new behavior is additive, not a regression for tools with no
+    deterministic renderer at all. (record_suds/reorder/delete_exposure_task
+    all gained real fallbacks this session — see the tests above — so this
+    one had to move to a genuinely still-uncovered tool.)"""
+    import google.generativeai as genai
+    from backend.models import adhd_models
+
+    monkeypatch.setattr(agent_service, "api_key", "fake-key")
+
+    db = SessionLocal()
+    try:
+        db.add(adhd_models.TaskBreakdown(user_id=user_a.id, original_task="clean the kitchen"))
+        db.commit()
+    finally:
+        db.close()
+
+    tool_call = _NoTextResponse(parts=[FakePart(function_call=FakeFunctionCall("get_task_breakdown", {}))])
+    chat = _FailSecondCallChat(tool_call)
+    monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _FailSecondCallModel(chat))
+
+    db = SessionLocal()
+    try:
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("what were the steps again")
+    finally:
+        db.close()
+
+    # get_task_breakdown has no fast_path template and no _TOOL_ACTION_MAP entry
+    # at all, so last_action stays None -> the original, most-minimal fallback.
     assert result["response"] == "I understand."

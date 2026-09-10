@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Clock, Timer, Play, Pause, XCircle, CheckCircle2, ArrowRight, Activity, RefreshCw, Check } from 'lucide-react';
-import { createSession } from '@/api/ocdApi';
+import { createSession, completeSession } from '@/api/ocdApi';
 import useOcdStore from '@/stores/useOcdStore';
+import { useAuth } from '@/context/AuthContext';
+import { backendAuthHeaders } from '@/lib/backendAuth';
 
 const INTERVENTIONS = {
   body: [
@@ -126,12 +128,22 @@ const CircularTimer = ({ timeLeft, initialTime }) => {
 export default function ExposureSessionTimer() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState('pick'); // 'pick' | 'preSuds' | 'running' | 'postSuds' | 'done'
-  const [compulsionType, setCompulsionType] = useState('');
+  const location = useLocation();
+  const { user } = useAuth();
+  // The agent's start_erp_session tool already created a real ERPSession row
+  // (description + starting SUDS already decided) and passes it here as
+  // location.state — previously this page ignored that entirely and always
+  // opened on its own "pick a compulsion type" screen, so a user who then
+  // completed that screen manually would create a SECOND, duplicate session
+  // row instead of finishing the one the agent already started.
+  const agentSession = location.state || null;
+  const hasAgentSession = !!agentSession?.session_id;
+  const [phase, setPhase] = useState(hasAgentSession ? 'running' : 'pick'); // 'pick' | 'preSuds' | 'running' | 'postSuds' | 'done'
+  const [compulsionType, setCompulsionType] = useState(agentSession?.title || '');
   const [initialTime, setInitialTime] = useState(300); // 5 mins
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(hasAgentSession ? 300 : 0);
   const [isPaused, setIsPaused] = useState(false);
-  const [preSuds, setPreSuds] = useState(50);
+  const [preSuds, setPreSuds] = useState(agentSession?.pre_suds ?? 50);
   const [postSuds, setPostSuds] = useState(50);
   const [resisted, setResisted] = useState(null);
   const [currentIntervention, setCurrentIntervention] = useState('');
@@ -139,7 +151,12 @@ export default function ExposureSessionTimer() {
   const { currentSuds, setCurrentSuds, addSessionSudsLog } = useOcdStore();
 
   const sessionMutation = useMutation({
-    mutationFn: createSession,
+    mutationFn: async (data) => createSession(data, await backendAuthHeaders(user)),
+    onSuccess: () => queryClient.invalidateQueries(['sessions']),
+  });
+
+  const completeAgentSessionMutation = useMutation({
+    mutationFn: async (data) => completeSession(agentSession.session_id, data, await backendAuthHeaders(user)),
     onSuccess: () => queryClient.invalidateQueries(['sessions']),
   });
 
@@ -180,15 +197,21 @@ export default function ExposureSessionTimer() {
 
   const handleSave = () => {
     if (resisted === null) return;
-    const outcome = resisted ? 'resisted' : 'gave_in';
-    sessionMutation.mutate({
-      compulsion_type: compulsionType,
-      pre_suds: preSuds,
-      post_suds: postSuds,
-      duration_seconds: initialTime - timeLeft,
-      resisted,
-      outcome,
-    });
+    if (hasAgentSession) {
+      // Completes the SAME real session the agent started — never a second,
+      // duplicate row.
+      completeAgentSessionMutation.mutate({ post_suds: postSuds, resisted_compulsion: resisted, notes: null });
+    } else {
+      const outcome = resisted ? 'resisted' : 'gave_in';
+      sessionMutation.mutate({
+        compulsion_type: compulsionType,
+        pre_suds: preSuds,
+        post_suds: postSuds,
+        duration_seconds: initialTime - timeLeft,
+        resisted,
+        outcome,
+      });
+    }
     setPhase('done');
   };
 
@@ -355,8 +378,13 @@ export default function ExposureSessionTimer() {
               exit={{ opacity: 0, y: 20 }} 
               className="flex flex-col items-center"
             >
+              {hasAgentSession && (
+                <div className="mb-3 px-4 py-1.5 bg-sky-100 text-sky-800 rounded-full text-xs font-bold uppercase tracking-wider">
+                  Started for you: {compulsionType}
+                </div>
+              )}
               <div className="text-center mb-4">
-                <motion.p 
+                <motion.p
                   key={getContextualMessage()}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

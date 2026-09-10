@@ -173,6 +173,20 @@ def _render_routine_step_result(result: dict) -> str:
     return f"Step {result.get('position')} of {result.get('total_steps')}: {title}."
 
 
+def _render_ocd_write_fallback(tool_name: str, result: dict) -> str:
+    """Same principle for the three OCD write tools that have no card/action
+    of their own (reorder/delete an exposure step, log a SUDS reading): real
+    data, not a bare 'Done.', when the LLM's own follow-up summary is
+    unavailable."""
+    if tool_name == "reorder_exposure_task":
+        return f"Moved \"{result.get('description')}\" to position {result.get('order_index', 0) + 1}."
+    if tool_name == "delete_exposure_task":
+        return f"Removed \"{result.get('description')}\" from your hierarchy."
+    if tool_name == "record_suds":
+        return f"Logged a SUDS reading of {result.get('value')}."
+    return "Done."
+
+
 def _render_grounding_fallback(tool_name: str, result: dict) -> str:
     """Same principle for the anxiety grounding tools: name the real exercise
     that was actually started/completed, not a bare 'Done.'"""
@@ -199,6 +213,11 @@ _ROUTINE_RESULT_TOOLS = {
 # was started/completed fell through to a bare "Done.", leaving the user
 # with no idea which exercise the agent actually started for them.
 _GROUNDING_RESULT_TOOLS = {"start_grounding_activity", "complete_grounding_activity"}
+
+# These OCD writes have no card/navigation of their own (nowhere useful to
+# send the user for a single reorder/delete/SUDS-log), but still deserve
+# real data in the fallback text instead of a bare "Done."
+_OCD_WRITE_RESULT_TOOLS = {"reorder_exposure_task", "delete_exposure_task", "record_suds"}
 
 
 def _cached_learnings(user_id: str, db: Session) -> dict:
@@ -394,6 +413,13 @@ Relevant user context (already retrieved for you — do not re-ask for this):
             # already is, via presentationPreferences.js (a pure localStorage +
             # <html> data-attribute write, not tied to any mounted component).
             return {"type": "PRESENTATION_PRESET", "preset_id": result["preset_id"]}
+        if tool_name in _ROUTINE_RESULT_TOOLS:
+            # There is genuinely no dedicated visual schedule page anywhere in
+            # the app to navigate to (asd_routine_steps is read by nothing but
+            # this agent) — rather than either fabricate one or leave this
+            # text-only, render a real status card right in the chat itself,
+            # which the user is already looking at.
+            return {"type": "ROUTINE_STATUS", "data": result}
         mapping = _TOOL_ACTION_MAP.get(tool_name)
         if not mapping:
             return None
@@ -450,6 +476,11 @@ Relevant user context (already retrieved for you — do not re-ask for this):
 
         outcome = self._execute_tool(tool, tool_args, conversation_id=conversation_id)
         outcome["action"] = self._build_action(tool_name, outcome["result"]) if outcome["status"] == "executed" else None
+        # Confirmed WRITE_CONFIRM tools with no card (e.g. delete_exposure_task)
+        # would otherwise leave the router's caller with only a bare "Done." —
+        # same real-data-not-a-platitude principle as the main tool loop above.
+        if outcome["status"] == "executed" and tool_name in _OCD_WRITE_RESULT_TOOLS:
+            outcome["message"] = _render_ocd_write_fallback(tool_name, outcome["result"])
         return outcome
 
     # -- LLM call helpers -------------------------------------------------
@@ -681,6 +712,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         last_renderable_read: Optional[tuple[str, dict]] = None
         last_renderable_routine: Optional[dict] = None
         last_renderable_grounding: Optional[tuple[str, dict]] = None
+        last_renderable_ocd_write: Optional[tuple[str, dict]] = None
         self._transition(execution, ExecutionState.EXECUTING, on_event)
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -770,6 +802,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                         last_renderable_routine = outcome["result"]
                     if call.name in _GROUNDING_RESULT_TOOLS:
                         last_renderable_grounding = (call.name, outcome["result"])
+                    if call.name in _OCD_WRITE_RESULT_TOOLS:
+                        last_renderable_ocd_write = (call.name, outcome["result"])
                 else:
                     payload = {"error": outcome["error"] or "That action couldn't be completed."}
                     any_tool_failed = True
@@ -830,6 +864,8 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 response_text = _render_routine_step_result(last_renderable_routine)
             elif last_renderable_grounding is not None:
                 response_text = _render_grounding_fallback(*last_renderable_grounding)
+            elif last_renderable_ocd_write is not None:
+                response_text = _render_ocd_write_fallback(*last_renderable_ocd_write)
             else:
                 response_text = "Done." if last_action else "I understand."
 

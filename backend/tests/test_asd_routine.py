@@ -182,6 +182,43 @@ def test_whats_next_with_an_active_routine_is_read_only_and_deterministic(user_a
     assert current.title == "Brush teeth"  # peeking did not advance anything
 
 
+def test_whats_next_carries_a_routine_status_card_for_the_ui_to_render(user_a, install_fake_gemini):
+    """asd_routine_steps has no dedicated visual schedule page anywhere in the
+    app for the agent to navigate to, so the chat message itself carries a
+    ROUTINE_STATUS action with the real step data — this is the visible
+    result, not text-only with no UI backing at all."""
+    install_fake_gemini([])
+    db = SessionLocal()
+    try:
+        _seed_routine(db, user_a)
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("What's next?")
+    finally:
+        db.close()
+
+    assert result["action"] == {
+        "type": "ROUTINE_STATUS",
+        "data": {"id": result["action"]["data"]["id"], "title": "Brush teeth", "description": None, "position": 1, "total_steps": 3},
+    }
+
+
+def test_create_daily_routine_carries_the_full_step_list_in_its_action(user_a, install_fake_gemini):
+    tool_call = FakeResponse(parts=[FakePart(function_call=FakeFunctionCall("create_daily_routine", {"steps": ["Brush teeth", "Get dressed"]}))])
+    final = FakeResponse(parts=[FakePart()], text="Set up your morning routine.")
+    install_fake_gemini([tool_call, final])
+
+    db = SessionLocal()
+    try:
+        orchestrator = agent_service.AgentOrchestrator(db, user_a)
+        result = orchestrator.process_message("set up my morning routine: brush teeth, then get dressed")
+    finally:
+        db.close()
+
+    assert result["action"]["type"] == "ROUTINE_STATUS"
+    assert result["action"]["data"]["total_steps"] == 2
+    assert [s["title"] for s in result["action"]["data"]["steps"]] == ["Brush teeth", "Get dressed"]
+
+
 def test_next_with_no_active_routine_falls_through_to_the_real_agent_loop(user_a, install_fake_gemini):
     """"next" alone is genuinely ambiguous without routine context — must
     reach Gemini rather than silently erroring or guessing."""

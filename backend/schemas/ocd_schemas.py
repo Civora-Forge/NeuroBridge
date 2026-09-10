@@ -49,6 +49,11 @@ class ERPSessionBase(BaseModel):
 class ERPSessionCreate(ERPSessionBase):
     pass
 
+class ERPSessionComplete(BaseModel):
+    post_suds: int
+    resisted_compulsion: bool
+    notes: Optional[str] = None
+
 class ERPSession(ERPSessionBase):
     id: int
     owner_id: str

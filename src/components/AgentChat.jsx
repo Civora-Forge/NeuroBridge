@@ -130,6 +130,59 @@ function ErpSessionCard({ data, onNavigate, complete }) {
   );
 }
 
+function RoutineStatusCard({ data }) {
+  // ASD's daily routine has no dedicated visual schedule page anywhere in the
+  // app (asd_routine_steps is read by nothing but the agent itself) — this
+  // card IS the visible result, rendered right where the user is already
+  // looking, rather than navigating somewhere that couldn't show it anyway.
+  if (!data) return null;
+
+  if (Array.isArray(data.steps)) {
+    return (
+      <div className="mt-2 w-full max-w-sm neuro-card p-4 border-indigo-500/20 bg-indigo-500/5 text-left transition-colors">
+        <div className="flex items-center gap-2 mb-2 text-indigo-600 font-semibold text-sm">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Routine Created</span>
+        </div>
+        <ol className="space-y-1.5">
+          {data.steps.map((step, idx) => (
+            <li key={step.id ?? idx} className="flex items-center gap-2 text-xs bg-white p-2 rounded-md border border-slate-100">
+              <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-semibold flex items-center justify-center flex-shrink-0">
+                {idx + 1}
+              </span>
+              <span className="text-slate-700">{step.title}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
+
+  if (data.finished) {
+    return (
+      <div className="mt-2 w-full max-w-sm neuro-card p-4 border-indigo-500/20 bg-indigo-500/5 text-left transition-colors flex items-center gap-2 text-indigo-700 text-sm font-medium">
+        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+        <span>Routine complete.</span>
+      </div>
+    );
+  }
+
+  if (!data.title) return null;
+  const progress = data.total_steps ? data.position / data.total_steps : 0;
+  return (
+    <div className="mt-2 w-full max-w-sm neuro-card p-4 border-indigo-500/20 bg-indigo-500/5 text-left transition-colors">
+      <div className="flex items-center justify-between mb-2 text-indigo-600 font-semibold text-sm">
+        <span className="flex items-center gap-2"><Activity className="w-4 h-4" /> Step {data.position} of {data.total_steps}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-indigo-100 mb-3 overflow-hidden">
+        <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+      </div>
+      <p className="text-sm font-medium text-slate-800">{data.title}</p>
+      {data.description && <p className="text-xs text-slate-500 mt-1">{data.description}</p>}
+    </div>
+  );
+}
+
 function PendingConfirmationCard({ toolName, toolArgs, onConfirm, onCancel, isLoading }) {
   const readable = toolName?.replace(/_/g, " ") ?? "this action";
   return (
@@ -428,6 +481,10 @@ export default function AgentChat() {
           isLoading={isLoading}
         />
       );
+    }
+
+    if (action.type === "ROUTINE_STATUS") {
+      return <RoutineStatusCard data={action.data} />;
     }
 
     if (!action.type?.startsWith("NAVIGATE")) return null;

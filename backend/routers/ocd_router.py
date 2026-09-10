@@ -159,6 +159,36 @@ def create_session(
     db.refresh(db_session)
     return db_session
 
+@router.patch("/sessions/{session_id}/complete", response_model=ocd_schemas.ERPSession)
+def complete_session(
+    session_id: int,
+    completion: ocd_schemas.ERPSessionComplete,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Completes a session that already exists (e.g. one the agent started
+    via start_erp_session) instead of creating a second, duplicate row the
+    way POST /sessions/ would — this is the manual-UI equivalent of the
+    agent's own complete_erp_session tool, reusing the exact same logic."""
+    from datetime import datetime as _dt
+
+    session = db.query(ocd_models.ERPSession).filter_by(id=session_id, owner_id=user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.post_suds = completion.post_suds
+    session.resisted_compulsion = completion.resisted_compulsion
+    session.notes = completion.notes
+    session.status = "completed"
+    session.completed_at = _dt.utcnow()
+    session.duration_seconds = int((session.completed_at - session.created_at).total_seconds())
+    session.ai_summary = ai_service.summarize_erp_session(
+        session.pre_suds, session.post_suds, session.duration_seconds, session.resisted_compulsion, session.notes or ""
+    )
+    db.commit()
+    db.refresh(session)
+    return session
+
 @router.get("/sessions/", response_model=List[ocd_schemas.ERPSession])
 def read_sessions(
     skip: int = 0,

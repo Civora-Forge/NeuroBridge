@@ -18,6 +18,8 @@ import {
   buildWeeklyInsight
 } from '@/support/specialized/ocdStore';
 import { getSessions as getBackendSessions } from '@/api/ocdApi';
+import { useAuth } from '@/context/AuthContext';
+import { backendAuthHeaders } from '@/lib/backendAuth';
 
 /**
  * Sessions are split across two stores today (see plan doc: OCD state
@@ -38,6 +40,7 @@ function normalizeBackendSession(s) {
 }
 
 export default function ERPProgressTracker() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [compulsionOutcomes, setCompulsionOutcomes] = useState([]);
@@ -53,24 +56,31 @@ export default function ERPProgressTracker() {
 
     const localSessions = (getLocalSessions() || []).map((s) => ({ ...s, source: 'local' }));
 
-    getBackendSessions()
-      .then((backendSessions) => {
+    (async () => {
+      try {
+        // Without the real auth header this always 401s and gets swallowed by
+        // the catch below — which was silently hiding every session the agent
+        // started/completed via chat (record_suds/start_erp_session/
+        // complete_erp_session all write to this same real backend table).
+        const headers = await backendAuthHeaders(user);
+        const backendSessions = await getBackendSessions(headers);
         const merged = [...localSessions, ...(backendSessions || []).map(normalizeBackendSession)].sort(
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         );
         setSessions(merged);
-      })
-      .catch(() => {
+      } catch {
         // Backend unreachable — still show local sessions rather than an empty page.
         setSessions(localSessions);
-      });
+      }
+    })();
 
     setJournalEntries(getJournalEntries() || []);
     setCompulsionOutcomes(getCompulsionOutcomes() || []);
     setHeatmap(getCalendarHeatmap(84) || []);
     setMilestones(getMilestones() || []);
     setInsight(buildWeeklyInsight());
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const avgSudsDrop = useMemo(() => {
     if (!sessions || sessions.length === 0) return 0;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -8,6 +8,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, Plus, Trash2, Play, Award, GripVertical, ChevronDown, ChevronRight, Activity, Clock, X } from 'lucide-react';
 import { getHierarchies, createHierarchy, addHierarchyTask, updateHierarchyTask, removeHierarchyTask } from '@/api/ocdApi';
 import { getSessions, OCD_SUBTYPES } from '@/support/specialized/ocdStore';
+import { useAuth } from '@/context/AuthContext';
+import { backendAuthHeaders } from '@/lib/backendAuth';
 
 const getDifficultyMeta = (suds) => {
   if (suds < 40) return { label: 'Low', border: 'border-emerald-200/60', strip: 'bg-emerald-400', badge: 'bg-emerald-100/80 text-emerald-700', slider: '#10b981' };
@@ -340,29 +342,51 @@ function SkeletonCard() {
 
 export default function ExposureHierarchyBuilder() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const location = useLocation();
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [showNewHierarchy, setShowNewHierarchy] = useState(false);
   const [newHTitle, setNewHTitle] = useState('');
   const [newHCategory, setNewHCategory] = useState(OCD_SUBTYPES?.[0] || 'Contamination');
 
-  const { data: hierarchies = [], isLoading } = useQuery({ queryKey: ['hierarchies'], queryFn: getHierarchies });
+  // Without a real auth header every one of these 401s and the page just
+  // shows an empty state — including for hierarchies/tasks the agent itself
+  // just created, which is the exact bug this file was audited for.
+  const { data: hierarchies = [], isLoading } = useQuery({
+    queryKey: ['hierarchies'],
+    queryFn: async () => getHierarchies(await backendAuthHeaders(user)),
+    enabled: !!user,
+  });
+
+  // The agent's create_exposure tool passes back which hierarchy it just
+  // added to — auto-expand that one once it's loaded so the new step is
+  // immediately visible instead of the user having to hunt for it.
+  const agentHierarchyId = location.state?.hierarchy_id;
+  const appliedAgentExpandRef = useRef(false);
+  useEffect(() => {
+    if (!agentHierarchyId || appliedAgentExpandRef.current) return;
+    if (hierarchies.some((h) => h.id === agentHierarchyId)) {
+      appliedAgentExpandRef.current = true;
+      setExpandedIds((prev) => new Set(prev).add(agentHierarchyId));
+    }
+  }, [agentHierarchyId, hierarchies]);
 
   const createMutation = useMutation({
-    mutationFn: createHierarchy,
+    mutationFn: async (data) => createHierarchy(data, await backendAuthHeaders(user)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
   });
 
   const reorderMutation = useMutation({
-    mutationFn: ({ taskId, order_index }) => updateHierarchyTask(taskId, { order_index }),
+    mutationFn: async ({ taskId, order_index }) => updateHierarchyTask(taskId, { order_index }, await backendAuthHeaders(user)),
   });
 
   const addTaskMutation = useMutation({
-    mutationFn: ({ hierarchyId, data }) => addHierarchyTask(hierarchyId, data),
+    mutationFn: async ({ hierarchyId, data }) => addHierarchyTask(hierarchyId, data, await backendAuthHeaders(user)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
   });
 
   const removeTaskMutation = useMutation({
-    mutationFn: (taskId) => removeHierarchyTask(taskId),
+    mutationFn: async (taskId) => removeHierarchyTask(taskId, await backendAuthHeaders(user)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hierarchies'] }),
   });
 
