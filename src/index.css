@@ -125,6 +125,14 @@
     @apply border-border;
   }
 
+  html, body {
+    /* Mobile-first safety net: a single element anywhere in this large,
+       many-page app using a fixed/min pixel width wider than a small phone's
+       viewport (300-320px on the smallest supported devices) would otherwise
+       force the whole page to scroll sideways. */
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Plus Jakarta Sans', sans-serif;

@@ -195,7 +195,7 @@ export default function AppLayout({ children }) {
           </nav>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full focus:outline-none">
+        <main id="main-content" tabIndex={-1} className="flex-1 p-3 sm:p-4 md:p-8 max-w-6xl mx-auto w-full focus:outline-none overflow-x-hidden">
           {children}
         </main>
       </div>

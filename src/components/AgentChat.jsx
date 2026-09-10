@@ -489,7 +489,7 @@ export default function AgentChat() {
         <button
           ref={openButtonRef}
           onClick={toggleChat}
-          className="fixed top-20 right-6 md:top-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
+          className="fixed top-20 right-4 sm:right-6 md:top-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
           aria-label="Open AI Assistant"
         >
           <MessageSquareText className="w-6 h-6" aria-hidden="true" />
@@ -497,14 +497,24 @@ export default function AgentChat() {
       )}
 
       {isOpen && (
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={dialogTitleId}
-          className="fixed top-20 right-6 md:top-6 w-[380px] h-[600px] max-h-[80vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-top-5"
-        >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
+        <>
+          {/* Mobile-only scrim: makes it unmistakable that the assistant is a
+              modal overlay sitting on top of the app, not part of the page —
+              tapping it closes the panel, same as tapping outside any sheet. */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+            onClick={closeChat}
+            aria-hidden="true"
+          />
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            className="fixed inset-0 sm:inset-auto sm:top-20 sm:right-6 sm:bottom-6 md:top-6 w-full sm:w-[380px] h-full sm:h-[600px] sm:max-h-[80vh] bg-card border border-border sm:rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-bottom-5 sm:slide-in-from-top-5"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div ref={avatarRef} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <Bot className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
@@ -767,7 +777,8 @@ export default function AgentChat() {
               </form>
             )}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </>
   );
