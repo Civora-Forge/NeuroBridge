@@ -232,6 +232,9 @@ export const FALLBACK_SCENARIOS = Object.freeze([
   },
 ]);
 
+/** Strategy id Tier 9 uses for this module's learned-personalization signals. */
+export const SOCIAL_SCENARIO_STRATEGY_ID = "asd.social-scenarios:social_scenario_simulation";
+
 /** Normalize a difficulty id; unknown values fall back to "easy". */
 export function normalizeDifficulty(difficulty) {
   return SCENARIO_DIFFICULTY_IDS.includes(difficulty) ? difficulty : "easy";
@@ -263,6 +266,10 @@ export function buildScenarioConfig({
 } = {}) {
   const normalizedCategory = normalizeCategory(category);
   const normalizedDifficulty = normalizeDifficulty(difficulty);
+  const preferredByHistory =
+    signals.preferredStrategyId === SOCIAL_SCENARIO_STRATEGY_ID;
+  const deprioritizedByHistory =
+    signals.deprioritizedStrategyId === SOCIAL_SCENARIO_STRATEGY_ID;
   return {
     category: normalizedCategory,
     categoryLabel: getScenarioCategoryById(normalizedCategory)?.label ?? "Daily Life",
@@ -271,6 +278,14 @@ export function buildScenarioConfig({
     hintsEnabled: Boolean(signals.provideHints),
     reducedCues: Boolean(signals.simplify || signals.reduceDistractions),
     slowPace: Boolean(signals.slowPace),
+    preferredByHistory,
+    deprioritizedByHistory,
+    difficultyPreference:
+      preferredByHistory && normalizedDifficulty !== "hard"
+        ? "next_level"
+        : deprioritizedByHistory && normalizedDifficulty === "hard"
+          ? "ease_down"
+          : null,
     variantSeed: Number.isFinite(variantSeed) ? Math.abs(variantSeed) : 0,
   };
 }

@@ -11,7 +11,7 @@
  *   - Isolated Evaluator Demo Drawer exposing the full adaptive pipeline.
  */
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Wind,
   Lightbulb,
@@ -25,34 +25,48 @@ import {
   Meh,
   Frown,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/AuthContext";
 import { useContextStateOptional } from "@/context/ContextProvider";
 import { useToast } from "@/hooks/use-toast";
 
 import CompanionSticker from "@/components/neurobridge/CompanionSticker";
-import AdaptiveGreeting from "@/components/neurobridge/AdaptiveGreeting";
 
 // Domain & Adaptation imports
-import {
-  EpisodeStatus,
-  AnxietyPatternType,
-  InterventionId,
-} from "./domain/anxietyTypes";
+import { InterventionId } from "./domain/anxietyTypes";
 import { deriveAnxietyState } from "./domain/anxietyStateEngine";
 import { reasonAnxietyPattern } from "./domain/anxietyReasoner";
-import { createEpisode, updateEpisode } from "./domain/anxietyEpisodeEngine";
-import { planInterventions } from "./planning/anxietyPlanner";
-import { createOutcomeRecord } from "./adaptation/anxietyOutcomeModel";
+import { rankAnxietyCandidates } from "./planning/anxietyRanker";
+
+// Engine integration imports
+import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
+import { useReflectionSignals } from "@/adaptive/reflection/useReflectionSignals";
+import { saveInterventionOutcome } from "@/support/persistence/role4Store";
+import { mapSubjectiveOutcomeToRating } from "@/adaptive/reflection/outcomeRatings";
 import {
-  recordOutcome,
-  recordDismissal,
-  loadUserOutcomes,
-} from "./adaptation/anxietyPersonalization";
+  InterventionStatus,
+  ModuleCategory,
+  OutcomeSource,
+  PrivacyLevel,
+} from "@/support/schemas/supportSchemas";
+import { ROLE4_SCHEMA_VERSION } from "@/support/schemas/storageKeys";
+
+const ANXIETY_MODULE_ID = "anxiety.hub";
+
+// Mapping between strategy IDs (Tier 9) and InterventionIds (feature-local)
+const STRATEGY_TO_INTERVENTION = {
+  [`${ANXIETY_MODULE_ID}:guided_breathing`]: InterventionId.PHYSIOLOGICAL_BREATHING,
+  [`${ANXIETY_MODULE_ID}:grounding_exercise`]: InterventionId.PHYSIOLOGICAL_GROUNDING,
+  [`${ANXIETY_MODULE_ID}:cognitive_reframe`]: InterventionId.COGNITIVE_REFRAME,
+  [`${ANXIETY_MODULE_ID}:micro_action`]: InterventionId.BEHAVIORAL_MICRO_ACTION,
+};
+
+const INTERVENTION_TO_STRATEGY = Object.fromEntries(
+  Object.entries(STRATEGY_TO_INTERVENTION).map(([strategyId, interventionId]) => [interventionId, strategyId])
+);
 
 // Intervention Execution Components
 import BreathingExecution from "./interventions/BreathingExecution";
@@ -87,11 +101,30 @@ export default function AdaptiveAnxietyEngine() {
   // Evaluator Debug Drawer
   const [showEvaluatorDrawer, setShowEvaluatorDrawer] = useState(false);
 
-  // Version tick to trigger re-planning after outcome saves
-  const [outcomesVersion, setOutcomesVersion] = useState(0);
-
   // Current snapshot to use (demo override or live passive context)
   const currentSnapshot = activeSnapshot || liveSnapshot || {};
+
+  // Reflection signals: Role 4 outcomes → strategyEffectiveness → Tier 9 input.
+  const reflection = useReflectionSignals(userId);
+
+  // Engine-driven decision for anxiety.hub. The snapshot producer must stay
+  // referentially fresh for demo overrides without re-running decide() on
+  // every render, so it reads through a ref updated with the latest snapshot.
+  const currentSnapshotRef = useRef(currentSnapshot);
+  currentSnapshotRef.current = currentSnapshot;
+
+  const adaptation = useFeatureAdaptation(ANXIETY_MODULE_ID, {
+    getAppSnapshot: () => currentSnapshotRef.current,
+    userId,
+    role4Signals: reflection.signals,
+  });
+
+  // Translate the engine's Tier-9 learned strategy references into feature
+  // InterventionIds that the ranker can apply to candidate scores.
+  const preferredInterventionId =
+    STRATEGY_TO_INTERVENTION[adaptation.signals?.preferredStrategyId] ?? null;
+  const deprioritizedInterventionId =
+    STRATEGY_TO_INTERVENTION[adaptation.signals?.deprioritizedStrategyId] ?? null;
 
   // 1. Derive Multi-Dimensional State from Passive Context + Optional Clarification
   const derivedState = useMemo(() => {
@@ -107,10 +140,15 @@ export default function AdaptiveAnxietyEngine() {
     return reasonAnxietyPattern(derivedState);
   }, [derivedState]);
 
-  // 3. Plan & Auto-Rank Interventions
+  // 3. Rank interventions from situational fit + engine Tier-9 overlay
   const planResult = useMemo(() => {
-    return planInterventions(derivedState, reasoningResult, null, userId);
-  }, [derivedState, reasoningResult, userId, outcomesVersion]);
+    return rankAnxietyCandidates({
+      state: derivedState,
+      reasoningResult,
+      preferredInterventionId,
+      deprioritizedInterventionId,
+    });
+  }, [derivedState, reasoningResult, preferredInterventionId, deprioritizedInterventionId]);
 
   // Handle Demo Scenario Click
   const handleRunDemoScenario = (scenarioRunner) => {
@@ -146,7 +184,6 @@ export default function AdaptiveAnxietyEngine() {
 
   // Handle Dismissal ("Not now" / "Keep working")
   const handleDismissPrompt = () => {
-    recordDismissal(userId, reasoningResult.pattern);
     setIsDismissed(true);
     toast({
       title: "Prompt dismissed",
@@ -168,23 +205,50 @@ export default function AdaptiveAnxietyEngine() {
     setActiveInterventionId(null);
   };
 
-  // 1-Tap Outcome Feedback ([Better] [Same] [Worse])
+  // 1-Tap Outcome Feedback ([Better] [Same] [Worse]) → Role 4 outcome with the
+  // shared rating mapping; the refreshed reflection then re-shapes the next
+  // engine decision (Tier 9 closed loop).
   const handleSelectOutcome = (subjectiveOutcome) => {
     if (!pendingOutcomeRecord) return;
 
-    const outcomeRecord = createOutcomeRecord({
+    const rating = mapSubjectiveOutcomeToRating(subjectiveOutcome);
+    const completionStatus = pendingOutcomeRecord.abandoned
+      ? "abandoned"
+      : pendingOutcomeRecord.completed
+        ? "completed"
+        : "partially_completed";
+    const now = new Date().toISOString();
+    const interventionType =
+      INTERVENTION_TO_STRATEGY[pendingOutcomeRecord.interventionId]?.split(":")[1] ??
+      pendingOutcomeRecord.interventionId;
+
+    const outcomeRecord = saveInterventionOutcome(userId, {
+      schemaVersion: ROLE4_SCHEMA_VERSION,
+      id: `anxiety-out-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       userId,
-      interventionId: pendingOutcomeRecord.interventionId,
-      patternType: pendingOutcomeRecord.patternType,
-      subjectiveOutcome,
-      completed: pendingOutcomeRecord.completed,
-      abandoned: pendingOutcomeRecord.abandoned,
-      durationSeconds: pendingOutcomeRecord.durationSeconds,
-      stateSnapshot: pendingOutcomeRecord.stateSnapshot,
+      interventionId: `anxiety-${pendingOutcomeRecord.interventionId}-${Date.now()}`,
+      moduleId: ANXIETY_MODULE_ID,
+      interventionType,
+      category: ModuleCategory.EMOTIONAL,
+      status:
+        completionStatus === "abandoned"
+          ? InterventionStatus.ABANDONED
+          : completionStatus === "completed"
+            ? InterventionStatus.COMPLETED
+            : InterventionStatus.PARTIALLY_COMPLETED,
+      source: OutcomeSource.USER_REPORT,
+      privacy: PrivacyLevel.PRIVATE,
+      completed: completionStatus === "completed",
+      durationMs: Math.max(0, Math.round(pendingOutcomeRecord.durationSeconds * 1000)),
+      rating: rating ?? undefined,
+      userFeedback: subjectiveOutcome,
+      metrics: { patternType: pendingOutcomeRecord.patternType },
+      contextSnapshot: pendingOutcomeRecord.stateSnapshot,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    recordOutcome(outcomeRecord, userId);
-    setOutcomesVersion((v) => v + 1);
+    reflection.refresh();
     setLastCompletedOutcome(outcomeRecord);
     setPendingOutcomeRecord(null);
     setSelectedClarification(null);
@@ -192,20 +256,27 @@ export default function AdaptiveAnxietyEngine() {
 
     toast({
       title: "Feedback Recorded",
-      description: `Saved "${subjectiveOutcome}" response. Personalized candidate weights updated.`,
+      description: "Saved to your history. NeuroBridge will use this to adapt future recommendations.",
     });
   };
 
   // Auto-trigger intervention if semantic clarification was selected
   const handleSelectClarification = (type) => {
     setSelectedClarification(type);
+    setActiveDemoScenario(null);
+    setActiveSnapshot(null);
     // After setting clarification, plan updates automatically; start immediately
     const tempState = deriveAnxietyState({
       contextSnapshot: currentSnapshot,
       semanticClarification: type,
     });
     const tempReasoning = reasonAnxietyPattern(tempState);
-    const tempPlan = planInterventions(tempState, tempReasoning, null, userId);
+    const tempPlan = rankAnxietyCandidates({
+      state: tempState,
+      reasoningResult: tempReasoning,
+      preferredInterventionId,
+      deprioritizedInterventionId,
+    });
     handleStartIntervention(tempPlan.recommendedIntervention.id);
   };
 
@@ -540,7 +611,7 @@ export default function AdaptiveAnxietyEngine() {
                 Personalized Adaptation Stored
               </AlertTitle>
               <AlertDescription className="text-xs text-[#6B7BA8] mt-0.5">
-                Outcome recorded for pattern <span className="font-semibold text-[#1E2A5E]">{lastCompletedOutcome.patternType}</span>. NeuroBridge will prioritize {lastCompletedOutcome.interventionId.replace(/_/g, " ")} for future matching episodes.
+                Outcome recorded for pattern <span className="font-semibold text-[#1E2A5E]">{lastCompletedOutcome.metrics?.patternType ?? "anxiety"}</span>. NeuroBridge will learn from {lastCompletedOutcome.interventionType.replace(/_/g, " ")} and adapt future recommendations.
               </AlertDescription>
             </Alert>
           )}

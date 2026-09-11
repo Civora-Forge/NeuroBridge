@@ -34,6 +34,7 @@ describe("TaskBreakdown lifecycle integration", () => {
     await waitFor(() => expect(getInterventionHistory(auth.user.id)).toHaveLength(1));
     const history = getInterventionHistory(auth.user.id)[0];
     expect(history.intervention.moduleId).toBe("support.task_breakdown");
+    expect(history.intervention.parameters).toMatchObject({ actualGeneratedStyle: "Standard", actualGeneratedStepCount: 5, priority: "Important" });
     expect(JSON.stringify(history)).not.toContain("Prepare confidential presentation");
   });
 
@@ -54,8 +55,10 @@ describe("TaskBreakdown lifecycle integration", () => {
     }
 
     await waitFor(() => expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe("completed"));
+    await screen.findByText("How helpful was this breakdown?");
     const outcome = getInterventionHistory(auth.user.id)[0].outcomes[0];
     expect(outcome.metrics).toMatchObject({ stepsCreated: 5, stepsCompleted: 5, completionRate: 1 });
+    expect(outcome.metrics.finalConfiguration).toMatchObject({ actualGeneratedStyle: "Standard", actualGeneratedStepCount: 5, priority: "Important" });
     expect(JSON.stringify(outcome)).not.toContain("Prepare confidential presentation");
   });
 

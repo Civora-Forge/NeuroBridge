@@ -16,6 +16,7 @@ import {
   SESSION_STATUS,
 } from "../types/communicationTypes";
 import { listInterventionOutcomes, saveInterventionOutcome } from "@/support/persistence/role4Store";
+import { resolveOutcomeRating } from "@/adaptive/reflection/outcomeRatings";
 import {
   InterventionStatus,
   ModuleCategory,
@@ -109,6 +110,9 @@ export async function saveSessionOutcome({ userId, session }) {
   if (!id || !session?.id) return null;
 
   const evaluation = session.evaluation ?? null;
+  const rating = resolveOutcomeRating({
+    score: Number.isFinite(evaluation?.overallScore) ? evaluation.overallScore : undefined,
+  });
   const metrics = {
     communicationScore: evaluation?.overallScore ?? null,
     dimensions: evaluation?.dimensionScores ?? {},
@@ -135,6 +139,7 @@ export async function saveSessionOutcome({ userId, session }) {
       privacy: PrivacyLevel.PRIVATE,
       completed: session.status === SESSION_STATUS.COMPLETED,
       durationMs: elapsedMs(session),
+      rating: rating ?? undefined,
       metrics,
     });
   } catch {

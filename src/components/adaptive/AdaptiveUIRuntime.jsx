@@ -266,6 +266,7 @@ export function deriveModuleAdjustments(plan) {
       actionId: action.actionId ?? null,
       reason: action.reason ?? null,
       label: MODULE_ACTION_LABELS[key] ?? "Module adapted",
+      parameters: action.parameters ?? {},
     });
   }
   return adjustments;
