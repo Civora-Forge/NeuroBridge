@@ -205,8 +205,8 @@ export async function mirrorRole4Records(userId, records = {}, { client = supaba
   }
 }
 
-export async function getRole4InterventionHistory(userId, filters = {}, options) {
-  const repository = await getRole4Repository(userId, options);
+export async function getRole4InterventionHistory(userId, filters = {}, options = {}) {
+  const repository = options.repository || await getRole4Repository(userId, options);
   const interventions = filters.moduleId
     ? await repository.listInterventionsByModule(userId, filters.moduleId)
     : await repository.listInterventions(userId);
@@ -215,5 +215,4 @@ export async function getRole4InterventionHistory(userId, filters = {}, options)
   return entries;
 }
 
-// Async repository history is used for reloading durable Focus Session data.
 export const getInterventionHistory = getRole4InterventionHistory;

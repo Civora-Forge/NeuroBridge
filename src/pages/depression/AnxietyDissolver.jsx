@@ -12,6 +12,8 @@ import { buildGroundingOutcome } from '@/support/modules/grounding/groundingServ
 import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 const techniques = [
   { title: "4-7-8 breathing", duration: 4, steps: ["Inhale quietly through your nose for 4 seconds", "Hold your breath for 7 seconds", "Exhale completely through your mouth for 8 seconds", "Repeat for 4 cycles"] },
@@ -128,6 +130,11 @@ export default function AnxietyDissolver() {
 
   const currentTechnique = orderedTechniques[activeStep];
   const currentTechniqueId = TECHNIQUE_IDS[currentTechnique.title];
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "grounding",
+    baseline: { techniques: techniques.map((technique) => technique.title), slowPacing: false },
+    applied: { techniques: orderedTechniques.map((technique) => technique.title), slowPacing: Boolean(adaptiveConfig?.slowPacing) },
+  });
 
   const startTimer = useCallback(async () => {
     if (!lifecycle.hasStarted && user?.id) { const started = await lifecycle.start(); if (!started.ok) return; startedAtRef.current = Date.now(); }
@@ -235,25 +242,7 @@ export default function AnxietyDissolver() {
                 </header>
 
                 {/* Main Practice Section */}
-                {adaptiveConfig?.active && (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-[13px] leading-relaxed backdrop-blur-sm">
-                    <p className="font-black text-emerald-900">
-                      Adapted for you:{" "}
-                      {adaptiveConfig.mode === "history_preferred"
-                        ? "grounding has worked for you before — keep the same steady pace"
-                        : adaptiveConfig.mode === "history_deprioritized"
-                        ? "if grounding hasn't been your best fit lately, another support may serve you better right now"
-                        : adaptiveConfig.mode === "breathing_first"
-                        ? "breathing practices first"
-                        : adaptiveConfig.mode === "quiet_slow_pace"
-                        ? "a quieter, slower pace"
-                        : "a softer approach"}
-                    </p>
-                    {adaptation.reason && (
-                      <p className="mt-0.5 text-emerald-900/70">{adaptation.reason}</p>
-                    )}
-                  </div>
-                )}
+                <AdaptationExplanation explanation={adaptationExplanation} />
 
                 <section className="overflow-hidden rounded-[24px] border border-emerald-200/80 bg-emerald-50/30 shadow-md shadow-slate-900/[0.02] transition-all duration-300 hover:-translate-y-1 hover:shadow-md" aria-labelledby="practice-title">
                   <div className="p-5 sm:p-6 lg:p-6">

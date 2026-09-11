@@ -12,6 +12,8 @@ import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
 import { useFeatureAdaptation } from "@/hooks/useFeatureAdaptation";
 import { useContextStateOptional } from "@/context/ContextProvider";
 import { useAuth } from "@/context/AuthContext";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 const anxietyInterventions = [
   {
@@ -65,7 +67,7 @@ function CalmCornerGlow({ bg }) {
   return <div aria-hidden="true" className={`pointer-events-none absolute -right-8 -top-8 h-[110px] w-[110px] rounded-full opacity-20 blur-2xl bg-gradient-to-br ${bg}`} />;
 }
 
-function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, accent, hint, badge, onLaunch, index, reduced, gentle }) {
+function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, accent, hint, badge, onLaunch, index, reduced, gentle, recommended }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: reduced ? 0 : 18 }}
@@ -83,7 +85,7 @@ function CalmMiniCard({ id, icon: Icon, label, description, color, border, bg, a
             <Icon size={22} strokeWidth={2.2} className="relative z-10" />
           </div>
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/80 text-[#1E2A5E] border border-[#C7D2FE]">
-            {badge}
+            {recommended ? "Recommended" : badge}
           </span>
         </div>
         <div>
@@ -156,6 +158,11 @@ export default function AnxietyPage() {
           return 0;
         })
       : anxietyInterventions;
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "anxiety",
+    baseline: { recommendations: anxietyInterventions.map((card) => card.label) },
+    applied: { recommendations: orderedInterventions.map((card) => card.label) },
+  });
 
   const heroVariants = {
     hidden: {},
@@ -227,24 +234,7 @@ export default function AnxietyPage() {
               </p>
             </motion.div>
 
-            {/* ── Adaptive calm hint ── */}
-            {adaptiveConfig?.active && (
-              <motion.div
-                initial={{ opacity: 0, y: reduced ? 0 : 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: gentle ? 0.35 : 0.4, ease: "easeOut" }}
-                className="mt-5 rounded-2xl border border-[#bfe3ff] bg-[#eef8ff] px-4 py-3 text-[13px] font-semibold text-[#1E5B8E]"
-              >
-                {adaptiveConfig.promoteBreathing
-                  ? "Adapted for you: a quick breathing exercise is ready when you are."
-                  : preferredCardId === "grounding_exercise"
-                  ? "Adapted for you: a short grounding exercise is ready when you are."
-                  : adaptiveConfig.calmReassurance
-                  ? "Adapted for you: a softer, slower pace today — no pressure."
-                  : "Adapted for you: calmer space to settle in."}
-                {adaptation.reason ? ` ${adaptation.reason}` : ""}
-              </motion.div>
-            )}
+            <AdaptationExplanation explanation={adaptationExplanation} className="mt-5" />
 
             {/* ── Interactive Anxiety Support (Role 3 Interventions) ── */}
             <motion.section
@@ -273,6 +263,7 @@ export default function AnxietyPage() {
                     index={i}
                     reduced={reduced}
                     gentle={gentle}
+                    recommended={Boolean(adaptationExplanation) && i === 0}
                     onLaunch={(id) => setActiveIntervention(id)}
                   />
                 ))}

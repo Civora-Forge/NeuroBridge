@@ -2,6 +2,8 @@ import { ArrowLeft, MessageCircle, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDomainById, DIFFICULTY_LEVELS } from "../types/communicationTypes";
 import { AsdCharacter } from "@/components/asd/ui";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 export default function ScenarioBrief({ engine }) {
   const session = engine.session;
@@ -10,6 +12,20 @@ export default function ScenarioBrief({ engine }) {
 
   const domain = getDomainById(scenario.domain);
   const difficultyLabel = DIFFICULTY_LEVELS[scenario.difficulty]?.label ?? "Moderate";
+  const requestedDifficulty = session.requestedDifficulty ?? session.difficulty;
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "conversation",
+    baseline: {
+      difficulty: requestedDifficulty,
+      hintsEnabled: DIFFICULTY_LEVELS[requestedDifficulty]?.hints === true,
+      pacing: "normal",
+    },
+    applied: {
+      difficulty: session.effectiveDifficulty,
+      hintsEnabled: session.hintsEnabled,
+      pacing: session.adaptation?.pacing ?? "normal",
+    },
+  });
 
   return (
     <div className="w-full">
@@ -20,6 +36,8 @@ export default function ScenarioBrief({ engine }) {
       >
         <ArrowLeft className="w-4 h-4" /> Change topic
       </button>
+
+      <AdaptationExplanation explanation={adaptationExplanation} className="mb-4" />
 
       <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[4px_4px_0_#D5F5EC] overflow-hidden">
         <div className="bg-gradient-to-r from-[#0D9488] to-[#06B6D4] px-4 py-4 text-white sm:px-6">

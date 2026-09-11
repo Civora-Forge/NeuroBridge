@@ -2,6 +2,8 @@ import { History, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDomainById, DIFFICULTY_LEVELS } from "../types/communicationTypes";
 import { AsdRewardStars } from "@/components/asd/ui";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 export default function SessionSummaryView({ engine }) {
   const session = engine.session;
@@ -9,6 +11,19 @@ export default function SessionSummaryView({ engine }) {
   if (!session) return null;
 
   const domain = getDomainById(session.scenario?.domain);
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "conversation",
+    baseline: {
+      difficulty: session.effectiveDifficulty ?? session.difficulty,
+      hintsEnabled: DIFFICULTY_LEVELS[session.effectiveDifficulty ?? session.difficulty]?.hints === true,
+      pacing: "normal",
+    },
+    applied: {
+      difficulty: engine.difficulty,
+      hintsEnabled: DIFFICULTY_LEVELS[engine.difficulty]?.hints === true,
+      pacing: "normal",
+    },
+  });
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-5">
@@ -30,6 +45,8 @@ export default function SessionSummaryView({ engine }) {
         )}
       </div>
 
+      <AdaptationExplanation explanation={adaptationExplanation} />
+
       <div className="rounded-2xl bg-white border border-[#B2DFDB] p-6">
         <h3 className="font-bold text-[#134E4A] mb-2">Next suggested level</h3>
         <p className="text-sm text-[#3D6A66]">
@@ -39,11 +56,6 @@ export default function SessionSummaryView({ engine }) {
           </span>{" "}
           ({engine.difficulty}/5). You can change it anytime before you start.
         </p>
-        {engine.adaptation.signals.recommendEasier && (
-          <p className="mt-2 text-sm text-teal-700">
-            A gentler level was suggested for your next session.
-          </p>
-        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
