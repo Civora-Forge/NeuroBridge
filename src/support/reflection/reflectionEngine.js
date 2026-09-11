@@ -13,8 +13,8 @@ function finiteNumber(value) {
 
 function aggregateOutcome(history, intervention) {
   const outcomes = history?.outcomes ?? [];
-  const completionOutcome = outcomes.find((outcome) =>
-    outcome.status === "completed" || outcome.status === "partially_completed",
+  const terminalOutcome = outcomes.find((outcome) =>
+    REFLECTABLE_STATUSES.has(outcome.status),
   );
   const metrics = outcomes.reduce((aggregate, outcome) => ({ ...aggregate, ...outcome.metrics }), {});
   const progressEvent = [...(history?.lifecycleEvents ?? [])]
@@ -24,10 +24,10 @@ function aggregateOutcome(history, intervention) {
   const completionRate = finiteNumber(metrics.completionRate)
     ?? finiteNumber(progress.progressRatio)
     ?? (intervention.status === "completed" ? 1 : undefined);
-  const durationMs = finiteNumber(completionOutcome?.durationMs)
+  const durationMs = finiteNumber(terminalOutcome?.durationMs)
     ?? finiteNumber(outcomes.find((outcome) => Number.isFinite(outcome.durationMs))?.durationMs);
   const rating = finiteNumber(outcomes.find((outcome) => Number.isFinite(outcome.rating))?.rating);
-  const completionStatus = completionOutcome?.status
+  const completionStatus = terminalOutcome?.status
     ?? (REFLECTABLE_STATUSES.has(intervention.status) ? intervention.status : null);
 
   return {
@@ -38,8 +38,16 @@ function aggregateOutcome(history, intervention) {
       ...(rating === undefined ? {} : { rating }),
     },
     metrics,
-    timestamp: completionOutcome?.updatedAt ?? progressEvent?.updatedAt ?? intervention.updatedAt ?? intervention.createdAt,
+    finalConfiguration: terminalOutcome?.metrics?.finalConfiguration ?? intervention.parameters,
+    timestamp: terminalOutcome?.updatedAt ?? progressEvent?.updatedAt ?? intervention.updatedAt ?? intervention.createdAt,
   };
+}
+
+function finalConfigurationForReflection(aggregated) {
+  const config = aggregated?.finalConfiguration;
+  if (!config || typeof config !== "object" || Array.isArray(config)) return {};
+  const { execution, ...rest } = config;
+  return rest;
 }
 
 function hasAggregateModuleMetrics(moduleId, metrics) {
@@ -56,7 +64,8 @@ function buildReflection(intervention, history) {
     throw new Error("Reflection requires an intervention id, moduleId, and userId");
   }
   const persistedIntervention = history?.intervention ?? intervention;
-  const { outcomeSummary, metrics, timestamp } = aggregateOutcome(history, persistedIntervention);
+  const aggregated = aggregateOutcome(history, persistedIntervention);
+  const { outcomeSummary, metrics, timestamp } = aggregated;
   if (!REFLECTABLE_STATUSES.has(outcomeSummary.completionStatus)) {
     throw new Error("Reflection requires a completed, partially completed, or abandoned intervention");
   }
@@ -89,6 +98,7 @@ function buildReflection(intervention, history) {
         hasRating: Number.isFinite(outcomeSummary.rating),
         hasModuleMetrics: hasAggregateModuleMetrics(persistedIntervention.moduleId, metrics),
       },
+      configuration: finalConfigurationForReflection(aggregated),
     },
     version: REFLECTION_VERSION,
     reflectionVersion: REFLECTION_VERSION,

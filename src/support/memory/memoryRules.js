@@ -33,13 +33,15 @@ export function buildTaskBreakdownMemoryObservations(reflections) {
     if (Number.isFinite(rating)) {
       add(observations, MemoryCategory.FEEDBACK_PATTERN, "satisfaction_band", rating >= 4 ? "high" : rating <= 2 ? "low" : "neutral", reflection);
     }
-    if (["Bare Minimum", "Standard", "Hero Mode"].includes(config.selectedStyle)) {
-      add(observations, MemoryCategory.PREFERRED_CONFIGURATION, "selected_style", config.selectedStyle, reflection);
+    const actualStyle = config.actualGeneratedStyle ?? config.selectedStyle;
+    const actualStepCount = config.actualGeneratedStepCount ?? config.requestedStepCount;
+    if (["Bare Minimum", "Standard", "Hero Mode"].includes(actualStyle)) {
+      add(observations, MemoryCategory.PREFERRED_CONFIGURATION, "selected_style", actualStyle, reflection);
       if (Number.isFinite(rating) && rating <= 2) {
-        add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, "low_satisfaction_style", config.selectedStyle, reflection);
+        add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, "low_satisfaction_style", actualStyle, reflection);
       }
     }
-    if (typeof config.requestedStepCount === "number" && config.requestedStepCount >= 6) {
+    if (typeof actualStepCount === "number" && actualStepCount >= 5) {
       add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, "high_step_count_outcome", summary.completionStatus === "abandoned" ? "abandoned" : "not_abandoned", reflection);
     }
     const timerUsed = insightValue(reflection, "task_breakdown_timer");
@@ -78,4 +80,38 @@ export function buildGentleActivityMemoryObservations(reflections) {
     if (reflection.outcomeSummary?.completionStatus === 'abandoned' && Number.isInteger(steps) && steps >= 4) add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, 'high_step_abandonment', 'observed', reflection);
   });
   return observations;
+}
+
+export function buildGroundingMemoryObservations(reflections) {
+  const observations = [];
+  reflections.forEach((reflection) => {
+    const summary = reflection.outcomeSummary ?? {};
+    const completionRate = summary.completionRate;
+    if (Number.isFinite(completionRate)) {
+      add(observations, MemoryCategory.COMPLETION_PATTERN, "grounding_completion_rate_band", completionRate >= 0.8 ? "high" : completionRate >= 0.3 ? "partial" : "low", reflection);
+    }
+    if (summary.completionStatus === "abandoned") {
+      add(observations, MemoryCategory.UNSUCCESSFUL_CONFIGURATION, "grounding_abandonment", "observed", reflection);
+    }
+  });
+  return observations;
+}
+
+export function buildCommunicationMemoryObservations(reflections) {
+  const observations = [];
+  reflections.forEach((reflection) => {
+    const summary = reflection.outcomeSummary ?? {};
+    const config = configuration(reflection);
+    if (Number.isFinite(summary.completionRate)) {
+      add(observations, MemoryCategory.COMPLETION_PATTERN, "communication_completion_rate_band", summary.completionRate >= 0.8 ? "high" : summary.completionRate >= 0.3 ? "partial" : "low", reflection);
+    }
+    if (config.modality === "text" || config.modality === "voice") {
+      add(observations, MemoryCategory.PREFERRED_CONFIGURATION, "communication_modality", config.modality, reflection);
+    }
+  });
+  return observations;
+}
+
+export function buildReadingMemoryObservations() {
+  return [];
 }
