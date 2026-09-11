@@ -32,6 +32,7 @@ import {
   getScenarioDifficultyById,
 } from "@/support/modules/socialScenarioSimulator/socialScenarioTypes";
 import {
+  SOCIAL_SCENARIO_STRATEGY_ID,
   buildScenarioConfig,
   generateScenario,
   getScenarioAttemptStats,
@@ -39,6 +40,16 @@ import {
   recordScenarioAttempt,
 } from "@/support/modules/socialScenarioSimulator/scenarioService";
 import { evaluateResponse } from "@/support/modules/socialScenarioSimulator/evaluationService";
+import { useReflectionSignals } from "@/adaptive/reflection/useReflectionSignals";
+import { resolveOutcomeRating } from "@/adaptive/reflection/outcomeRatings";
+import { saveInterventionOutcome } from "@/support/persistence/role4Store";
+import { ROLE4_SCHEMA_VERSION } from "@/support/schemas/storageKeys";
+import {
+  InterventionStatus,
+  ModuleCategory,
+  OutcomeSource,
+  PrivacyLevel,
+} from "@/support/schemas/supportSchemas";
 import {
   AsdCard,
   AsdCharacter,
@@ -73,16 +84,37 @@ function useSpeech() {
   return speak;
 }
 
+/** Pick the dominant strategy referenced by Tier 9 learned-personalization
+ *  adjustments, mirroring deriveFeatureSignals in the adaptive engine. */
+function tier9StrategyReference(adjustments, preference) {
+  const match = (adjustments ?? []).find(
+    (adj) =>
+      adj &&
+      typeof adj?.parameters?.strategyId === "string" &&
+      adj.parameters.strategyId.trim().length > 0 &&
+      adj.parameters.preference === preference,
+  );
+  return match?.parameters?.strategyId ?? null;
+}
+
 function deriveSignals(adjustments = []) {
   return {
     simplify: adjustments.some((adj) => adj.type === "SIMPLIFY" || adj.type === "REDUCE"),
     provideHints: adjustments.some((adj) => adj.type === "GUIDE"),
     slowPace: adjustments.some((adj) => adj.type === "DECREASE"),
+    preferredStrategyId: tier9StrategyReference(adjustments, "prefer"),
+    deprioritizedStrategyId: tier9StrategyReference(adjustments, "deprioritize"),
   };
 }
 
 /** Adaptations become natural coach copy, never engine jargon. */
 function friendlyAdaptationNote(signals) {
+  if (signals.deprioritizedStrategyId === SOCIAL_SCENARIO_STRATEGY_ID) {
+    return "A lighter practice today — take it at your own pace.";
+  }
+  if (signals.preferredStrategyId === SOCIAL_SCENARIO_STRATEGY_ID) {
+    return "Your practice has been going well — try a step up when you're ready.";
+  }
   if (signals.simplify) return "Let's try a simpler situation.";
   if (signals.slowPace) return "We'll take this one slowly — no rush.";
   if (signals.provideHints) return "Clues are switched on for now.";
@@ -116,6 +148,7 @@ export default function SocialScenarioSimulatorCard() {
   const { reduced, gentle } = useSensoryReducedMotion();
   const { style } = useASDVisualStyle();
   const playful = style === "younger";
+  const reflection = useReflectionSignals(userId);
 
   const [category, setCategory] = useState("daily_life");
   const [difficulty, setDifficulty] = useState("easy");
@@ -152,6 +185,7 @@ export default function SocialScenarioSimulatorCard() {
     getSnapshot,
     userId,
     userPreferences,
+    role4Signals: reflection.signals,
   });
 
   const signals = useMemo(() => deriveSignals(adaptation.adjustments), [adaptation.adjustments]);
@@ -246,11 +280,42 @@ export default function SocialScenarioSimulatorCard() {
       response,
       voiceUsed: Boolean(voiceCapture),
     });
+
+    const rating = resolveOutcomeRating({
+      score: Number.isFinite(evaluation.score) ? evaluation.score : undefined,
+    });
+    const now = new Date().toISOString();
+    saveInterventionOutcome(userId, {
+      schemaVersion: ROLE4_SCHEMA_VERSION,
+      id: `scenario-out-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      interventionId: `scenario-${scenario.id ?? "round"}-${Date.now()}`,
+      moduleId: SOCIAL_SCENARIO_MODULE_ID,
+      interventionType: "social_scenario_simulation",
+      category: ModuleCategory.SPECIALIZED,
+      status: InterventionStatus.COMPLETED,
+      source: OutcomeSource.MODULE_EVENT,
+      privacy: PrivacyLevel.PRIVATE,
+      completed: true,
+      rating: rating ?? undefined,
+      metrics: {
+        score: evaluation.score ?? null,
+        difficulty: scenario.difficulty ?? null,
+        category: scenario.category ?? null,
+        scenarioId: scenario.id ?? null,
+        usedAi: evaluation.usedAi === true,
+        voiceUsed: Boolean(voiceCapture),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    reflection.refresh();
+
     recordEvent(PROGRESS_EVENTS.SCENARIO_PRACTISED);
     refreshStats();
-  }, [scenario, response, voiceCapture, config, apiKey, userId, refreshStats, recordEvent]);
+  }, [scenario, response, voiceCapture, config, apiKey, userId, refreshStats, recordEvent, reflection]);
 
-  const showCues = config.hintsEnabled || result;
+  const showCues = config.hintsEnabled || result || config.deprioritizedByHistory;
   const cuesToShow = showCues
     ? config.reducedCues
       ? scenario?.cues?.slice(0, 2)

@@ -33,6 +33,10 @@ import { deriveModuleAdjustments } from "@/components/adaptive/AdaptiveUIRuntime
  * @param {string} [options.userId]
  * @param {boolean} [options.enabled] - Override for the runtime flag.
  * @param {object} [options.userPreferences]
+ * @param {object} [options.role4Signals] - Explicit `role4Signals` override
+ *   (e.g. the `{ strategyEffectiveness, supportEvidence }` fragment produced by
+ *   `useReflectionSignals`). Takes precedence over the userId-driven read path;
+ *   pass a stable reference (memoized value) to avoid identity churn.
  */
 export function useModuleAdaptation({
   moduleId,
@@ -41,6 +45,7 @@ export function useModuleAdaptation({
   userId,
   enabled: enabledOverride,
   userPreferences,
+  role4Signals,
 }) {
   const snapshotProducer =
     typeof getSnapshot === "function" ? getSnapshot : getAppSnapshot;
@@ -51,6 +56,7 @@ export function useModuleAdaptation({
     userId,
     enabled: enabledOverride,
     userPreferences,
+    role4Signals,
   });
 
   const moduleActions = useMemo(() => {

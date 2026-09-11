@@ -48,6 +48,23 @@ const SIMPLE_ACTION_TYPES = [
   "MODIFY",
 ];
 
+/**
+ * Pick the dominant strategy referenced by Tier 9 learned-personalization
+ * adjustments. Contradictory rules cannot both win per target (the engine
+ * resolves a single deterministic winner), so at most one prefer and one
+ * deprioritize strategy can be present here.
+ */
+function tier9StrategyReference(adjustments, preference) {
+  const match = (adjustments ?? []).find(
+    (adj) =>
+      adj &&
+      typeof adj?.parameters?.strategyId === "string" &&
+      adj.parameters.strategyId.trim().length > 0 &&
+      adj.parameters.preference === preference,
+  );
+  return match?.parameters?.strategyId ?? null;
+}
+
 /** Fold a module-scoped adjustment list into boolean signals. */
 export function deriveFeatureSignals(adjustments = []) {
   const has = (types) =>
@@ -63,6 +80,8 @@ export function deriveFeatureSignals(adjustments = []) {
     guide: has(["GUIDE"]),
     reorder: has(["REORDER"]),
     modify: has(["MODIFY"]),
+    preferredStrategyId: tier9StrategyReference(adjustments, "prefer"),
+    deprioritizedStrategyId: tier9StrategyReference(adjustments, "deprioritize"),
     active: (adjustments?.length ?? 0) > 0,
   };
 }
@@ -221,16 +240,20 @@ export function buildGentleActivityConfig({
 } = {}) {
   const slow = Boolean(signals.slowPace);
   const small = Boolean(signals.simplify || signals.decompose);
+  const endorsed = signals.preferredStrategyId === "support.gentle_activity:behavioral_activation";
+  const discouraged = signals.deprioritizedStrategyId === "support.gentle_activity:behavioral_activation";
 
   const visibleSteps = small ? clamp(Math.max(3, totalSteps - 2), 3, totalSteps) : totalSteps;
 
   return {
     active: (signals?.active ?? false) || slow || small,
-    mode: slow ? "gentle_slow_pace" : small ? "reduced_step_scope" : "normal",
+    mode: slow ? "gentle_slow_pace" : small ? "reduced_step_scope" : endorsed ? "history_preferred" : discouraged ? "history_deprioritized" : "normal",
     pacingHint: slow ? "slower" : "gentle",
     visibleSteps,
     reducedScope: small,
     reassureCopy: small || slow,
+    endorsedByHistory: endorsed,
+    discouragedByHistory: discouraged,
   };
 }
 
@@ -247,6 +270,20 @@ const DEFAULT_ANXIETY_INTERVENTION = "guided_breathing";
  * `reducedStimulation` maps onto the sensory motion flag consumed by the page
  * for low-stimulation rendering.
  */
+/**
+ * Anxiety configuration.
+ *
+ * Adapted surface (`AnxietyPage`): the Tier 9 learned-personalization
+ * preference (`signals.preferredStrategyId`) drives which intervention card is
+ * promoted to the front of the support grid; legacy guidance/slow-pace signals
+ * (`guide`, `slowPace`, `simplify`) still map onto the calm/quiet UX. Only
+ * intervention types that exist as hub cards are mapped.
+ */
+const ANXIETY_STRATEGY_TO_CARD = {
+  "anxiety.hub:guided_breathing": "guided_breathing",
+  "anxiety.hub:grounding_exercise": "grounding_exercise",
+};
+
 export function buildAnxietyConfig({
   signals = {},
   recommendedIntervention = DEFAULT_ANXIETY_INTERVENTION,
@@ -254,14 +291,15 @@ export function buildAnxietyConfig({
   const guide = Boolean(signals.guide);
   const slow = Boolean(signals.slowPace);
   const simplify = Boolean(signals.simplify);
+  const preferredCard = ANXIETY_STRATEGY_TO_CARD[signals.preferredStrategyId] ?? null;
 
-  const effectiveIntervention = guide ? "guided_breathing" : recommendedIntervention;
+  const effectiveIntervention = preferredCard ?? (guide ? "guided_breathing" : recommendedIntervention);
 
   return {
-    active: (signals?.active ?? false) || guide || slow,
+    active: (signals?.active ?? false) || guide || slow || Boolean(preferredCard),
     mode: slow ? "slow_paced_calm" : simplify ? "reduced_stimulation" : guide ? "promote_breathing" : "normal",
     recommendedIntervention: effectiveIntervention,
-    promoteBreathing: guide,
+    promoteBreathing: guide || effectiveIntervention === "guided_breathing",
     reducedStimulation: simplify || slow,
     calmReassurance: guide || slow,
   };
@@ -328,15 +366,19 @@ export function buildGroundingConfig({
   const guide = Boolean(signals.guide);
   const slow = Boolean(signals.slowPace);
   const simplify = Boolean(signals.simplify);
+  const endorsed = signals.preferredStrategyId === "support.grounding:grounding";
+  const discouraged = signals.deprioritizedStrategyId === "support.grounding:grounding";
 
   return {
     active: (signals?.active ?? false) || guide || slow,
-    mode: guide ? "breathing_first" : slow ? "quiet_slow_pace" : simplify ? "reduced_stimulation" : "normal",
+    mode: guide ? "breathing_first" : slow ? "quiet_slow_pace" : simplify ? "reduced_stimulation" : endorsed ? "history_preferred" : discouraged ? "history_deprioritized" : "normal",
     breathingFirst: guide,
     guidedBreathing: guide,
     slowPacing: slow,
     breathingTechniqueIds: guide ? breathingTechniqueIds : [],
     reassureCopy: guide || slow,
+    endorsedByHistory: endorsed,
+    discouragedByHistory: discouraged,
   };
 }
 

@@ -32,6 +32,7 @@ import {
   saveSessionOutcome,
 } from "../services/sessionHistory";
 import { useCommunicationAdaptation } from "./useCommunicationAdaptation";
+import { useReflectionSignals } from "@/adaptive/reflection/useReflectionSignals";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
 import { useASDPracticeCounts, PROGRESS_EVENTS } from "@/components/asd/ui";
 
@@ -68,6 +69,7 @@ export function useSocialCommunication() {
   const [historyStats, setHistoryStats] = useState(null);
   const [a11y, setA11y] = useState(loadA11y);
   const { recordEvent: recordPracticeEvent } = useASDPracticeCounts(userId);
+  const reflection = useReflectionSignals(userId);
 
   const userPreferences = useMemo(
     () => buildUserPreferencesFragment(user),
@@ -79,6 +81,7 @@ export function useSocialCommunication() {
     user,
     session,
     userPreferences,
+    role4Signals: reflection.signals,
   });
 
   const apiKey = getGeminiApiKey();
@@ -192,11 +195,12 @@ export function useSocialCommunication() {
       if (userId) {
         await saveSessionOutcome({ userId, session: completed });
         clearActiveSession(userId);
+        reflection.refresh();
         refreshHistory();
       }
       setView(COMMUNICATION_VIEWS.FEEDBACK);
     },
-    [apiKey, userId, refreshHistory, recordPracticeEvent],
+    [apiKey, userId, refreshHistory, recordPracticeEvent, reflection],
   );
 
   const submitReply = useCallback(
@@ -264,6 +268,9 @@ export function useSocialCommunication() {
       current: session?.difficulty ?? difficulty,
       scores,
       recommendEasier: adaptation.signals.recommendEasier,
+      recommendProgress: adaptation.signals.recommendProgress,
+      preferredStrategyId: adaptation.signals.preferredStrategyId,
+      deprioritizedStrategyId: adaptation.signals.deprioritizedStrategyId,
     });
     setDifficulty(next.difficulty);
     setView(COMMUNICATION_VIEWS.SUMMARY);

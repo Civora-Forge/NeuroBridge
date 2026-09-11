@@ -9,6 +9,7 @@
  * overrides towards easier within the same bounds.
  */
 
+import { COMMUNICATION_STRATEGY_ID } from "../types/communicationTypes";
 import { DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY } from "../types/communicationTypes";
 
 const RAISE_THRESHOLD = 80;
@@ -20,13 +21,23 @@ function asScore(value) {
 }
 
 /**
- * @param {{ current?: number, scores?: number[], recommendEasier?: boolean }} input
+ * @param {{
+ *   current?: number,
+ *   scores?: number[],
+ *   recommendEasier?: boolean,
+ *   recommendProgress?: boolean,
+ *   preferredStrategyId?: string|null,
+ *   deprioritizedStrategyId?: string|null,
+ * }} input
  * @returns {{ difficulty: number, reason: string, changed: boolean }}
  */
 export function computeNextDifficulty({
   current = DEFAULT_DIFFICULTY,
   scores = [],
   recommendEasier = false,
+  recommendProgress = false,
+  preferredStrategyId = null,
+  deprioritizedStrategyId = null,
 } = {}) {
   const base = Number.isInteger(current) && current >= MIN_DIFFICULTY && current <= MAX_DIFFICULTY
     ? current
@@ -34,8 +45,15 @@ export function computeNextDifficulty({
 
   const recent = (Array.isArray(scores) ? scores : []).map(asScore).filter((score) => score !== null);
 
-  if (recommendEasier && base > MIN_DIFFICULTY) {
+  const endorsedByHistory = preferredStrategyId === COMMUNICATION_STRATEGY_ID;
+  const discouragedByHistory = deprioritizedStrategyId === COMMUNICATION_STRATEGY_ID;
+
+  if ((recommendEasier || discouragedByHistory) && !endorsedByHistory && base > MIN_DIFFICULTY) {
     return { difficulty: base - 1, reason: "engine_recommendation", changed: true };
+  }
+
+  if ((recommendProgress || endorsedByHistory) && base < MAX_DIFFICULTY) {
+    return { difficulty: base + 1, reason: "engine_progression", changed: true };
   }
 
   if (recent.length < MIN_EVALUATIONS_TO_ADJUST) {

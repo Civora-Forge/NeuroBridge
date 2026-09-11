@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef, useState } from "react";
-import { ArrowRight, CheckCircle2, ChevronRight, Info, Leaf, RotateCcw, ShieldCheck, Sparkles, Sprout } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronRight, Frown, Info, Leaf, Meh, RotateCcw, ShieldCheck, Smile, Sparkles, Sprout } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
+import { useReflectionSignals } from '@/adaptive/reflection/useReflectionSignals';
 import { useContextStateOptional } from '@/context/ContextProvider';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gentleActivityService';
@@ -72,14 +73,17 @@ function EnergyPicker({ label, value, onChange }) {
 export default function MVHProtocol() {
   const { user } = useAuth();
   const context = useContextStateOptional()?.context ?? null;
+  const reflection = useReflectionSignals(user?.id ?? null);
   const adaptation = useFeatureAdaptation("support.gentle_activity", {
     getAppSnapshot: () => context,
     userId: user?.id ?? null,
+    role4Signals: reflection.signals,
   });
   const adaptiveConfig = adaptation.configuration;
   const [step, setStep] = useState(0);
   const [energyBefore, setEnergyBefore] = useState(null);
   const [energyAfter, setEnergyAfter] = useState(null);
+  const [subjective, setSubjective] = useState(null);
   const startedAtRef = useRef(null);
   const completedRef = useRef(false);
 
@@ -105,7 +109,9 @@ export default function MVHProtocol() {
     if (completedSteps === effectiveTotalSteps) {
       if (user?.id && !completedRef.current) {
         completedRef.current = true;
-        await lifecycle.complete(buildGentleActivityOutcome({ configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps }, completedSteps, energyBefore, energyAfter, startedAt: startedAtRef.current }));
+        const completed = await lifecycle.complete(buildGentleActivityOutcome({ configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps }, completedSteps, energyBefore, energyAfter, startedAt: startedAtRef.current, subjective }));
+        if (completed.ok) reflection.refresh();
+        setSubjective(null);
       }
       setStep(0);
       lifecycle.reset();
@@ -118,6 +124,7 @@ export default function MVHProtocol() {
   const reset = async () => {
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.abandon('user_reset', {}, buildGentleActivityOutcome({ configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps }, completedSteps: step, energyBefore, energyAfter, startedAt: startedAtRef.current }));
     setStep(0);
+    setSubjective(null);
     lifecycle.reset();
   };
 
@@ -181,7 +188,11 @@ export default function MVHProtocol() {
                 {/* Main Step Display Card */}
                 {adaptiveConfig?.active && (
                   <p className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-[13px] font-semibold text-emerald-800">
-                    {adaptiveConfig.visibleSteps && adaptiveConfig.visibleSteps < steps.length
+                    {adaptiveConfig.mode === "history_preferred"
+                      ? "Adapted for you: gentle activity has helped before — keep that rhythm."
+                      : adaptiveConfig.mode === "history_deprioritized"
+                      ? "Adapted for you: if this hasn't been your best fit lately, another support may serve you better right now."
+                      : adaptiveConfig.visibleSteps && adaptiveConfig.visibleSteps < steps.length
                       ? "Adapted for you: a shorter, gentler session — fewer steps today."
                       : "Adapted for you: gentle pacing — no need to rush."}
                     {adaptation.reason ? ` ${adaptation.reason}` : ""}
@@ -237,6 +248,33 @@ export default function MVHProtocol() {
 
                 {/* Primary Action & Controls */}
                 <div className="space-y-4">
+                  {isComplete && (
+                    <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/40 p-4">
+                      <p className="text-[12px] font-black uppercase tracking-[.14em] text-emerald-900">
+                        How did that feel? (optional)
+                      </p>
+                      <div className="mt-3 flex items-center gap-2">
+                        {[{ value: "better", icon: Smile, label: "Better" }, { value: "same", icon: Meh, label: "Same" }, { value: "worse", icon: Frown, label: "Worse" }].map((option) => {
+                          const isSelected = subjective === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setSubjective(isSelected ? null : option.value)}
+                              className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-[13px] font-extrabold transition-all ${
+                                isSelected
+                                  ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
+                              }`}
+                            >
+                              <option.icon size={16} />
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <button 
                     type="button"
                     onClick={next}
