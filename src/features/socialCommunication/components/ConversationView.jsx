@@ -104,7 +104,7 @@ export default function ConversationView({ engine }) {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="overflow-hidden rounded-2xl border-2 border-[#B2DFDB] shadow-[3px_3px_0_#D5F5EC]">
-        <div className="flex items-center justify-between gap-3 border-b-2 border-[#B2DFDB] bg-white/80 px-4 py-2.5 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#B2DFDB] bg-white/80 px-3 py-2.5 backdrop-blur sm:gap-3 sm:px-4">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
               <AsdCharacter size={38} ariaHidden tone="cyan" accessory="cloud" />
@@ -135,18 +135,18 @@ export default function ConversationView({ engine }) {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button variant="outline" size="sm" className="border-[#B2DFDB] text-[#134E4A] h-8" onClick={isPaused ? engine.resume : engine.pause}>
-              {isPaused ? <Play className="w-3.5 h-3.5 mr-1.5" /> : <Pause className="w-3.5 h-3.5 mr-1.5" />}
-              {isPaused ? "Resume" : "Pause"}
+              {isPaused ? <Play className="w-3.5 h-3.5 sm:mr-1.5" /> : <Pause className="w-3.5 h-3.5 sm:mr-1.5" />}
+              <span className="hidden sm:inline">{isPaused ? "Resume" : "Pause"}</span>
             </Button>
             <Button variant="outline" size="sm" className="border-[#B2DFDB] text-[#134E4A] h-8" onClick={engine.endEarly}>
-              <Square className="w-3.5 h-3.5 mr-1.5" /> End practice
+              <Square className="w-3.5 h-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">End practice</span>
             </Button>
           </div>
         </div>
 
       <div
         ref={scrollRef}
-        className="asd-chat-scroll h-[380px] overflow-y-auto bg-gradient-to-b from-[#F0FAF7] to-[#E6F7F2] p-4 space-y-3"
+        className="asd-chat-scroll h-[300px] overflow-y-auto bg-gradient-to-b from-[#F0FAF7] to-[#E6F7F2] p-3 space-y-3 sm:h-[380px] sm:p-4"
       >
         {scenario?.title && (
           <div className="flex justify-center pb-1">

@@ -82,10 +82,9 @@ const CircularProgress = ({ progress, children }) => {
 
   return (
     <div
-      className="relative flex items-center justify-center"
-      style={{ width: size, height: size }}
+      className="relative flex h-[170px] w-[170px] items-center justify-center sm:h-[200px] sm:w-[200px] lg:h-[225px] lg:w-[225px]"
     >
-      <svg width={size} height={size} className="absolute -rotate-90 transform">
+      <svg viewBox={`0 0 ${size} ${size}`} className="absolute h-full w-full -rotate-90 transform">
         <circle
           cx={size / 2}
           cy={size / 2}

@@ -40,21 +40,21 @@ export default function SocialCommunicationPage() {
           engine.a11y.reduceMotion ? "[&_*]:transition-none" : ""
         }`}
       >
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-3 py-4 sm:px-4 sm:py-6">
           <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
               <Link
                 to="/asd"
                 aria-label="Back to the ASD hub"
-                className="w-9 h-9 rounded-[10px] bg-white border-2 border-[#B2DFDB] flex items-center justify-center text-[#5F8A87] shadow-[2px_2px_0_#D5F5EC] hover:text-[#0D9488] hover:border-[#0D9488] transition-colors"
+                className="w-9 h-9 shrink-0 rounded-[10px] bg-white border-2 border-[#B2DFDB] flex items-center justify-center text-[#5F8A87] shadow-[2px_2px_0_#D5F5EC] hover:text-[#0D9488] hover:border-[#0D9488] transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
               </Link>
-              <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-gradient-to-br from-[#67E8F9] to-[#0891B2] text-white shadow-[2px_2px_0_#A5F3FC]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-gradient-to-br from-[#67E8F9] to-[#0891B2] text-white shadow-[2px_2px_0_#A5F3FC]">
                 <MessagesSquare size={16} />
               </span>
               <div>
-                <h1 className={`font-black text-[#134E4A] ${engine.a11y.largeText ? "text-2xl" : "text-xl"}`}>
+                <h1 className={`font-black text-[#134E4A] ${engine.a11y.largeText ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"}`}>
                   Conversation Practice
                 </h1>
                 <p className="text-sm text-[#5F8A87] flex items-center gap-1">
@@ -63,7 +63,7 @@ export default function SocialCommunicationPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
                 <Label htmlFor="a11y-large" className="text-xs text-[#5F8A87]">Large text</Label>
                 <Switch

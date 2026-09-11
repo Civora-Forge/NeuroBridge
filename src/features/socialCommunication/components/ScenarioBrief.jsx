@@ -22,8 +22,8 @@ export default function ScenarioBrief({ engine }) {
       </button>
 
       <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[4px_4px_0_#D5F5EC] overflow-hidden">
-        <div className="bg-gradient-to-r from-[#0D9488] to-[#06B6D4] px-6 py-4 text-white">
-          <div className="flex items-center justify-between gap-2">
+        <div className="bg-gradient-to-r from-[#0D9488] to-[#06B6D4] px-4 py-4 text-white sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-black text-lg">{scenario.title}</h2>
             <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
               {domain?.label ?? scenario.domain}
@@ -32,7 +32,7 @@ export default function ScenarioBrief({ engine }) {
           <p className="text-sm text-teal-50 mt-1">Level: {difficultyLabel}</p>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 space-y-5 sm:p-6">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wide text-[#3D6A66] mb-1">Setting</h3>
             <p className="text-[#134E4A]">{scenario.setting}</p>
@@ -65,7 +65,7 @@ export default function ScenarioBrief({ engine }) {
           </div>
         </div>
 
-        <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3">
+        <div className="px-4 pb-4 flex flex-col gap-3 sm:flex-row sm:px-6 sm:pb-6">
           <Button className="flex-1" size="lg" disabled={engine.busy} onClick={engine.begin}>
             <Sparkles className="w-4 h-4 mr-2" /> Start conversation
           </Button>

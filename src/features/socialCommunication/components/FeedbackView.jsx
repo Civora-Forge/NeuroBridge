@@ -18,7 +18,7 @@ export default function FeedbackView({ engine }) {
 
   return (
     <div className="w-full space-y-5">
-      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[3px_3px_0_#D5F5EC] p-6 text-center">
+      <div className="rounded-2xl bg-white border-2 border-[#B2DFDB] shadow-[3px_3px_0_#D5F5EC] p-4 sm:p-6 text-center">
         <p className="text-xs font-bold uppercase tracking-wide text-[#3D6A66] mb-1">Overall</p>
         <p className={`font-black text-[#0D9488] ${engine.a11y.largeText ? "text-5xl" : "text-4xl"}`}>
           {evaluation.overallScore}
@@ -32,7 +32,7 @@ export default function FeedbackView({ engine }) {
         </p>
       </div>
 
-      <div className="rounded-2xl bg-white border border-[#B2DFDB] p-6 space-y-4">
+      <div className="rounded-2xl bg-white border border-[#B2DFDB] p-4 sm:p-6 space-y-4">
         <h3 className={`font-bold text-[#134E4A] ${engine.a11y.largeText ? "text-xl" : ""}`}>How it went</h3>
         {evaluation.dimensions.map((dimension) => (
           <div key={dimension.id}>
@@ -51,7 +51,7 @@ export default function FeedbackView({ engine }) {
       </div>
 
       {feedback.sections.map((section) => (
-        <div key={section.id} className="rounded-2xl bg-white border border-[#B2DFDB] p-6">
+        <div key={section.id} className="rounded-2xl bg-white border border-[#B2DFDB] p-4 sm:p-6">
           <h3 className={`font-bold text-[#134E4A] mb-3 flex items-center gap-2 ${engine.a11y.largeText ? "text-xl" : ""}`}>
             {section.id === "what_worked" ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />

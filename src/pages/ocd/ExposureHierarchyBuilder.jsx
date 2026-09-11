@@ -468,7 +468,7 @@ export default function ExposureHierarchyBuilder() {
         </div>
 
         {/* What is this / why — orientation, not decoration */}
-        <div className="flex items-end gap-3 mb-10 bg-white/60 backdrop-blur-md rounded-[24px] px-6 py-5 border border-white shadow-sm">
+        <div className="flex flex-col items-start gap-4 mb-10 bg-white/60 backdrop-blur-md rounded-[24px] px-4 py-5 border border-white shadow-sm sm:flex-row sm:items-end sm:gap-3 sm:px-6">
           <div className="flex items-end gap-1.5">
             {[
               { label: 'Easier', color: 'bg-emerald-400', h: 'h-8' },
@@ -476,12 +476,12 @@ export default function ExposureHierarchyBuilder() {
               { label: 'Harder', color: 'bg-rose-400', h: 'h-20' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center gap-1.5 group">
-                <div className={`w-14 md:w-16 ${s.h} ${s.color} rounded-t-xl opacity-90 shadow-sm transition-transform group-hover:-translate-y-1`} />
+                <div className={`w-11 md:w-16 ${s.h} ${s.color} rounded-t-xl opacity-90 shadow-sm transition-transform group-hover:-translate-y-1`} />
                 <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">{s.label}</span>
               </div>
             ))}
           </div>
-          <div className="ml-6 border-l-2 border-slate-200/60 pl-6 py-2">
+          <div className="sm:ml-6 sm:border-l-2 border-slate-200/60 sm:pl-6 py-2">
             <p className="text-sm text-slate-600 leading-relaxed">
               This helps you plan gradual ERP practice, easiest steps first.<br />
               <span className="font-black text-slate-800">It's a working guide, not a perfect measurement — you can edit it anytime.</span>
@@ -513,7 +513,7 @@ export default function ExposureHierarchyBuilder() {
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="overflow-hidden"
               >
-                <div className="bg-white border-2 border-teal-200/60 rounded-[24px] p-7 shadow-lg shadow-teal-100/50">
+                <div className="bg-white border-2 border-teal-200/60 rounded-[24px] p-4 shadow-lg shadow-teal-100/50 sm:p-7">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-xl font-black text-slate-800">Create New Hierarchy</h3>
                     <button

@@ -56,7 +56,7 @@ export default function ActivitySetup({ engine }) {
             <Zap className="w-3.5 h-3.5" /> Suggested: {DIFFICULTY_LEVELS[engine.difficulty]?.label ?? "Moderate"}
           </span>
         </div>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {DIFFICULTY_IDS.map((level) => (
             <button
               key={level}

@@ -96,7 +96,7 @@ function TrendRow({ bucket, color }) {
   );
 
   return (
-    <div className="grid grid-cols-[68px_minmax(100px,1fr)_auto] items-center gap-3">
+    <div className="grid grid-cols-[56px_minmax(60px,1fr)_auto] items-center gap-2 sm:grid-cols-[68px_minmax(100px,1fr)_auto] sm:gap-3">
       <span className="text-[11px] font-extrabold text-[#5e6276]">
         {bucket.label}
       </span>
@@ -134,7 +134,7 @@ function HistoryList({ sessions }) {
       {sessions.slice(0, 8).map((session) => (
         <div
           key={session.id}
-          className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 rounded-xl border border-[#eee9fa] bg-gradient-to-r from-[#faf8ff] to-[#f8fbf6] px-3 py-2 text-[9.5px] text-[#64617b]"
+          className="grid grid-cols-2 items-center gap-x-2 gap-y-1 rounded-xl border border-[#eee9fa] bg-gradient-to-r from-[#faf8ff] to-[#f8fbf6] px-3 py-2 text-[9.5px] text-[#64617b] sm:grid-cols-[auto_auto_1fr_auto] sm:gap-y-2"
         >
           <span>{formatDate(session.timestamp)}</span>
 
@@ -1166,14 +1166,14 @@ const TaskBreakdown = ({
                     Clear the runway
                   </div>
 
-                  <h1 className="mt-2.5 text-[43px] font-black leading-[0.95] tracking-[-0.045em] text-[#1d2033]">
+                  <h1 className="mt-2.5 text-[32px] font-black leading-[0.95] tracking-[-0.045em] text-[#1d2033] sm:text-[38px] lg:text-[43px]">
                     Task{" "}
                     <span className="text-[#69aa65]">
                       breakdown
                     </span>
                   </h1>
 
-                  <p className="mt-2 text-[15px] font-medium text-[#455067]">
+                  <p className="mt-2 text-[13px] font-medium text-[#455067] sm:text-[15px]">
                     Big task? We'll make it feel a little lighter!
                   </p>
 
@@ -1211,7 +1211,7 @@ const TaskBreakdown = ({
                   </div>
                 </header>
 
-                <section className="relative overflow-hidden rounded-[25px] border border-[#d3e6cf] bg-gradient-to-br from-white via-[#fefffc] to-[#f8fff4] px-[22px] py-[20px] shadow-[0_9px_22px_rgba(77,130,73,0.05)]">
+                <section className="relative overflow-hidden rounded-[25px] border border-[#d3e6cf] bg-gradient-to-br from-white via-[#fefffc] to-[#f8fff4] px-4 py-4 shadow-[0_9px_22px_rgba(77,130,73,0.05)] sm:px-[22px] sm:py-[20px]">
                   <div className="absolute -left-[22px] top-[12px] h-[46px] w-[46px] rounded-full border-[4px] border-[#e5efb4]" />
 
                   <Cloud
@@ -1674,7 +1674,7 @@ const TaskBreakdown = ({
                           className="pointer-events-none absolute right-14 top-2 text-[#f2d66e]"
                         />
 
-                        <div className="relative flex items-center justify-between gap-3">
+                        <div className="relative flex flex-wrap items-center justify-between gap-3">
                           <span className="inline-flex items-center gap-2 font-mono text-sm font-black text-[#765a0e]">
                             <Clock3 size={16} />
                             {timerDisplay}
