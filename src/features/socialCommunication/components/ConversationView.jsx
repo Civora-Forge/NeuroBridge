@@ -3,11 +3,13 @@ import { motion } from "framer-motion";
 import { Lightbulb, MessagesSquare, Mic, MicOff, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SESSION_STATUS, SPEAKER, RESPONSE_SOURCE } from "../types/communicationTypes";
+import { DIFFICULTY_LEVELS, SESSION_STATUS, SPEAKER, RESPONSE_SOURCE } from "../types/communicationTypes";
 import { extractSpeechFeatures } from "../services/speechAnalysis";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { AsdCharacter, AsdChip } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 function MessageBubble({ turn, largeText, kind = "teal" }) {
   const isUser = turn.speaker === SPEAKER.USER;
@@ -100,6 +102,20 @@ export default function ConversationView({ engine }) {
   };
 
   const npcName = scenario?.npc?.name ?? "Alex";
+  const requestedDifficulty = session?.requestedDifficulty ?? session?.difficulty;
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "conversation",
+    baseline: {
+      difficulty: requestedDifficulty,
+      hintsEnabled: DIFFICULTY_LEVELS[requestedDifficulty]?.hints === true,
+      pacing: "normal",
+    },
+    applied: {
+      difficulty: session?.effectiveDifficulty,
+      hintsEnabled: session?.hintsEnabled,
+      pacing: session?.adaptation?.pacing ?? "normal",
+    },
+  });
 
   return (
     <div className="w-full flex flex-col gap-4">
@@ -179,15 +195,7 @@ export default function ConversationView({ engine }) {
       </div>
       </div>
 
-      {engine.adaptation.active && (
-        <div className="rounded-xl border-2 border-[#B2DFDB] bg-[#F0FAF7] px-4 py-2.5 text-sm text-[#0F766E]">
-          <span className="font-black text-[#0D9488]">Support is on — </span>
-          {engine.adaptation.signals.slowPace ? "taking it at a relaxed pace. " : ""}
-          {engine.adaptation.signals.provideHints ? "Hints are available. " : ""}
-          {engine.adaptation.signals.reduceDistractions ? "Distractions are reduced. " : ""}
-          You can adjust settings on the setup screen any time.
-        </div>
-      )}
+      <AdaptationExplanation explanation={adaptationExplanation} />
 
       {voice.supported && voice.error && (
         <div className="rounded-xl border-2 border-[#FDE68A] bg-[#FFFBEB] px-4 py-2.5 text-sm text-[#B45309]">

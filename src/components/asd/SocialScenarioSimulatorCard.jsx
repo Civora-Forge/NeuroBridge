@@ -65,6 +65,8 @@ import {
   PROGRESS_EVENTS,
 } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 function useSpeech() {
   const speak = useCallback((text, rate = 0.95, pitch = 1.05) => {
@@ -105,20 +107,6 @@ function deriveSignals(adjustments = []) {
     preferredStrategyId: tier9StrategyReference(adjustments, "prefer"),
     deprioritizedStrategyId: tier9StrategyReference(adjustments, "deprioritize"),
   };
-}
-
-/** Adaptations become natural coach copy, never engine jargon. */
-function friendlyAdaptationNote(signals) {
-  if (signals.deprioritizedStrategyId === SOCIAL_SCENARIO_STRATEGY_ID) {
-    return "A lighter practice today — take it at your own pace.";
-  }
-  if (signals.preferredStrategyId === SOCIAL_SCENARIO_STRATEGY_ID) {
-    return "Your practice has been going well — try a step up when you're ready.";
-  }
-  if (signals.simplify) return "Let's try a simpler situation.";
-  if (signals.slowPace) return "We'll take this one slowly — no rush.";
-  if (signals.provideHints) return "Clues are switched on for now.";
-  return null;
 }
 
 const STAGE_GRADIENTS = [
@@ -323,7 +311,17 @@ export default function SocialScenarioSimulatorCard() {
     : [];
 
   const tone = result ? scoreTone(result.score) : null;
-  const coachNote = friendlyAdaptationNote(signals);
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "socialScenario",
+    baseline: {
+      difficulty: getScenarioDifficultyById(difficulty)?.label ?? "Easy",
+      supportiveCues: false,
+    },
+    applied: {
+      difficulty: getScenarioDifficultyById(scenario?.difficulty ?? config.difficulty)?.label ?? "Easy",
+      supportiveCues: config.hintsEnabled,
+    },
+  });
   const stageSeed = hashOf(scenario?.id ?? "stage");
   const stageKind = stageSeed % STAGE_GRADIENTS.length;
   const npcTone = NPC_TONES[stageSeed % NPC_TONES.length];
@@ -401,6 +399,7 @@ export default function SocialScenarioSimulatorCard() {
           </div>
         ) : (
           <div className="space-y-4">
+            <AdaptationExplanation explanation={adaptationExplanation} />
             <motion.div
               key={scenario.id}
               initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -483,12 +482,6 @@ export default function SocialScenarioSimulatorCard() {
                 )}
               </AsdScene>
             </motion.div>
-
-            {coachNote && (
-              <p className="flex items-center gap-2 text-xs font-semibold text-[#7C3AED] rounded-xl bg-[#F5F3FF] border border-[#DDD6FE] px-3 py-2">
-                <Sparkles size={13} /> {coachNote}
-              </p>
-            )}
 
             {/* Response */}
             <div className="space-y-2">

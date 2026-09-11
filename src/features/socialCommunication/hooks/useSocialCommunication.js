@@ -135,6 +135,7 @@ export function useSocialCommunication() {
           userId,
           scenario,
           difficulty: scenario.difficulty,
+          requestedDifficulty: difficultyOverride ?? difficulty,
           signals: { ...adaptation.signals, simplify: false },
         });
         setSession(next);
