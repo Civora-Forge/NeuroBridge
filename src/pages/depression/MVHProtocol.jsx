@@ -11,6 +11,8 @@ import { buildGentleActivityOutcome } from '@/support/modules/gentleActivity/gen
 import { GENTLE_ACTIVITY_MODULE_ID } from '@/support/modules/gentleActivity/gentleActivityTypes';
 import SupportToolThemeProvider from "@/theme/SupportToolThemeProvider";
 import SupportToolLayout from "@/components/support/SupportToolLayout";
+import AdaptationExplanation from "@/components/adaptive/AdaptationExplanation";
+import { buildAdaptationExplanation } from "@/adaptive/presentation/adaptationPresentation";
 
 const steps = [
   { action: "Touch something cold", why: "A cold sensation can help you pause and notice the present moment.", hint: "A fridge handle, metal spoon, water bottle, or tile floor can work." },
@@ -94,6 +96,11 @@ export default function MVHProtocol() {
     adaptiveConfig?.active && adaptiveConfig.visibleSteps
       ? Math.min(adaptiveConfig.visibleSteps, steps.length)
       : steps.length;
+  const adaptationExplanation = buildAdaptationExplanation({
+    feature: "gentleActivity",
+    baseline: { stepCount: steps.length },
+    applied: { stepCount: effectiveTotalSteps },
+  });
 
   const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GENTLE_ACTIVITY_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration: { pacing: adaptiveConfig?.active ? (adaptiveConfig.pacingHint ?? 'gentle') : 'gentle', totalSteps: effectiveTotalSteps } });
   const isComplete = step === effectiveTotalSteps - 1;
@@ -186,18 +193,7 @@ export default function MVHProtocol() {
                 </header>
 
                 {/* Main Step Display Card */}
-                {adaptiveConfig?.active && (
-                  <p className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-[13px] font-semibold text-emerald-800">
-                    {adaptiveConfig.mode === "history_preferred"
-                      ? "Adapted for you: gentle activity has helped before — keep that rhythm."
-                      : adaptiveConfig.mode === "history_deprioritized"
-                      ? "Adapted for you: if this hasn't been your best fit lately, another support may serve you better right now."
-                      : adaptiveConfig.visibleSteps && adaptiveConfig.visibleSteps < steps.length
-                      ? "Adapted for you: a shorter, gentler session — fewer steps today."
-                      : "Adapted for you: gentle pacing — no need to rush."}
-                    {adaptation.reason ? ` ${adaptation.reason}` : ""}
-                  </p>
-                )}
+                <AdaptationExplanation explanation={adaptationExplanation} />
                 <section className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-md shadow-slate-900/[0.02] transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-6" aria-live="polite">
                   <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[.16em] text-emerald-800">
                     <Sparkles size={14} className="text-amber-500" />

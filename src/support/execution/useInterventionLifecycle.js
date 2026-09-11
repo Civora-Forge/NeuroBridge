@@ -94,7 +94,7 @@ export function useInterventionLifecycle({
     return result;
   }, []);
 
-  const start = useCallback(async (metadata = {}) => {
+  const start = useCallback(async (metadata = {}, configurationOverride) => {
     if (operationRef.current || interventionIdRef.current) {
       return clientFailure("An intervention has already been started", "duplicate_start");
     }
@@ -111,7 +111,7 @@ export function useInterventionLifecycle({
         contextSnapshotId,
         triggerSource,
         selectionMode,
-        configuration,
+        configuration: configurationOverride ?? configuration,
         metadata: { ...metadata, planId },
       });
       return applyResult(result);

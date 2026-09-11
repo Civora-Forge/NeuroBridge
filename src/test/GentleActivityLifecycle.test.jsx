@@ -4,10 +4,12 @@ import MVHProtocol from '@/pages/depression/MVHProtocol';
 import { getInterventionHistory } from '@/support/lifecycle/interventionLifecycle';
 
 const auth = vi.hoisted(() => ({ user: { id: 'gentle-ui-user' } }));
+const adaptation = vi.hoisted(() => ({ configuration: null }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: auth.user }) }));
+vi.mock('@/hooks/useFeatureAdaptation', () => ({ useFeatureAdaptation: () => ({ configuration: adaptation.configuration }) }));
 
 describe('Gentle Activity lifecycle UI', () => {
-  beforeEach(() => { localStorage.clear(); auth.user = { id: 'gentle-ui-user' }; });
+  beforeEach(() => { localStorage.clear(); auth.user = { id: 'gentle-ui-user' }; adaptation.configuration = null; });
   afterEach(cleanup);
   it('does not start on render, starts on first action, and persists aggregate progress without labels', async () => {
     render(<MVHProtocol />);
@@ -31,5 +33,11 @@ describe('Gentle Activity lifecycle UI', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /I did this/i })));
     expect(screen.getByRole('alert')).toHaveTextContent('Sign in to save activity');
     expect(getInterventionHistory('gentle-ui-user')).toHaveLength(persistedCount);
+  });
+  it('uses the final reduced configuration as the displayed session length', () => {
+    adaptation.configuration = { active: true, visibleSteps: 3, pacingHint: 'gentle' };
+    render(<MVHProtocol />);
+    expect(screen.getByLabelText('Step 1 of 3')).toBeTruthy();
+    expect(screen.getByText('Steps: 5 to 3')).toBeTruthy();
   });
 });

@@ -65,20 +65,33 @@ function focusEvidenceFromHistory(moduleId, interventions, events, outcomes) {
   for (const outcome of terminal) {
     const duration = outcome.metrics?.plannedDurationMinutes ?? outcome.metrics?.finalConfiguration?.plannedDurationMinutes;
     if (!Number.isInteger(duration) || duration <= 0) continue;
-    const entry = byDuration.get(duration) ?? { successful: [], unsuccessful: [] };
+    const entry = byDuration.get(duration) ?? { outcomes: [], successful: [], unsuccessful: [] };
     const ratio = Number(outcome.metrics?.completionRatio);
-    if (outcome.status === "completed" || (Number.isFinite(ratio) && ratio >= 0.8)) entry.successful.push(outcome);
+    entry.outcomes.push(outcome);
+    if (outcome.status === "completed" || (Number.isFinite(ratio) && ratio >= 0.9)) entry.successful.push(outcome);
     if (outcome.status === "abandoned" || (Number.isFinite(ratio) && ratio < 0.5)) entry.unsuccessful.push(outcome);
     byDuration.set(duration, entry);
   }
-  const candidates = [...byDuration.entries()].filter(([, value]) => value.successful.length >= 2).sort((left, right) => right[1].successful.length - left[1].successful.length || left[0] - right[0]);
-  const selected = terminal.length >= 3 ? candidates[0] : null;
+  const candidates = [...byDuration.entries()]
+    .filter(([, value]) => value.outcomes.length >= 2)
+    .map(([duration, value]) => ({
+      duration,
+      ...value,
+      completionRate: value.successful.length / value.outcomes.length,
+      averageCompletion: value.outcomes.reduce((sum, outcome) => sum + Math.max(0, Math.min(1, Number(outcome.metrics?.completionRatio) || (outcome.status === "completed" ? 1 : 0))), 0) / value.outcomes.length,
+    }))
+    .sort((left, right) => right.completionRate - left.completionRate || right.averageCompletion - left.averageCompletion || right.outcomes.length - left.outcomes.length || left.duration - right.duration);
+  const best = candidates[0] ?? null;
+  const secondBest = candidates[1] ?? null;
+  const selected = terminal.length >= 3 && best && (!secondBest || best.completionRate - secondBest.completionRate >= 0.15)
+    ? best
+    : null;
   const preferredConfiguration = selected ? {
     values: {
-      plannedDurationMinutes: selected[0],
-      ...(Number.isInteger(selected[1].successful[0].metrics?.finalConfiguration?.breakDurationMinutes) ? { breakDurationMinutes: selected[1].successful[0].metrics.finalConfiguration.breakDurationMinutes } : {}),
+      plannedDurationMinutes: selected.duration,
+      ...(Number.isInteger(selected.successful[0]?.metrics?.finalConfiguration?.breakDurationMinutes) ? { breakDurationMinutes: selected.successful[0].metrics.finalConfiguration.breakDurationMinutes } : {}),
     },
-    sourceHintIds: selected[1].successful.map((outcome) => outcome.id),
+    sourceHintIds: selected.successful.map((outcome) => outcome.id),
     confidence: terminal.length >= 5 ? 0.85 : 0.65,
     advisory: true,
   } : null;

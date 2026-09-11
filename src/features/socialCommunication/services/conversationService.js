@@ -25,7 +25,7 @@ function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function createSession({ userId = null, scenario, difficulty, signals = {} } = {}) {
+export function createSession({ userId = null, scenario, difficulty, requestedDifficulty = difficulty, signals = {} } = {}) {
   const effectiveDifficulty =
     signals.simplify && difficulty > 1 ? difficulty - 1 : difficulty;
 
@@ -35,6 +35,7 @@ export function createSession({ userId = null, scenario, difficulty, signals = {
     userId: userId ?? null,
     scenario,
     difficulty,
+    requestedDifficulty,
     effectiveDifficulty,
     turnLimit: TURN_LIMIT_FOR(effectiveDifficulty),
     hintsEnabled: signals.provideHints === true,
