@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -181,13 +181,22 @@ export default function ExposureSessionTimer() {
     return () => clearInterval(interval);
   }, [phase, isPaused, timeLeft, currentSuds, addSessionSudsLog]);
 
+  // rotateIntervention's identity changes every time it runs (it depends on
+  // interventionCategory, which it also sets) — depending on it directly
+  // here made this effect re-fire every single rotation, i.e. an infinite
+  // synchronous render loop the instant phase becomes 'running'. A ref keeps
+  // the effect itself keyed only on phase while still calling the latest
+  // rotation logic.
+  const rotateInterventionRef = useRef(rotateIntervention);
+  useEffect(() => { rotateInterventionRef.current = rotateIntervention; }, [rotateIntervention]);
+
   useEffect(() => {
     if (phase === 'running') {
-      rotateIntervention();
-      const intInterval = setInterval(rotateIntervention, 45000);
+      rotateInterventionRef.current();
+      const intInterval = setInterval(() => rotateInterventionRef.current(), 45000);
       return () => clearInterval(intInterval);
     }
-  }, [phase, rotateIntervention]);
+  }, [phase]);
 
   const handleStartTimer = () => {
     setTimeLeft(initialTime);

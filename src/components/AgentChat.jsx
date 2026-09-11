@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useId } from "react";
 import {
-  X, Send, Bot, User, Loader2, ArrowRight, MessageSquareText, CheckCircle2, Clock, Activity,
+  X, Send, Bot, User, Loader2, ArrowRight, CheckCircle2, Clock, Activity,
   Mic, MicOff, Volume2, VolumeX, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -12,6 +12,32 @@ import { findNavTarget } from "@/lib/findNavTarget";
 import { isAffirmativeConfirmation, isNegativeConfirmation } from "@/lib/confirmationPhrases";
 import useFocusSessionControlStore from "@/stores/focusSessionControlStore";
 import { applyPresetGlobally } from "@/lib/presentationPreferences";
+import BriAvatar from "@/components/bri/BriAvatar";
+import useBriState, { BRI_STATE_LABELS } from "@/components/bri/useBriState";
+
+// DyslexiaReader.jsx and AdaptiveReadingModule.jsx (both under /dyslexia) render
+// a full-width fixed bottom toolbar — Bri must float above it there, not on top
+// of it, instead of the default safe-area offset used everywhere else.
+const BOTTOM_TOOLBAR_ROUTE_PREFIX = "/dyslexia";
+const BRI_BASE_BOTTOM_PX = 20;
+const BRI_ELEVATED_BOTTOM_PX = 104;
+const BRI_BUTTON_SIZE = 60;
+
+// Small, honest, route-based framing — never fabricates session/routine state
+// that isn't actually readable here (no global "is a focus session active"
+// store exists outside FocusSessions.jsx itself).
+function contextualGreeting(pathname) {
+  if (pathname.startsWith("/adhd")) {
+    return "Want help with a focus session — starting one, or checking in on it?";
+  }
+  if (pathname.startsWith("/asd")) {
+    return "Need your next routine step, or want to set one up?";
+  }
+  if (pathname.startsWith("/ocd")) {
+    return "I can check your exposure progress or help log an ERP session.";
+  }
+  return "Tell me what's going on — I can break down tasks, check your ERP progress, start a grounding exercise, and more.";
+}
 
 function TaskBreakdownCard({ data, onNavigate }) {
   if (!data || !data.steps) return null;
@@ -222,6 +248,7 @@ export default function AgentChat() {
   const {
     isOpen, closeChat, toggleChat, messages, isLoading, sendMessage, error, clearError,
     pendingConfirmation, confirmPendingAction, cancelPendingAction, abortActiveStream,
+    executionState,
   } = useAgentStore();
   const [input, setInput] = useState("");
   const [lastUserMessage, setLastUserMessage] = useState(null);
@@ -244,6 +271,21 @@ export default function AgentChat() {
   // access too (see agentStore.js), just under an isolated demo identity.
   const canUseAgent = isAuthenticated && !!user;
   const isDemoAccount = canUseAgent && !user?._supabase;
+
+  // Bri's visual state is a pure projection of the real agent/voice state
+  // above — never a separate/fake state machine.
+  const { state: briState, speaking: briSpeaking } = useBriState({
+    executionState,
+    pendingConfirmation,
+    isListening: voice.isListening,
+    isSpeaking: voice.isSpeaking,
+  });
+  const hasBottomToolbar = location.pathname.startsWith(BOTTOM_TOOLBAR_ROUTE_PREFIX);
+  const briBottomPx = hasBottomToolbar ? BRI_ELEVATED_BOTTOM_PX : BRI_BASE_BOTTOM_PX;
+  const briButtonBottomStyle = { bottom: `calc(${briBottomPx}px + env(safe-area-inset-bottom))` };
+  const briPanelBottomStyle = {
+    bottom: `calc(${briBottomPx + BRI_BUTTON_SIZE + 16}px + env(safe-area-inset-bottom))`,
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -546,10 +588,13 @@ export default function AgentChat() {
         <button
           ref={openButtonRef}
           onClick={toggleChat}
-          className="fixed top-20 right-4 sm:right-6 md:top-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all z-50 hover:scale-105 active:scale-95"
-          aria-label="Open AI Assistant"
+          style={{ width: BRI_BUTTON_SIZE, height: BRI_BUTTON_SIZE, ...briButtonBottomStyle }}
+          className="fixed left-1/2 -translate-x-1/2 z-50 rounded-full bg-card border border-border/60 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 hover:shadow-xl active:scale-95 focus-visible:scale-105"
+          aria-label={`Open Bri — ${BRI_STATE_LABELS[briState].toLowerCase()}`}
+          aria-expanded={false}
+          aria-pressed={false}
         >
-          <MessageSquareText className="w-6 h-6" aria-hidden="true" />
+          <BriAvatar state={briState} speaking={briSpeaking} size={40} />
         </button>
       )}
 
@@ -568,16 +613,16 @@ export default function AgentChat() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={dialogTitleId}
-            className="fixed inset-0 sm:inset-auto sm:top-20 sm:right-6 sm:bottom-6 md:top-6 w-full sm:w-[380px] h-full sm:h-[600px] sm:max-h-[80vh] bg-card border border-border sm:rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-bottom-5 sm:slide-in-from-top-5"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            className="fixed inset-0 sm:inset-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-[var(--bri-panel-bottom)] w-full sm:w-[400px] h-full sm:h-[600px] sm:max-h-[75vh] bg-card border border-border sm:rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-bottom-5 sm:origin-bottom sm:zoom-in-95 sm:fade-in sm:slide-in-from-bottom-3 duration-200"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)", "--bri-panel-bottom": briPanelBottomStyle.bottom }}
           >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div ref={avatarRef} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
+              <div ref={avatarRef} className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <BriAvatar state={briState} speaking={briSpeaking} size={32} />
               </div>
               <div>
-                <h3 id={dialogTitleId} className="font-semibold text-sm">NeuroBridge Assistant</h3>
+                <h3 id={dialogTitleId} className="font-semibold text-sm">Bri</h3>
                 <p id={statusId} role="status" aria-live="polite" className="text-xs text-muted-foreground flex items-center gap-1.5">
                   {voice.isListening ? (
                     <>
@@ -662,9 +707,9 @@ export default function AgentChat() {
 
             {messages.length === 0 && canUseAgent && (
               <div className="text-center text-muted-foreground text-sm my-auto opacity-70">
-                <Bot className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p>Hi! I'm your NeuroBridge assistant.</p>
-                <p className="mt-1">Tell me what's going on — I can break down tasks, check your ERP progress, start a grounding exercise, and more.</p>
+                <BriAvatar state="idle" size={56} className="mx-auto mb-2" />
+                <p className="font-medium text-foreground/80">Hi, I'm Bri.</p>
+                <p className="mt-1">{contextualGreeting(location.pathname)}</p>
               </div>
             )}
 

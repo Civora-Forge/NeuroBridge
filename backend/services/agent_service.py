@@ -646,11 +646,13 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 on_event({"type": "tool_completed", "execution_id": execution.execution_id, "tool": tool_name, "status": outcome["status"]})
             if outcome["status"] == "executed":
                 response_text = _render_routine_step_result(outcome["result"])
+                action = self._build_action(tool_name, outcome["result"])
             else:
                 response_text = outcome["error"] or "I couldn't do that with your routine right now."
+                action = None
             self._transition(execution, ExecutionState.COMPLETED, on_event)
             self._finish(execution, total_start)
-            return {"response": response_text, "action": None, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
+            return {"response": response_text, "action": action, "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value}
 
         disclaimer = assessment.message if assessment.level == safety.SafetyLevel.CAUTION else ""
 
