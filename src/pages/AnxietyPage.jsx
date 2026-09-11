@@ -135,13 +135,27 @@ export default function AnxietyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When the engine decision promotes breathing, bring the breathing card to
-  // the front of the support grid without removing the other options.
-  const orderedInterventions = adaptiveConfig?.promoteBreathing
-    ? [...anxietyInterventions].sort((a, b) =>
-        a.id === "guided_breathing" ? -1 : b.id === "guided_breathing" ? 1 : 0,
-      )
-    : anxietyInterventions;
+  // When the engine decision promotes a strategy (Tier 9 learned preference)
+  // or legacy guidance, bring the matching card to the front of the support
+  // grid without removing the other options. Deprioritized strategies move to
+  // the back.
+  const preferredCardId =
+    adaptation.signals?.preferredStrategyId?.split(":")[1] ?? null;
+  const deprioritizedCardId =
+    adaptation.signals?.deprioritizedStrategyId?.split(":")[1] ?? null;
+
+  const orderedInterventions =
+    preferredCardId || deprioritizedCardId || adaptiveConfig?.promoteBreathing
+      ? [...anxietyInterventions].sort((a, b) => {
+          if (preferredCardId && a.id === preferredCardId) return -1;
+          if (preferredCardId && b.id === preferredCardId) return 1;
+          if (deprioritizedCardId && a.id === deprioritizedCardId) return 1;
+          if (deprioritizedCardId && b.id === deprioritizedCardId) return -1;
+          if (adaptiveConfig?.promoteBreathing && a.id === "guided_breathing") return -1;
+          if (adaptiveConfig?.promoteBreathing && b.id === "guided_breathing") return 1;
+          return 0;
+        })
+      : anxietyInterventions;
 
   const heroVariants = {
     hidden: {},
@@ -223,6 +237,8 @@ export default function AnxietyPage() {
               >
                 {adaptiveConfig.promoteBreathing
                   ? "Adapted for you: a quick breathing exercise is ready when you are."
+                  : preferredCardId === "grounding_exercise"
+                  ? "Adapted for you: a short grounding exercise is ready when you are."
                   : adaptiveConfig.calmReassurance
                   ? "Adapted for you: a softer, slower pace today — no pressure."
                   : "Adapted for you: calmer space to settle in."}

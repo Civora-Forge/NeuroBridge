@@ -11,6 +11,7 @@
 import { z } from "zod";
 
 export const COMMUNICATION_MODULE_ID = "communication.simulator";
+export const COMMUNICATION_STRATEGY_ID = `${COMMUNICATION_MODULE_ID}:communication_simulation`;
 export const COMMUNICATION_STORAGE_PREFIX = "nb_communication_simulator_v1";
 
 // ─────────────────────────────────────────────
@@ -125,6 +126,9 @@ export const DEFAULT_ADAPTATION_SIGNALS = Object.freeze({
   reduceDistractions: false,
   provideHints: false,
   recommendEasier: false,
+  recommendProgress: false,
+  preferredStrategyId: null,
+  deprioritizedStrategyId: null,
   decisionTraceId: null,
   sources: [],
   overallConfidence: null,

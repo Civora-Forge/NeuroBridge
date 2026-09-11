@@ -1,37 +1,14 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import {
-  EpisodeStatus,
-  AnxietyPatternType,
-  InterventionId,
-  InterventionCategory,
-  CORE_CBT_PATTERNS,
-} from "@/components/anxiety/domain/anxietyTypes";
+import { describe, expect, it } from "vitest";
+import { AnxietyPatternType, InterventionId } from "@/components/anxiety/domain/anxietyTypes";
 import {
   adaptContextToAnxietyEvidence,
 } from "@/components/anxiety/domain/anxietyContextAdapter";
 import {
   deriveAnxietyState,
-  deriveEscalation,
 } from "@/components/anxiety/domain/anxietyStateEngine";
 import { reasonAnxietyPattern } from "@/components/anxiety/domain/anxietyReasoner";
-import {
-  createEpisode,
-  updateEpisode,
-} from "@/components/anxiety/domain/anxietyEpisodeEngine";
-import { ANXIETY_CANDIDATES } from "@/components/anxiety/planning/anxietyCandidates";
-import { planInterventions } from "@/components/anxiety/planning/anxietyPlanner";
-import {
-  createOutcomeRecord,
-  evaluateSubjectiveResponse,
-} from "@/components/anxiety/adaptation/anxietyOutcomeModel";
-import {
-  recordOutcome,
-  recordDismissal,
-  getRecentDismissalCount,
-  getPersonalizedModifier,
-  clearUserOutcomes,
-  loadUserOutcomes,
-} from "@/components/anxiety/adaptation/anxietyPersonalization";
+import { createEpisode } from "@/components/anxiety/domain/anxietyEpisodeEngine";
+import { rankAnxietyCandidates } from "@/components/anxiety/planning/anxietyRanker";
 import {
   scenario1_physiologicalSnapshot,
   scenario2_cognitiveSnapshot,
@@ -47,12 +24,6 @@ import {
 } from "@/components/anxiety/demo/anxietyDemoScenarios";
 
 describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
-  const TEST_USER = "test_evaluator_user_99";
-
-  beforeEach(() => {
-    clearUserOutcomes(TEST_USER);
-  });
-
   describe("1. Anxiety Context Adapter (Passive Telemetry Extraction)", () => {
     it("extracts task_friction evidence when task switching is elevated", () => {
       const result = adaptContextToAnxietyEvidence({
@@ -203,11 +174,11 @@ describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
     });
   });
 
-  describe("4. Automatic Candidate Planning & Ranking", () => {
+  describe("4. Situation-Based Candidate Ranking", () => {
     it("automatically ranks physiological_breathing for PHYSIOLOGICAL_ESCALATION", () => {
       const state = deriveAnxietyState({ contextSnapshot: scenario1_physiologicalSnapshot });
       const reasoning = reasonAnxietyPattern(state);
-      const plan = planInterventions(state, reasoning, null, TEST_USER);
+      const plan = rankAnxietyCandidates({ state, reasoningResult: reasoning });
 
       expect(plan.recommendedIntervention.id).toBe(InterventionId.PHYSIOLOGICAL_BREATHING);
       expect(plan.isMonitorOnly).toBe(false);
@@ -216,7 +187,7 @@ describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
     it("automatically ranks cognitive_reframe for COGNITIVE_WORRY_LOOP", () => {
       const state = deriveAnxietyState({ contextSnapshot: scenario2_cognitiveSnapshot });
       const reasoning = reasonAnxietyPattern(state);
-      const plan = planInterventions(state, reasoning, null, TEST_USER);
+      const plan = rankAnxietyCandidates({ state, reasoningResult: reasoning });
 
       expect(plan.recommendedIntervention.id).toBe(InterventionId.COGNITIVE_REFRAME);
     });
@@ -224,7 +195,7 @@ describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
     it("automatically ranks behavioral_micro_action for AVOIDANCE_DRIVEN", () => {
       const state = deriveAnxietyState({ contextSnapshot: scenario3_avoidanceSnapshot });
       const reasoning = reasonAnxietyPattern(state);
-      const plan = planInterventions(state, reasoning, null, TEST_USER);
+      const plan = rankAnxietyCandidates({ state, reasoningResult: reasoning });
 
       expect(plan.recommendedIntervention.id).toBe(InterventionId.BEHAVIORAL_MICRO_ACTION);
     });
@@ -232,60 +203,79 @@ describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
     it("automatically ranks NO_INTERVENTION (Monitor Only) for STABLE_BASELINE", () => {
       const state = deriveAnxietyState({ contextSnapshot: scenario4_stableBaselineSnapshot });
       const reasoning = reasonAnxietyPattern(state);
-      const plan = planInterventions(state, reasoning, null, TEST_USER);
+      const plan = rankAnxietyCandidates({ state, reasoningResult: reasoning });
 
       expect(plan.recommendedIntervention.id).toBe(InterventionId.NO_INTERVENTION);
       expect(plan.isMonitorOnly).toBe(true);
     });
   });
 
-  describe("5. 1-Tap Outcome & State-Specific Personalization", () => {
-    it("evaluates 1-tap subjective responses correctly", () => {
-      expect(evaluateSubjectiveResponse("better")).toEqual({ delta: 3, effectiveness: "strong_response" });
-      expect(evaluateSubjectiveResponse("same")).toEqual({ delta: 0, effectiveness: "no_response" });
-      expect(evaluateSubjectiveResponse("worse")).toEqual({ delta: -2, effectiveness: "adverse" });
-    });
+  describe("5. Tier 9 Learned Overlay (Engine-Driven Personalization)", () => {
+    it("promotes a preferred intervention with the engine's Tier 9 strategy reference", () => {
+      // Cognitive state: breathing is not the situational winner and sits
+      // below the score cap, so the Tier 9 boost is measurable.
+      const state = deriveAnxietyState({ contextSnapshot: scenario2_cognitiveSnapshot });
+      const reasoning = reasonAnxietyPattern(state);
 
-    it("applies learned bonus to matching pattern and ZERO bonus to non-matching pattern", () => {
-      // Record 1-tap "better" outcome for physiological breathing
-      const outcome = createOutcomeRecord({
-        userId: TEST_USER,
-        interventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
-        patternType: AnxietyPatternType.PHYSIOLOGICAL_ESCALATION,
-        subjectiveOutcome: "better",
-        completed: true,
-        durationSeconds: 60,
+      const baseline = rankAnxietyCandidates({ state, reasoningResult: reasoning });
+      const learned = rankAnxietyCandidates({
+        state,
+        reasoningResult: reasoning,
+        preferredInterventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
       });
-      recordOutcome(outcome, TEST_USER);
 
-      // Physiological escalation check -> receives bonus
-      const statePhys = deriveAnxietyState({ contextSnapshot: scenario1_physiologicalSnapshot });
-      const reasoningPhys = reasonAnxietyPattern(statePhys);
-      const planPhys = planInterventions(statePhys, reasoningPhys, null, TEST_USER);
-
-      const breathingCandidate = planPhys.allCandidates.find(
+      const baselineBreathing = baseline.allCandidates.find(
         (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
       );
-      expect(breathingCandidate.personalizedBonus).toBeGreaterThan(0);
-      expect(breathingCandidate.personalizationNote).toMatch(/positive relief/);
-
-      // Cognitive worry check -> receives ZERO breathing bonus
-      const stateCog = deriveAnxietyState({ contextSnapshot: scenario2_cognitiveSnapshot });
-      const reasoningCog = reasonAnxietyPattern(stateCog);
-      const planCog = planInterventions(stateCog, reasoningCog, null, TEST_USER);
-
-      const breathingInCog = planCog.allCandidates.find(
+      const learnedBreathing = learned.allCandidates.find(
         (c) => c.id === InterventionId.PHYSIOLOGICAL_BREATHING
       );
-      expect(breathingInCog.personalizedBonus).toBe(0);
-      expect(breathingInCog.personalizationNote).toBeNull();
+
+      expect(baselineBreathing.score).toBeLessThan(1);
+      expect(learnedBreathing.score).toBeGreaterThan(baselineBreathing.score);
+      expect(learnedBreathing.personalizationNote).toMatch(/Adapted from your history/);
     });
 
-    it("tracks prompt dismissals to respect user autonomy", () => {
-      expect(getRecentDismissalCount(TEST_USER)).toBe(0);
-      recordDismissal(TEST_USER, AnxietyPatternType.PHYSIOLOGICAL_ESCALATION);
-      recordDismissal(TEST_USER, AnxietyPatternType.PHYSIOLOGICAL_ESCALATION);
-      expect(getRecentDismissalCount(TEST_USER)).toBe(2);
+    it("deprioritizes a strategy the engine deprioritized", () => {
+      const state = deriveAnxietyState({ contextSnapshot: scenario2_cognitiveSnapshot });
+      const reasoning = reasonAnxietyPattern(state);
+
+      const baseline = rankAnxietyCandidates({ state, reasoningResult: reasoning });
+      const learned = rankAnxietyCandidates({
+        state,
+        reasoningResult: reasoning,
+        deprioritizedInterventionId: InterventionId.COGNITIVE_REFRAME,
+      });
+
+      const baselineReframe = baseline.allCandidates.find(
+        (c) => c.id === InterventionId.COGNITIVE_REFRAME
+      );
+      const learnedReframe = learned.allCandidates.find(
+        (c) => c.id === InterventionId.COGNITIVE_REFRAME
+      );
+
+      expect(learnedReframe.score).toBeLessThan(baselineReframe.score);
+      expect(learnedReframe.personalizationNote).toMatch(/de-emphasized/);
+    });
+
+    it("produces identical results for identical inputs (determinism)", () => {
+      const state = deriveAnxietyState({ contextSnapshot: scenario1_physiologicalSnapshot });
+      const reasoning = reasonAnxietyPattern(state);
+
+      const first = rankAnxietyCandidates({
+        state,
+        reasoningResult: reasoning,
+        preferredInterventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
+      });
+      const second = rankAnxietyCandidates({
+        state,
+        reasoningResult: reasoning,
+        preferredInterventionId: InterventionId.PHYSIOLOGICAL_BREATHING,
+      });
+
+      expect(first.allCandidates.map((c) => [c.id, c.score])).toEqual(
+        second.allCandidates.map((c) => [c.id, c.score])
+      );
     });
   });
 
@@ -315,11 +305,17 @@ describe("Low-Cognitive-Load Adaptive Anxiety Engine", () => {
       expect(s4.isMonitorOnly).toBe(true);
     });
 
-    it("Scenario 5: Proves state-specific learning without cross-pattern contamination", () => {
+    it("Scenario 5: Tier 9 learned preference moves scores but situational fit decides the winner", () => {
       const s5 = runScenario5_PersonalizedAdaptation("demo_user_5");
       expect(s5.learningConfirmed).toBe(true);
-      expect(s5.physiologicalEpisode.personalizedBonus).toBeGreaterThan(0);
-      expect(s5.cognitiveEpisode.personalizedBonus).toBe(0);
+      expect(s5.strategyEffectiveness["anxiety.hub:guided_breathing"]).toBe(1);
+      expect(s5.physiologicalEpisode.personalizationNote).toMatch(/Adapted from your history/);
+      expect(s5.cognitiveEpisode.personalizationNote).toMatch(/Adapted from your history/);
+      expect(s5.stateSpecificTopRecommendation).toBe(true);
+      expect(s5.physiologicalEpisode.topRecommendation).toBe(
+        InterventionId.PHYSIOLOGICAL_BREATHING
+      );
+      expect(s5.cognitiveEpisode.topRecommendation).toBe(InterventionId.COGNITIVE_REFRAME);
     });
   });
 });

@@ -35,6 +35,9 @@ import {
  * @param {string} [options.userId]
  * @param {boolean} [options.enabled] - Override for the runtime flag.
  * @param {object} [options.userPreferences]
+ * @param {object} [options.role4Signals] - Explicit `role4Signals` override
+ *   (e.g. the Reflection Engine fragment from `useReflectionSignals`). Passed
+ *   through to the engine; stable reference required.
  * @param {(signals, moduleAdapterState) => object} [options.builder] - Optional
  *   config builder override. Defaults to the registered builder for `moduleId`.
  * @param {object} [options.moduleAdapterState] - Static values the builder
@@ -48,6 +51,7 @@ export function useFeatureAdaptation(
     userId,
     enabled,
     userPreferences,
+    role4Signals,
     builder,
     moduleAdapterState,
   } = {},
@@ -59,6 +63,7 @@ export function useFeatureAdaptation(
     userId,
     enabled,
     userPreferences,
+    role4Signals,
   });
 
   const effectiveBuilder =

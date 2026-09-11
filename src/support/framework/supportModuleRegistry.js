@@ -14,13 +14,87 @@ import {
 } from "@/support/schemas/supportSchemas";
 
 /**
+ * Tier 9 learned-personalization precedences (within-tier numeric priority).
+ * Prefer actions out-rank deprioritize actions on a shared CONTENT target so
+ * a recommendable strategy surfaces even when another strategy in the same
+ * module is being de-prioritized.
+ */
+const LEARNED_PRIORITY_PREFER = 90;
+const LEARNED_PRIORITY_DEPRIORITIZE = 80;
+
+/**
+ * Build the Tier 9 (LEARNED PERSONALIZATION) policies for one strategy.
+ * A strategy is `moduleId:interventionType` — the exact identity the
+ * Reflection Engine groups historical Role 4 outcomes by. The engine exposes
+ * each effectiveness score as a synthetic `strategyEffectiveness:<strategyId>`
+ * resolved-state dimension consumed ONLY by Tier 9 rules, so a strategy with
+ * sufficient favorable evidence (score ≥ 0.6) is reordered toward and one with
+ * unfavorable evidence (score ≤ 0.4) is de-prioritized. Both conditions are
+ * mutually exclusive by construction. The engine's per-target conflict stage
+ * resolves the deterministic single winner; consumers read the strategyId via
+ * the action `parameters`.
+ */
+function learnedPersonalizationPolicies(strategyId, { preferPriority = LEARNED_PRIORITY_PREFER } = {}) {
+  const safeId = strategyId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return [
+    {
+      id: `learned.prefer.${safeId}`,
+      scope: PolicyScope.MODULE,
+      tier: PriorityTier.LEARNED_PERSONALIZATION,
+      priority: preferPriority,
+      triggerGroups: [
+        {
+          operator: TriggerGroupOperator.AND,
+          triggers: [
+            {
+              dimension: `strategyEffectiveness:${strategyId}`,
+              condition: TriggerCondition.GTE,
+              value: 0.6,
+            },
+          ],
+        },
+      ],
+      action: {
+        type: AdaptationActionType.REORDER,
+        target: AdaptationDimension.CONTENT,
+        parameters: { strategyId, preference: "prefer" },
+      },
+    },
+    {
+      id: `learned.deprioritize.${safeId}`,
+      scope: PolicyScope.MODULE,
+      tier: PriorityTier.LEARNED_PERSONALIZATION,
+      priority: LEARNED_PRIORITY_DEPRIORITIZE,
+      triggerGroups: [
+        {
+          operator: TriggerGroupOperator.AND,
+          triggers: [
+            {
+              dimension: `strategyEffectiveness:${strategyId}`,
+              condition: TriggerCondition.LTE,
+              value: 0.4,
+            },
+          ],
+        },
+      ],
+      action: {
+        type: AdaptationActionType.REDUCE,
+        target: AdaptationDimension.CONTENT,
+        parameters: { strategyId, preference: "deprioritize" },
+      },
+    },
+  ];
+}
+
+/**
  * Module-scoped adaptation contracts (Role 2, module level).
  *
  * Each entry declares which AdaptationDimensions the module can adapt and a
  * curated set of module policies. Policies fire ONLY against engine-derived
  * UserState dimensions (mood / attention / energy / cognitiveLoad /
- * stressLevel), so they are valid against both the app-level context snapshot
- * and a module-local snapshot. The engine merges these into the plan; the
+ * stressLevel) or the Tier 9 learned `strategyEffectiveness:<strategyId>`
+ * overlay, so they are valid against both the app-level context snapshot and
+ * a module-local snapshot. The engine merges these into the plan; the
  * app-level shell and `useModuleAdaptation` consumers surface the resulting
  * non-UI actions.
  */
@@ -227,6 +301,7 @@ const moduleAdaptationSets = {
       AdaptationDimension.TASK,
       AdaptationDimension.PACING,
       AdaptationDimension.ASSISTANCE,
+      AdaptationDimension.CONTENT,
     ],
     modulePolicies: [
       {
@@ -275,6 +350,7 @@ const moduleAdaptationSets = {
           parameters: { pace: "slow", longerPauses: true },
         },
       },
+      ...learnedPersonalizationPolicies("support.grounding:grounding"),
     ],
   },
   "support.gentle_activity": {
@@ -330,6 +406,7 @@ const moduleAdaptationSets = {
           parameters: { stepSize: "small", showOneStep: true },
         },
       },
+      ...learnedPersonalizationPolicies("support.gentle_activity:behavioral_activation"),
     ],
   },
   "support.cognitive_reframing": {
@@ -792,12 +869,14 @@ const moduleAdaptationSets = {
           parameters: { pace: "slow", extendedThinkTime: true },
         },
       },
+      ...learnedPersonalizationPolicies("asd.social-scenarios:social_scenario_simulation"),
     ],
   },
   "anxiety.hub": {
     supportedAdaptationDimensions: [
       AdaptationDimension.TASK,
       AdaptationDimension.PACING,
+      AdaptationDimension.CONTENT,
     ],
     modulePolicies: [
       {
@@ -823,6 +902,26 @@ const moduleAdaptationSets = {
           parameters: { guidedBreathing: true },
         },
       },
+      // Tier 9 learned personalization: the hub recommends the strategy
+      // historically associated with favorable outcomes first, when it crossed
+      // the ≥ 0.6 threshold. A deterministic first-line order breaks same-tier
+      // ties (guided breathing, then grounding, reframing, micro-action).
+      ...learnedPersonalizationPolicies("anxiety.hub:guided_breathing", { preferPriority: 95 }),
+      ...learnedPersonalizationPolicies("anxiety.hub:grounding_exercise", { preferPriority: 93 }),
+      ...learnedPersonalizationPolicies("anxiety.hub:cognitive_reframe", { preferPriority: 91 }),
+      ...learnedPersonalizationPolicies("anxiety.hub:micro_action", { preferPriority: 89 }),
+    ],
+  },
+  "communication.simulator": {
+    supportedAdaptationDimensions: [
+      AdaptationDimension.CONTENT,
+      AdaptationDimension.PACING,
+    ],
+    modulePolicies: [
+      // Tier 9 learned personalization: a conversation strategy that is
+      // historically effective is kept in place / preferenced, one that is not
+      // is steered toward an easier, higher-cue experience.
+      ...learnedPersonalizationPolicies("communication.simulator:communication_simulation"),
     ],
   },
 };
@@ -1020,7 +1119,7 @@ const rawSupportModules = [
     title: "Anxiety Support Hub",
     description: "Explore anxiety support tools: guided breathing, grounding exercises and calm spaces.",
     category: ModuleCategory.EMOTIONAL,
-    interventionTypes: ["guided_breathing", "grounding_exercise", "calm_space"],
+    interventionTypes: ["guided_breathing", "grounding_exercise", "calm_space", "cognitive_reframe", "micro_action"],
     route: "/anxiety",
     tags: ["anxiety", "stress", "overwhelm", "regulation"],
     disorders: [DISORDERS.ANXIETY, DISORDERS.ASD],

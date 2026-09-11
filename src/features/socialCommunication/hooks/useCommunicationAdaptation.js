@@ -41,6 +41,7 @@ export function useCommunicationAdaptation({
   session,
   enabled: enabledOverride,
   userPreferences,
+  role4Signals,
 }) {
   const getSnapshot = useCallback(
     () => buildCommunicationSnapshot({ session, user }),
@@ -53,6 +54,7 @@ export function useCommunicationAdaptation({
     userId,
     enabled: enabledOverride,
     userPreferences,
+    role4Signals,
   });
 
   const [adaptations, setAdaptations] = useState(null);

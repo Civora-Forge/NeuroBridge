@@ -7,7 +7,7 @@
  */
 
 import { AdaptationActionType, AdaptationDimension } from "@/support/schemas/supportSchemas";
-import { DEFAULT_ADAPTATION_SIGNALS } from "../types/communicationTypes";
+import { COMMUNICATION_STRATEGY_ID, DEFAULT_ADAPTATION_SIGNALS } from "../types/communicationTypes";
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -19,6 +19,19 @@ function matchesDimension(action, dimensions) {
 
 function matchesType(action, types) {
   return types.includes(action?.type);
+}
+
+/** The single Tier 9 learned-personalization reference for this module's
+ *  strategy, if one is present in the plan (prefer or deprioritize). */
+function tier9Reference(actions, preference) {
+  return (
+    actions.find(
+      (action) =>
+        action?.parameters &&
+        action.parameters.strategyId === COMMUNICATION_STRATEGY_ID &&
+        action.parameters.preference === preference,
+    ) ?? null
+  );
 }
 
 export function normalizeEnginePlan(plan) {
@@ -58,9 +71,29 @@ export function parseEnginePlan(plan) {
       matchesType(action, [AdaptationActionType.INCREASE, AdaptationActionType.REINFORCE, AdaptationActionType.GUIDE]),
   );
 
-  const recommendEasier = actions.some((action) => matchesType(action, [AdaptationActionType.RECOMMEND]));
+  const recommendEasierLegacy = actions.some((action) => matchesType(action, [AdaptationActionType.RECOMMEND]));
 
-  const active = simplify || slowPace || reduceDistractions || provideHints || recommendEasier;
+  const preferReference = tier9Reference(actions, "prefer");
+  const deprioritizeReference = tier9Reference(actions, "deprioritize");
+
+  const recommendProgress =
+    Boolean(preferReference) ||
+    actions.some(
+      (action) =>
+        matchesType(action, [AdaptationActionType.RECOMMEND]) &&
+        action.parameters?.preference === "prefer",
+    );
+
+  const recommendEasier =
+    (Boolean(deprioritizeReference) || recommendEasierLegacy) && !recommendProgress;
+
+  const active =
+    simplify ||
+    slowPace ||
+    reduceDistractions ||
+    provideHints ||
+    recommendEasier ||
+    recommendProgress;
 
   return {
     ...DEFAULT_ADAPTATION_SIGNALS,
@@ -70,6 +103,9 @@ export function parseEnginePlan(plan) {
     reduceDistractions,
     provideHints,
     recommendEasier,
+    recommendProgress,
+    preferredStrategyId: preferReference?.parameters?.strategyId ?? null,
+    deprioritizedStrategyId: deprioritizeReference?.parameters?.strategyId ?? null,
     decisionTraceId: normalized.decisionTraceId ?? normalized.planId ?? null,
     sources: asArray(normalized.sources),
     overallConfidence: Number.isFinite(normalized.overallConfidence) ? normalized.overallConfidence : null,

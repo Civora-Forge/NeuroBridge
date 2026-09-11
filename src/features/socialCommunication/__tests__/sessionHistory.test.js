@@ -11,6 +11,7 @@ import { beginSession, createSession, submitUserTurn } from "../services/convers
 import { getFallbackScenario } from "../services/scenarioGenerator";
 import { evaluateSession } from "../services/evaluationService";
 import { SESSION_STATUS } from "../types/communicationTypes";
+import { ratingFromConversationScore } from "@/adaptive/reflection/outcomeRatings";
 
 async function makeCompletedSession() {
   const scenario = getFallbackScenario({ domain: "small_talk", effectiveDifficulty: 3 });
@@ -34,6 +35,7 @@ describe("saveSessionOutcome + listSessionOutcomes", () => {
     expect(saved.moduleId).toBe("communication.simulator");
     expect(saved.status).toBe("completed");
     expect(saved.metrics.communicationScore).toBe(session.evaluation.overallScore);
+    expect(saved.rating).toBe(ratingFromConversationScore(session.evaluation.overallScore));
     expect(saved.metrics.domain).toBe("small_talk");
     expect(JSON.stringify(saved).includes("Hi, how are you today?")).toBe(false);
   });

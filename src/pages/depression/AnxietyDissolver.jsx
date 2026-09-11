@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Heart, Leaf, MessageSquareHeart, Pause, Play, RotateCcw, ShieldCheck, Sparkles, Wind } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Frown, Heart, Leaf, Meh, MessageSquareHeart, Pause, Play, RotateCcw, ShieldCheck, Smile, Sparkles, Wind } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useContextStateOptional } from '@/context/ContextProvider';
 import { useFeatureAdaptation } from '@/hooks/useFeatureAdaptation';
+import { useReflectionSignals } from '@/adaptive/reflection/useReflectionSignals';
+import { mapSubjectiveOutcomeToRating } from '@/adaptive/reflection/outcomeRatings';
 import { useInterventionLifecycle } from '@/support/execution';
 import { buildGroundingOutcome } from '@/support/modules/grounding/groundingService';
 import { GROUNDING_MODULE_ID } from '@/support/modules/grounding/groundingTypes';
@@ -97,15 +99,19 @@ export default function AnxietyDissolver() {
   const [completedCount, setCompletedCount] = useState(0);
   const [reachedCount, setReachedCount] = useState(0);
   const [earlyCount, setEarlyCount] = useState(0);
+  const [subjective, setSubjective] = useState(null);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
   const configuration = { exerciseType: 'timed_grounding', pacing: 'timed', totalSteps: 4, techniqueOrder: ['4-7-8', '5-4-3-2-1', 'muscle_relaxation', 'box_breathing'], suggestedDurations: [4, 2, 3, 5] };
   const lifecycle = useInterventionLifecycle({ userId: user?.id ?? null, moduleId: GROUNDING_MODULE_ID, planId: null, contextSnapshotId: null, triggerSource: 'manual', selectionMode: 'explicit_request', configuration });
 
   const context = useContextStateOptional()?.context ?? null;
+  const reflection = useReflectionSignals(user?.id ?? null);
   const adaptation = useFeatureAdaptation("support.grounding", {
     getAppSnapshot: () => context,
     userId: user?.id ?? null,
+    role4Signals: reflection.signals,
   });
   const adaptiveConfig = adaptation.configuration;
 
@@ -151,7 +157,7 @@ export default function AnxietyDissolver() {
     if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.progress({ progressType: 'grounding_technique', completedUnits: completedSteps, totalUnits: techniques.length, progressRatio: completedSteps / techniques.length, suggestedDurationReached: durationReached, completedBeforeSuggestedDuration: !durationReached });
     setCompletedCount(completedSteps); setReachedCount(reached); setEarlyCount(early);
     if (completedSteps === techniques.length) {
-      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId, startedAt: startedAtRef.current }));
+      if (user?.id && lifecycle.hasStarted && !lifecycle.isTerminal) { const completed = await lifecycle.complete(buildGroundingOutcome({ configuration, completedSteps, suggestedDurationsReached: reached, techniquesCompletedEarly: early, currentTechniqueId, startedAt: startedAtRef.current })); if (completed.ok) reflection.refresh(); }
       stopTimer(); setCompleted(true); return;
     }
     stopTimer(); setActiveStep((prev) => prev + 1); setTimer(0); setDurationReached(false);
@@ -168,6 +174,19 @@ export default function AnxietyDissolver() {
     setReachedCount(0); 
     setEarlyCount(0); 
     setDurationReached(false); 
+    setSubjective(null); 
+    setRatingSubmitted(false); 
+  };
+
+  const submitCheckIn = async (value) => {
+    setSubjective(value);
+    const rating = mapSubjectiveOutcomeToRating(value);
+    if (!user?.id || rating === null || ratingSubmitted) return;
+    const rated = await lifecycle.rate({ rating });
+    if (rated?.ok) {
+      setRatingSubmitted(true);
+      reflection.refresh();
+    }
   };
 
   useEffect(() => () => clearInterval(intervalRef.current), []);
@@ -220,7 +239,11 @@ export default function AnxietyDissolver() {
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-[13px] leading-relaxed backdrop-blur-sm">
                     <p className="font-black text-emerald-900">
                       Adapted for you:{" "}
-                      {adaptiveConfig.mode === "breathing_first"
+                      {adaptiveConfig.mode === "history_preferred"
+                        ? "grounding has worked for you before — keep the same steady pace"
+                        : adaptiveConfig.mode === "history_deprioritized"
+                        ? "if grounding hasn't been your best fit lately, another support may serve you better right now"
+                        : adaptiveConfig.mode === "breathing_first"
                         ? "breathing practices first"
                         : adaptiveConfig.mode === "quiet_slow_pace"
                         ? "a quieter, slower pace"
@@ -348,6 +371,40 @@ export default function AnxietyDissolver() {
                         <p className="mt-1 text-slate-600">
                           You have finished this grounding practice. Take a quiet moment to notice what feels different, if anything.
                         </p>
+                        <div className="mt-4">
+                          <p className="text-[12px] font-black uppercase tracking-[.14em] text-emerald-900">
+                            How did that feel? (optional)
+                          </p>
+                          <div className="mt-2.5 flex items-center gap-2">
+                            {[{ value: "better", icon: Smile, label: "Better" }, { value: "same", icon: Meh, label: "Same" }, { value: "worse", icon: Frown, label: "Worse" }].map((option) => {
+                              const isSelected = subjective === option.value;
+                              const disabled = ratingSubmitted && !isSelected;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => submitCheckIn(option.value)}
+                                  className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-[13px] font-extrabold transition-all ${
+                                    isSelected
+                                      ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm"
+                                      : disabled
+                                      ? "cursor-default border-slate-200 bg-white text-slate-400"
+                                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
+                                  }`}
+                                >
+                                  <option.icon size={16} />
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {ratingSubmitted && (
+                            <p className="mt-2 text-[12px] font-semibold text-emerald-700">
+                              Thanks — this helps shape future support.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
