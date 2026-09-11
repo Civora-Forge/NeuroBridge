@@ -174,7 +174,7 @@ export default function SocialBroadcaster() {
             <div className="space-y-6">
               
               {/* Capacity Selector Card */}
-              <fieldset className="rounded-[24px] border border-rose-200/80 bg-rose-50/30 p-5 shadow-xl shadow-slate-900/[0.03] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-6">
+              <fieldset className="min-w-0 rounded-[24px] border border-rose-200/80 bg-rose-50/30 p-5 shadow-xl shadow-slate-900/[0.03] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-6">
                 <legend className="px-1 text-[16px] font-extrabold tracking-tight text-slate-800">
                   How available do you feel right now?
                 </legend>

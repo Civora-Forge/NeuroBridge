@@ -220,8 +220,8 @@ export default function MVHProtocol() {
                 </section>
 
                 {/* Optional Energy Check-In Box */}
-                <fieldset className="rounded-[24px] border border-emerald-200/80 bg-emerald-50/30 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md backdrop-blur-sm sm:p-6">
-                  <div className="mb-4 flex items-center justify-between">
+                <fieldset className="min-w-0 rounded-[24px] border border-emerald-200/80 bg-emerald-50/30 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md backdrop-blur-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <p className="inline-flex items-center gap-2 text-[12px] font-black uppercase tracking-[.14em] text-emerald-900">
                       <Leaf size={15} />
                       Optional energy check-in

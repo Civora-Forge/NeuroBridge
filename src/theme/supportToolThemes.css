@@ -14,10 +14,16 @@
   z-index: 2;
   color: var(--tool-text-muted);
   font-size: 0.75rem;
+  max-width: calc(100vw - 32px);
 }
 
 .adhd-display-controls summary { cursor: pointer; font-weight: 600; }
-.adhd-display-controls > div { display: flex; gap: 6px; margin-top: 6px; padding: 8px; border: 1px solid var(--tool-border); border-radius: 10px; background: var(--tool-surface); box-shadow: 0 6px 18px rgb(39 52 43 / 0.12); }
+/* Only lay the toggle row out when the <details> is actually open — without
+   the [open] guard this was forcing display:flex unconditionally, which
+   defeats the browser's native collapse and left the row permanently laid
+   out (and overflowing off-screen on narrow viewports) even when closed. */
+.adhd-display-controls > div { display: none; }
+.adhd-display-controls[open] > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; padding: 8px; border: 1px solid var(--tool-border); border-radius: 10px; background: var(--tool-surface); box-shadow: 0 6px 18px rgb(39 52 43 / 0.12); max-width: calc(100vw - 32px); }
 .adhd-display-controls button { border: 1px solid var(--tool-border); border-radius: 999px; padding: 5px 8px; background: transparent; color: var(--tool-text-muted); }
 .adhd-display-controls button[aria-pressed="true"] { border-color: var(--tool-primary); background: var(--tool-primary); color: #fff; }
 .adhd-display-status { margin: 6px 0 0; color: var(--tool-text-muted); font-size: 0.6875rem; font-weight: 700; }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Brain, Zap, BookOpen, Calculator, Shield, Hand, Ear, Sparkles,
+  Brain, Zap, BookOpen, Shield, Ear, Sparkles,
   ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout, Menu,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -19,9 +19,7 @@ const USER_NAV = [
   { title: "Social & Emotional Support",  path: "/asd",         icon: Brain,      featureKey: FEATURES.ASD },
   { title: "Focus Flow",       path: "/adhd",        icon: Zap,        featureKey: FEATURES.ADHD },
   { title: "Reading Support",  path: "/dyslexia",    icon: BookOpen,   featureKey: FEATURES.DYSLEXIA },
-  { title: "Number Confidence",path: "/dyscalculia", icon: Calculator, featureKey: FEATURES.DYSCALCULIA },
   { title: "Exposure Practice",path: "/ocd",         icon: Shield,     featureKey: FEATURES.OCD },
-  { title: "Motor Planning",   path: "/dyspraxia",   icon: Hand,       featureKey: FEATURES.DYSPRAXIA },
   { title: "Audio Clarity",    path: "/apd",         icon: Ear,        featureKey: FEATURES.APD },
   { title: "Calming Toolkit",  path: "/anxiety",     icon: Wind,       featureKey: FEATURES.ANXIETY },
   { title: "Daily Momentum",   path: "/depression",  icon: Sparkles,   featureKey: FEATURES.DEPRESSION },
