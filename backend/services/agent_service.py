@@ -692,10 +692,86 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         except Exception as e:
             print(f"[agent] Gemini call failed: {e}")
             execution.llm_latency_ms = int((time.monotonic() - llm_start) * 1000)
+
+            # The model itself is unreachable (quota/429, timeout, transient API
+            # error, already retried once by _send_with_retry) before it ever
+            # got to plan a tool call — so there's no real tool result to fall
+            # back on the way the post-tool-call fallback path below has. But
+            # the user should never just get a bare apology: every branch below
+            # ends in a real, concrete next step — either a real tool actually
+            # executed, or a real place to go — never fabricated success.
+            #
+            # Module detection reuses the same deterministic keyword scope-check
+            # used for context building above, run over recent history too (a
+            # reply like "let's try a different technique" contains no anxiety
+            # keyword on its own — only the conversation around it does).
+            recent_text = " ".join(
+                turn.get("content", "") for turn in (history or [])[-6:] if turn.get("role") in ("user", "model")
+            )
+            fallback_modules = context_scope.infer_relevant_modules(f"{recent_text} {message}")
+
+            # anxiety/adhd: a real, no-argument-required, no-confirmation tool
+            # exists with a sane default (grounding -> Box Breathing, focus ->
+            # 25 minutes) — genuinely act instead of just describing an action.
+            auto_tool_by_module = {"anxiety": "start_grounding_activity", "adhd": "start_focus_session"}
+            single_module = next(iter(fallback_modules)) if len(fallback_modules) == 1 else None
+            auto_tool_name = auto_tool_by_module.get(single_module)
+            if auto_tool_name:
+                tool = agent_tools.TOOL_REGISTRY[auto_tool_name]
+                outcome = self._execute_tool(tool, {}, execution_id=execution.execution_id, conversation_id=conversation_id)
+                if outcome["status"] == "executed":
+                    started_what = (
+                        f"a {outcome['result']['exercise_type']} exercise" if auto_tool_name == "start_grounding_activity"
+                        else f"a {outcome['result']['duration_minutes']}-minute focus session"
+                    )
+                    self._transition(execution, ExecutionState.COMPLETED, on_event)
+                    self._finish(execution, total_start)
+                    return {
+                        "response": (
+                            f"I'm having trouble thinking that through right now, so let's not wait on me — "
+                            f"I've started {started_what} for you."
+                        ),
+                        "action": self._build_action(tool.name, outcome["result"]),
+                        "execution_id": execution.execution_id, "state": ExecutionState.COMPLETED.value,
+                    }
+
+            # ocd: no zero-argument write tool is safe to fire blind (creating
+            # an exposure needs real content) — so point the user at the real
+            # page instead of guessing what to create.
+            single_module_page = {"ocd": ("/ocd", "your Exposure Practice tools")}.get(single_module)
+            # No action is attached on either branch below (`action: None`) even
+            # though we know a real, relevant page — the frontend auto-navigates
+            # (and closes the chat) the instant any FAILED-state message carries
+            # a NAVIGATE action, since that's how it plays back a genuinely
+            # completed tool's result. Doing that here, unprompted, on a plain
+            # LLM failure would silently whisk the user away and close the chat
+            # out from under them — worse than the dead end we're fixing. So the
+            # improvement stays in the text: honest about the failure, and
+            # telling them exactly where to go themselves, not auto-piloting them there.
+            if single_module_page:
+                path, label = single_module_page
+                self._transition(execution, ExecutionState.FAILED, on_event, error="llm_call_failed")
+                self._finish(execution, total_start)
+                return {
+                    "response": (
+                        f"I'm having trouble thinking that through right now — my connection to the AI model is "
+                        f"temporarily unavailable. I don't want to leave you stuck: open {label} ({path}) from "
+                        f"the sidebar and you can carry on without me for now."
+                    ),
+                    "action": None, "execution_id": execution.execution_id, "state": ExecutionState.FAILED.value,
+                }
+
+            # No confident single topic — still never a bare apology: name the
+            # real things Bri can do right now.
             self._transition(execution, ExecutionState.FAILED, on_event, error="llm_call_failed")
             self._finish(execution, total_start)
             return {
-                "response": "I'm having a little trouble thinking right now. Please try again in a moment.",
+                "response": (
+                    "I'm having trouble thinking that through right now — my connection to the AI model is "
+                    "temporarily unavailable. I don't want to leave you stuck: I can still start a focus "
+                    "session, start a grounding exercise, or break a task down for you the moment you tell me "
+                    "which — or use the sidebar to open a tool directly."
+                ),
                 "action": None, "execution_id": execution.execution_id, "state": ExecutionState.FAILED.value,
             }
         execution.llm_latency_ms = int((time.monotonic() - llm_start) * 1000)

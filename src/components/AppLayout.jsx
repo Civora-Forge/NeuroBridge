@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Brain, Zap, BookOpen, Calculator, Shield, Hand, Ear, Sparkles,
-  ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout,
+  ArrowLeftRight, User, Settings, ShieldCheck, LogOut, Heart, Wind, Sprout, Menu,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FEATURES } from "@/lib/featureRegistry";
@@ -10,6 +10,7 @@ import { MODULES_REGISTRY } from "@/data/modulesRegistry";
 import { recordModuleVisit, findModuleForPath } from "@/lib/lastVisitedModule";
 import { recordModuleUsage } from "@/lib/moduleUsage";
 import { getModeKeyForRoute, modeStyles } from "@/lib/moduleColor";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import AgentChat from "./AgentChat";
 
 // featureKey: null means always visible (Home)
@@ -38,6 +39,7 @@ export default function AppLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, role, isAuthenticated, logout, hasFeature } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // For regular users: show Home always + any module they have enabled.
   // Support and guardians have fixed, role-specific navs.
@@ -57,10 +59,119 @@ export default function AppLayout({ children }) {
     }
   }, [location.pathname, role]);
 
+  // Route changes (including ones triggered from inside the drawer) should
+  // always close it — otherwise it stays open over the newly-navigated page.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
   function handleLogout() {
     logout();
     navigate("/login-user");
   }
+
+  const NavContent = ({ onNavigate }) => (
+    <>
+      <div className="flex items-center gap-3 px-3 py-4 mb-2">
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+          <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
+        </div>
+        <span className="text-xl font-bold tracking-tight">NeuroBridge</span>
+      </div>
+
+      {/* User identity card */}
+      {isAuthenticated && user ? (
+        <Link
+          to={role === "support" ? "/support-dashboard" : role === "guardian" ? "/guardian-dashboard" : "/settings"}
+          onClick={onNavigate}
+          className="neuro-card p-3 mb-4 flex items-center gap-3 hover:bg-secondary transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+            {role === "support"
+              ? <ShieldCheck className="w-4 h-4 text-amber-500" aria-hidden="true" />                : role === "guardian"
+              ? <Heart className="w-4 h-4 text-violet-500" aria-hidden="true" />                : <User className="w-4 h-4 text-primary" aria-hidden="true" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user.abhaId ?? (role === "support" ? "Support" : "No ABHA linked")}
+            </p>
+          </div>
+        </Link>
+      ) : (
+        <div className="neuro-card p-3 mb-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
+            <User className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground">Not signed in</p>
+          </div>
+        </div>
+      )}
+
+      <nav aria-label="Modules" className="flex flex-col gap-1 flex-1">
+        {navItems.map((item) => {
+          const isActive =
+            item.path === "/"
+              ? location.pathname === "/"
+              : location.pathname.startsWith(item.path);
+          // Home keeps the primary brand color; every module gets its own
+          // recognizable color so "which section am I in" doesn't rely on
+          // reading text alone — same idea as the mode-colored dashboard cards.
+          const c = item.path === "/" ? null : modeStyles(getModeKeyForRoute(item.path));
+          const activeStyle = isActive && c ? { ...c.bgSoft, ...c.text, ...c.borderLeft } : undefined;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
+              style={activeStyle}
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors border-l-4 ${
+                isActive
+                  ? c
+                    ? "font-semibold"
+                    : "bg-primary text-primary-foreground border-l-transparent"
+                  : "text-foreground hover:bg-secondary border-l-transparent"
+              }`}
+            >
+              <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+              <span>{item.title}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Bottom actions */}
+      <div className="flex flex-col gap-1 mt-2">
+        {role === "user" && (
+          <Link to="/settings" onClick={onNavigate} className="neuro-btn-outline text-sm gap-2">
+            <Settings className="w-4 h-4" /> Settings
+          </Link>
+        )}
+        {isAuthenticated ? (
+          <button
+            onClick={() => {
+              onNavigate?.();
+              handleLogout();
+            }}
+            className="neuro-btn-outline text-sm gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
+        ) : (
+          <Link to="/login" onClick={onNavigate} className="neuro-btn-outline text-sm gap-2">
+            <User className="w-4 h-4" /> Sign in
+          </Link>
+        )}
+        {role === "user" && (
+          <Link to="/" onClick={onNavigate} className="neuro-btn-outline text-sm gap-2 mt-1">
+            <ArrowLeftRight className="w-4 h-4" /> Switch Mode
+          </Link>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <div className="flex min-h-screen w-full">
@@ -68,111 +179,39 @@ export default function AppLayout({ children }) {
         Skip to main content
       </a>
 
-      {/* ── Sidebar (desktop) ─────────────────── */}
+      {/* ── Sidebar (desktop) — fixed, so it never scrolls/shifts with the page ── */}
       <aside
         aria-label="Main navigation"
-        className="hidden md:flex w-64 flex-col border-r border-border bg-card p-4 gap-2 sticky top-0 h-screen overflow-y-auto"
+        className="hidden md:flex w-64 flex-col border-r border-border bg-card p-4 gap-2 fixed inset-y-0 left-0 z-30 overflow-y-auto"
       >
-        <div className="flex items-center gap-3 px-3 py-4 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">NeuroBridge</span>
-        </div>
-
-        {/* User identity card */}
-        {isAuthenticated && user ? (
-          <Link
-            to={role === "support" ? "/support-dashboard" : role === "guardian" ? "/guardian-dashboard" : "/settings"}
-            className="neuro-card p-3 mb-4 flex items-center gap-3 hover:bg-secondary transition-colors"
-          >
-            <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-              {role === "support"
-                ? <ShieldCheck className="w-4 h-4 text-amber-500" aria-hidden="true" />                : role === "guardian"
-                ? <Heart className="w-4 h-4 text-violet-500" aria-hidden="true" />                : <User className="w-4 h-4 text-primary" aria-hidden="true" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {user.abhaId ?? (role === "support" ? "Support" : "No ABHA linked")}
-              </p>
-            </div>
-          </Link>
-        ) : (
-          <div className="neuro-card p-3 mb-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-              <User className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Not signed in</p>
-            </div>
-          </div>
-        )}
-
-        <nav aria-label="Modules" className="flex flex-col gap-1 flex-1">
-          {navItems.map((item) => {
-            const isActive =
-              item.path === "/"
-                ? location.pathname === "/"
-                : location.pathname.startsWith(item.path);
-            // Home keeps the primary brand color; every module gets its own
-            // recognizable color so "which section am I in" doesn't rely on
-            // reading text alone — same idea as the mode-colored dashboard cards.
-            const c = item.path === "/" ? null : modeStyles(getModeKeyForRoute(item.path));
-            const activeStyle = isActive && c ? { ...c.bgSoft, ...c.text, ...c.borderLeft } : undefined;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                aria-current={isActive ? "page" : undefined}
-                style={activeStyle}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors border-l-4 ${
-                  isActive
-                    ? c
-                      ? "font-semibold"
-                      : "bg-primary text-primary-foreground border-l-transparent"
-                    : "text-foreground hover:bg-secondary border-l-transparent"
-                }`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                <span>{item.title}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Bottom actions */}
-        <div className="flex flex-col gap-1 mt-2">
-          {role === "user" && (
-            <Link to="/settings" className="neuro-btn-outline text-sm gap-2">
-              <Settings className="w-4 h-4" /> Settings
-            </Link>
-          )}
-          {isAuthenticated ? (
-            <button onClick={handleLogout} className="neuro-btn-outline text-sm gap-2">
-              <LogOut className="w-4 h-4" /> Sign out
-            </button>
-          ) : (
-            <Link to="/login" className="neuro-btn-outline text-sm gap-2">
-              <User className="w-4 h-4" /> Sign in
-            </Link>
-          )}
-          {role === "user" && (
-            <Link to="/" className="neuro-btn-outline text-sm gap-2 mt-1">
-              <ArrowLeftRight className="w-4 h-4" /> Switch Mode
-            </Link>
-          )}
-        </div>
+        <NavContent />
       </aside>
 
-      {/* ── Mobile top bar ─────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* ── Mobile nav drawer ─────────────────── */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-72 flex flex-col p-4 gap-2 overflow-y-auto md:hidden">
+          <SheetTitle className="sr-only">Main navigation</SheetTitle>
+          <NavContent onNavigate={() => setMobileNavOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      {/* Reserves the fixed sidebar's width on desktop so content isn't hidden under it */}
+      <div className="flex flex-col flex-1 min-w-0 md:ml-64">
+        {/* ── Mobile top bar ─────────────────────── */}
         <header className="md:hidden flex items-center justify-between border-b border-border bg-card px-4 py-3 sticky top-0 z-40">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open navigation menu"
+              className="neuro-btn-ghost -ml-2 py-2 px-2 min-h-0"
+            >
+              <Menu className="w-5 h-5" aria-hidden="true" />
+            </button>
             <Brain className="w-6 h-6 text-primary" aria-hidden="true" />
             <span className="font-bold text-lg">NeuroBridge</span>
           </div>
-          <nav aria-label="Account" className="flex items-center gap-2">
+          <nav aria-label="Account" className="flex items-center gap-1 sm:gap-2">
             {role === "user" && (
               <Link to="/settings" aria-label="Settings" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
                 <Settings className="w-4 h-4" aria-hidden="true" />
@@ -189,7 +228,7 @@ export default function AppLayout({ children }) {
             )}
             {role === "user" && (
               <Link to="/" className="neuro-btn-ghost text-sm py-2 px-3 min-h-0 gap-1">
-                <ArrowLeftRight className="w-4 h-4" aria-hidden="true" /> Modes
+                <ArrowLeftRight className="w-4 h-4" aria-hidden="true" /> <span className="hidden sm:inline">Modes</span>
               </Link>
             )}
           </nav>
@@ -199,7 +238,7 @@ export default function AppLayout({ children }) {
           {children}
         </main>
       </div>
-      
+
       {/* Agent Chat Widget (visible for authenticated users) */}
       {isAuthenticated && role === "user" && <AgentChat />}
     </div>

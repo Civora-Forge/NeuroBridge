@@ -182,16 +182,22 @@ const useAgentStore = create((set, get) => ({
         break;
       }
 
-      case 'execution_failed':
+      case 'execution_failed': {
         // A safely-worded explanation belongs in the assistant bubble itself
         // (e.g. max-steps reached) — not the separate connectivity-error banner.
+        // A FAILED turn can still carry a real action_payload (e.g. a
+        // fallback that navigates the user to a tool directly since the AI
+        // itself couldn't help this turn) — same as execution_completed,
+        // so the user always has something to do next, not just an apology.
         updateMessage(streamingId, (prev) => ({
           content: event.content || "I'm having trouble with that right now. Please try again.",
+          action_payload: event.action_payload,
           streaming: false,
           ...withLastStepStatus(prev, 'failed'),
         }));
         set({ executionState: 'FAILED', currentTool: null, isStreaming: false });
         break;
+      }
 
       default:
         break; // unknown event type — ignore safely, never crash the stream
