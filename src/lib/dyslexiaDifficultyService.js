@@ -109,7 +109,7 @@ export function analyzeSentenceDifficulty(paragraph) {
  * Simplify a word using AI.
  * Returns { simplified: string, explanation: string } or null on failure.
  */
-export async function simplifyWord(word) {
+export async function simplifyWord(word, user) {
   const prompt = `You are helping someone with dyslexia understand a difficult word.
 
 Word: "${word}"
@@ -121,7 +121,7 @@ Respond with JSON only (no markdown, no extra text):
 }`;
 
   try {
-    const res = await callGemini(prompt);
+    const res = await callGemini(prompt, user);
     const json = extractJSON(res);
     if (json?.simplified) return json;
   } catch (err) {
@@ -134,7 +134,7 @@ Respond with JSON only (no markdown, no extra text):
  * Simplify a sentence or paragraph using AI.
  * Returns simplified string or null on failure.
  */
-export async function simplifyText(text) {
+export async function simplifyText(text, user) {
   if (!text?.trim()) return null;
 
   const prompt = `You are helping someone with dyslexia read more easily.
@@ -151,7 +151,7 @@ Text to simplify:
 "${text}"`;
 
   try {
-    const res = await callGemini(prompt);
+    const res = await callGemini(prompt, user);
     return res?.trim() || null;
   } catch (err) {
     console.warn("[dyslexiaDifficultyService] simplifyText error:", err);
@@ -164,7 +164,7 @@ Text to simplify:
  * Returns Map<word, { difficulty: 0|1|2, explanation?: string, simpler?: string }>
  * Only analyzes words the heuristic rated >= 1.
  */
-export async function getAIDifficultyAnalysis(words, heuristicScores) {
+export async function getAIDifficultyAnalysis(words, heuristicScores, user) {
   const difficultWords = words
     .filter((_, i) => heuristicScores[i] >= 1)
     .map((w) => w.replace(/[^a-zA-Z'-]/g, ""))
@@ -189,7 +189,7 @@ Respond with JSON only:
 Only include words that are genuinely difficult (not everyday words). Be conservative.`;
 
   try {
-    const res = await callGemini(prompt);
+    const res = await callGemini(prompt, user);
     const json = extractJSON(res);
     if (json?.words) {
       const map = new Map();
@@ -212,11 +212,12 @@ Only include words that are genuinely difficult (not everyday words). Be conserv
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function callGemini(prompt) {
+async function callGemini(prompt, user) {
   const result = await callGeminiProxy({
     model: GEMINI_MODEL,
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.3, maxOutputTokens: 2500 },
+    user,
   });
   if (!result.ok) {
     throw new Error(result.error || "Gemini request failed");

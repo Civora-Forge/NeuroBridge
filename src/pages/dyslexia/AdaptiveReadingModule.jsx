@@ -1733,7 +1733,7 @@ function ReaderScreen({ docId, onBack }) {
   const handleWordClick = async (word, globalIdx) => {
     setSessionData(s => ({ ...s, difficultyInteractions: s.difficultyInteractions + 1 }));
     setSimplificationModal({ open: true, text: word, simplified: "", explanation: "", loading: true, targetIdx: globalIdx });
-    const res = await simplifyWord(word);
+    const res = await simplifyWord(word, user);
     setSimplificationModal(prev => ({
       ...prev,
       loading: false,
@@ -1745,7 +1745,7 @@ function ReaderScreen({ docId, onBack }) {
   const handleSentenceSimplify = async (paraText, paraIndex) => {
     setSessionData(s => ({ ...s, simplificationUsed: true }));
     setSimplificationModal({ open: true, text: paraText, simplified: "", explanation: "", loading: true, targetIdx: `para-${paraIndex}` });
-    const res = await simplifyText(paraText);
+    const res = await simplifyText(paraText, user);
     setSimplificationModal(prev => ({
       ...prev,
       loading: false,
