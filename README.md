@@ -284,10 +284,10 @@ Mock authentication is available where Supabase credentials aren't configured.
 ## Roadmap
 
 - [x] **Phase 1 — Foundation:** auth, roles, onboarding, feature registry, core support modules, local-first persistence
-- [ ] **Phase 2 — Context & Perception:** conversation extraction, mood inference, activity/environment tracking, context fusion
-- [ ] **Phase 3 — Adaptive Intelligence:** unified state model, reasoning core, planner, intervention ranking
-- [ ] **Phase 4 — Adaptive Experience:** UI adapter, dynamic complexity, state-based modes, adaptive navigation/typography
-- [ ] **Phase 5 — Reflection & Memory:** outcome tracking, reflection engine, long-term memory, feedback-driven adaptation
+- [x] **Phase 2 — Context & Perception:** conversation extraction, mood inference, activity/environment tracking, context fusion
+- [x] **Phase 3 — Adaptive Intelligence:** unified state model, reasoning core, planner, intervention ranking
+- [x] **Phase 4 — Adaptive Experience:** UI adapter, dynamic complexity, state-based modes, adaptive navigation/typography
+- [x] **Phase 5 — Reflection & Memory:** outcome tracking, reflection engine, long-term memory, feedback-driven adaptation
 - [ ] **Phase 6 — Intelligent Support:** support-specific agents, advanced JITAI, real sensor integration, cross-domain personalization
 - [ ] **Phase 7 — Production:** automated testing, accessibility audit, WCAG compliance, security review, mobile app, multilingual support
 
