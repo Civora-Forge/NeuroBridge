@@ -19,7 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { callGeminiProxy, extractGeminiText } from "@/lib/geminiProxyClient";
 
-const GEMINI_MODEL = "gemini-3.5-flash";
+const GEMINI_MODEL = "gemini-3.6-flash";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
