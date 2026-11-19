@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # We expect a Supabase Postgres connection string here, or default to sqlite for local dev if not found
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    if os.getenv("K_SERVICE"):
+        raise RuntimeError("DATABASE_URL must be configured when running on Cloud Run.")
+    SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(

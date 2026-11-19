@@ -7,7 +7,41 @@ import {
   ReflectionSchema,
   UserMemorySchema,
 } from "@/support/schemas/supportSchemas";
-import { getRole4StorageKey, ROLE4_COLLECTIONS, normalizeUserId } from "@/support/schemas/storageKeys";
+import { getRole4MigrationKey, getRole4StorageKey, ROLE4_COLLECTIONS, normalizeUserId } from "@/support/schemas/storageKeys";
+
+const UNSYNCED_RECORDS_MIGRATION = "unsynced_records";
+
+function unsyncedRecordsKey(userId) {
+  return getRole4MigrationKey(userId, UNSYNCED_RECORDS_MIGRATION);
+}
+
+export function listUnsyncedRole4Records(userId) {
+  try {
+    const records = JSON.parse(getStorage().getItem(unsyncedRecordsKey(userId)) || "[]");
+    return Array.isArray(records) ? records : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markRole4RecordUnsynced(userId, collection, id) {
+  const record = { collection, id: String(id) };
+  const records = listUnsyncedRole4Records(userId);
+  if (!records.some((item) => item.collection === record.collection && item.id === record.id)) {
+    getStorage().setItem(unsyncedRecordsKey(userId), JSON.stringify([...records, record]));
+  }
+}
+
+export function clearUnsyncedRole4Records(userId) {
+  getStorage().removeItem(unsyncedRecordsKey(userId));
+}
+
+export function clearUnsyncedRole4Record(userId, collection, id) {
+  const records = listUnsyncedRole4Records(userId).filter(
+    (record) => record.collection !== collection || record.id !== String(id),
+  );
+  getStorage().setItem(unsyncedRecordsKey(userId), JSON.stringify(records));
+}
 
 const COLLECTION_SCHEMAS = {
   [ROLE4_COLLECTIONS.INTERVENTIONS]: InterventionSchema,

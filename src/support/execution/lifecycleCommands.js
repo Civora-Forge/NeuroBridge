@@ -1,8 +1,7 @@
 import {
-  getInterventionForUser,
-  getInterventionHistory,
-  recordInterventionOutcome,
-  transitionIntervention,
+  getInterventionForUserAsync,
+  recordInterventionOutcomeAsync,
+  transitionInterventionAsync,
 } from "@/support/lifecycle/interventionLifecycle";
 import { completeFocusSessionIntervention, rateFocusSessionIntervention, recordFocusSessionOutcome, transitionFocusSessionIntervention } from "@/support/lifecycle/focusSessionLifecycle";
 import { getRole4Repository } from "@/support/persistence/role4Repository";
@@ -13,6 +12,16 @@ import {
   LifecycleCommandRequestSchema,
 } from "./executionTypes";
 import { processFocusInterventionOutcome, processInterventionOutcome } from "@/support/learning/processInterventionOutcome";
+import { normalizeUserId } from "@/support/schemas/storageKeys";
+
+const lifecycleLocks = new Map();
+
+function withLifecycleLock(userId, interventionId, work) {
+  const key = `${normalizeUserId(userId)}:${interventionId}`;
+  const next = (lifecycleLocks.get(key) ?? Promise.resolve()).catch(() => {}).then(work);
+  lifecycleLocks.set(key, next);
+  return next;
+}
 
 const RATING_STATUSES = new Set([
   InterventionStatus.COMPLETED,
@@ -46,7 +55,7 @@ async function parseCommand(request, action) {
   const command = parsed.data;
   const intervention = command.moduleId === "support.focus_session"
     ? await (await getRole4Repository(command.userId)).getIntervention(command.userId, command.interventionId)
-    : getInterventionForUser(command.userId, command.interventionId);
+    : await getInterventionForUserAsync(command.userId, command.interventionId);
   if (!intervention) {
     return { error: result(command, { error: "Intervention not found for user", reasonCodes: ["intervention_not_found"] }) };
   }
@@ -64,24 +73,21 @@ function commandMetadata(command, extra = {}) {
   };
 }
 
-async function runTransition(request, action, toStatus, reason, metadata = {}) {
-  const parsed = await parseCommand(request, action);
-  if (parsed.error) return parsed.error;
-
+async function executeTransition(command, toStatus, reason, metadata = {}) {
   try {
-    const transition = parsed.command.moduleId === "support.focus_session"
+    const transition = command.moduleId === "support.focus_session"
       ? await transitionFocusSessionIntervention({
-        userId: parsed.command.userId, interventionId: parsed.command.interventionId, toStatus, reason,
-        metadata: commandMetadata(parsed.command, metadata),
+        userId: command.userId, interventionId: command.interventionId, toStatus, reason,
+        metadata: commandMetadata(command, metadata),
       })
-      : transitionIntervention({
-      userId: parsed.command.userId,
-      interventionId: parsed.command.interventionId,
+      : await transitionInterventionAsync({
+      userId: command.userId,
+      interventionId: command.interventionId,
       toStatus,
       reason,
-      metadata: commandMetadata(parsed.command, metadata),
+      metadata: commandMetadata(command, metadata),
     });
-    return result(parsed.command, {
+    return result(command, {
       ok: true,
       status: executionStatusFor(toStatus),
       intervention: transition.intervention,
@@ -89,11 +95,22 @@ async function runTransition(request, action, toStatus, reason, metadata = {}) {
       reasonCodes: [reason],
     });
   } catch (error) {
-    return result(parsed.command, {
+    return result(command, {
       error: error instanceof Error ? error.message : "Invalid lifecycle transition",
       reasonCodes: ["invalid_transition"],
     });
   }
+}
+
+async function runTransition(request, action, toStatus, reason, metadata = {}) {
+  const parsed = await parseCommand(request, action);
+  if (parsed.error) return parsed.error;
+
+  return withLifecycleLock(parsed.command.userId, parsed.command.interventionId, async () => {
+    const current = await parseCommand(parsed.command, action);
+    if (current.error) return current.error;
+    return executeTransition(current.command, toStatus, reason, metadata);
+  });
 }
 
 function executionStatusFor(interventionStatus) {
@@ -127,89 +144,99 @@ export async function completeSupportModule(request) {
   const parsed = await parseCommand(request, LifecycleAction.COMPLETE);
   if (parsed.error) return parsed.error;
 
-  const outcome = parsed.command.outcome || {};
-  const toStatus = outcome.completionStatus === "partially_completed"
-    ? InterventionStatus.PARTIALLY_COMPLETED
-    : InterventionStatus.COMPLETED;
-  if (parsed.command.moduleId === "support.focus_session") {
-    try {
-      const completed = await completeFocusSessionIntervention({ userId: parsed.command.userId, interventionId: parsed.command.interventionId, outcome });
+  return withLifecycleLock(parsed.command.userId, parsed.command.interventionId, async () => {
+    const current = await parseCommand(parsed.command, LifecycleAction.COMPLETE);
+    if (current.error) return current.error;
+    const outcome = current.command.outcome || {};
+    const toStatus = outcome.completionStatus === "partially_completed"
+      ? InterventionStatus.PARTIALLY_COMPLETED
+      : InterventionStatus.COMPLETED;
+    if (current.command.moduleId === "support.focus_session") {
       try {
-        const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
-        recordWellbeingInteraction({
-          userId: parsed.command.userId,
-          interactionType: WELLBEING_INTERACTION_TYPES.FOCUS_SESSION_COMPLETED,
-          source: "support.focus_session",
-          metadata: { interventionId: parsed.command.interventionId, outcome },
-        });
-      } catch (e) {
-        // Safe fallback
+        const completed = await completeFocusSessionIntervention({ userId: current.command.userId, interventionId: current.command.interventionId, outcome });
+        try {
+          const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
+          recordWellbeingInteraction({
+            userId: current.command.userId,
+            interactionType: WELLBEING_INTERACTION_TYPES.FOCUS_SESSION_COMPLETED,
+            source: "support.focus_session",
+            metadata: { interventionId: current.command.interventionId, outcome },
+          });
+        } catch (e) {
+          // Safe fallback
+        }
+        return result(current.command, { ok: true, status: ExecutionStatus.COMPLETED, intervention: completed.intervention, lifecycleEvent: completed.lifecycleEvent, outcome: completed.outcome, reasonCodes: ["intervention_completed"], learning: await processFocusInterventionOutcome(completed.intervention) });
+      } catch (error) {
+        return result(current.command, { error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
       }
-      return result(parsed.command, { ok: true, status: ExecutionStatus.COMPLETED, intervention: completed.intervention, lifecycleEvent: completed.lifecycleEvent, outcome: completed.outcome, reasonCodes: ["intervention_completed"], learning: await processFocusInterventionOutcome(completed.intervention) });
-    } catch (error) {
-      return result(parsed.command, { error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
     }
-  }
-  const transition = await runTransition(parsed.command, LifecycleAction.COMPLETE, toStatus, "intervention_completed", {
-    completionStatus: outcome.completionStatus,
-  });
-  if (!transition.ok) return transition;
-
-  const savedOutcome = recordInterventionOutcome({
-    userId: parsed.command.userId,
-    interventionId: parsed.command.interventionId,
-    status: toStatus,
-    completed: toStatus === InterventionStatus.COMPLETED,
-    durationMs: outcome.durationMs,
-    rating: outcome.userRating,
-    userFeedback: parsed.command.metadata.storeFeedback === true ? outcome.userFeedback : undefined,
-    metrics: {
-      ...outcome.metrics,
-      finalConfiguration: outcome.finalConfiguration,
-    },
-  });
-
-  try {
-    const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
-    recordWellbeingInteraction({
-      userId: parsed.command.userId,
-      interactionType: WELLBEING_INTERACTION_TYPES.SUPPORT_MODULE_COMPLETED,
-      source: parsed.command.moduleId || "support_toolkit",
-      metadata: { interventionId: parsed.command.interventionId, outcome: savedOutcome },
+    const transition = await executeTransition(current.command, toStatus, "intervention_completed", {
+      completionStatus: outcome.completionStatus,
     });
-  } catch (e) {
-    // Safe fallback
-  }
+    if (!transition.ok) return transition;
 
-  return { ...transition, status: ExecutionStatus.COMPLETED, outcome: savedOutcome, learning: processInterventionOutcome(transition.intervention) };
+    const savedOutcome = await recordInterventionOutcomeAsync({
+      userId: current.command.userId,
+      interventionId: current.command.interventionId,
+      status: toStatus,
+      completed: toStatus === InterventionStatus.COMPLETED,
+      durationMs: outcome.durationMs,
+      rating: outcome.userRating,
+      userFeedback: current.command.metadata?.storeFeedback === true ? outcome.userFeedback : undefined,
+      metrics: {
+        ...outcome.metrics,
+        finalConfiguration: outcome.finalConfiguration,
+      },
+    });
+
+    try {
+      const { recordWellbeingInteraction, WELLBEING_INTERACTION_TYPES } = await import("@/services/wellbeingService.js");
+      recordWellbeingInteraction({
+        userId: current.command.userId,
+        interactionType: WELLBEING_INTERACTION_TYPES.SUPPORT_MODULE_COMPLETED,
+        source: current.command.moduleId || "support_toolkit",
+        metadata: { interventionId: current.command.interventionId, outcome: savedOutcome },
+      });
+    } catch (e) {
+      // Safe fallback
+    }
+
+    return { ...transition, status: ExecutionStatus.COMPLETED, outcome: savedOutcome, learning: await processInterventionOutcome(transition.intervention) };
+  });
 }
 
 export async function abandonSupportModule(request) {
   const parsed = await parseCommand(request, LifecycleAction.ABANDON);
   if (parsed.error) return parsed.error;
-  const transition = await runTransition(parsed.command, LifecycleAction.ABANDON, InterventionStatus.ABANDONED, "intervention_abandoned");
-  if (!transition.ok || !parsed.command.outcome) return transition;
-  const outcome = parsed.command.outcome;
-  if (parsed.command.moduleId === "support.focus_session") {
-    try {
-      const savedOutcome = await recordFocusSessionOutcome({ userId: parsed.command.userId, intervention: transition.intervention, status: InterventionStatus.ABANDONED, outcome });
-      return { ...transition, outcome: savedOutcome, learning: await processFocusInterventionOutcome(transition.intervention) };
-    } catch (error) {
-      return result(parsed.command, { error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
+
+  return withLifecycleLock(parsed.command.userId, parsed.command.interventionId, async () => {
+    const current = await parseCommand(parsed.command, LifecycleAction.ABANDON);
+    if (current.error) return current.error;
+
+    const transition = await executeTransition(current.command, InterventionStatus.ABANDONED, "intervention_abandoned");
+    if (!transition.ok || !current.command.outcome) return transition;
+    const outcome = current.command.outcome;
+    if (current.command.moduleId === "support.focus_session") {
+      try {
+        const savedOutcome = await recordFocusSessionOutcome({ userId: current.command.userId, intervention: transition.intervention, status: InterventionStatus.ABANDONED, outcome });
+        return { ...transition, outcome: savedOutcome, learning: await processFocusInterventionOutcome(transition.intervention) };
+      } catch (error) {
+        return result(current.command, { error: error instanceof Error ? error.message : "Focus Session persistence failed", reasonCodes: ["persistence_failed"] });
+      }
     }
-  }
-  const abandonment = {
-    ...transition,
-    outcome: recordInterventionOutcome({
-      userId: parsed.command.userId,
-      interventionId: parsed.command.interventionId,
-      status: InterventionStatus.ABANDONED,
-      completed: false,
-      durationMs: outcome.durationMs,
-      metrics: { ...outcome.metrics, finalConfiguration: outcome.finalConfiguration },
-    }),
-  };
-  return { ...abandonment, learning: processInterventionOutcome(abandonment.intervention) };
+    const abandonment = {
+      ...transition,
+      outcome: await recordInterventionOutcomeAsync({
+        userId: current.command.userId,
+        interventionId: current.command.interventionId,
+        status: InterventionStatus.ABANDONED,
+        completed: false,
+        durationMs: outcome.durationMs,
+        metrics: { ...outcome.metrics, finalConfiguration: outcome.finalConfiguration },
+      }),
+    };
+    return { ...abandonment, learning: await processInterventionOutcome(abandonment.intervention) };
+  });
 }
 
 export async function cancelSupportModule(request) {
@@ -254,14 +281,13 @@ export async function rateSupportModule(request) {
     }
   }
 
-  const history = getInterventionHistory(parsed.command.userId).find(
-    (entry) => entry.intervention.id === parsed.command.interventionId,
-  );
-  if (history?.outcomes.some((outcome) => typeof outcome.rating === "number")) {
+  const repository = await getRole4Repository(parsed.command.userId);
+  const history = await repository.listOutcomes(parsed.command.userId, parsed.command.interventionId);
+  if (history.some((outcome) => typeof outcome.rating === "number")) {
     return result(parsed.command, { error: "A rating has already been submitted", reasonCodes: ["rating_already_submitted"] });
   }
 
-  const savedOutcome = recordInterventionOutcome({
+  const savedOutcome = await recordInterventionOutcomeAsync({
     userId: parsed.command.userId,
     interventionId: parsed.command.interventionId,
     status: parsed.intervention.status,
@@ -275,6 +301,6 @@ export async function rateSupportModule(request) {
     intervention: parsed.intervention,
     outcome: savedOutcome,
     reasonCodes: ["rating_recorded"],
-    learning: processInterventionOutcome(parsed.intervention),
+    learning: await processInterventionOutcome(parsed.intervention),
   });
 }

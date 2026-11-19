@@ -1,10 +1,10 @@
 import { assessSupportInput } from "@/support/safety";
 import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
 import {
-  deliverIntervention,
-  getInterventionHistory,
-  transitionIntervention,
+  deliverInterventionAsync,
+  transitionInterventionAsync,
 } from "@/support/lifecycle/interventionLifecycle";
+import { getRole4Repository } from "@/support/persistence/role4Repository";
 import { InterventionStatus } from "@/support/schemas/supportSchemas";
 import {
   ExecutionRequestSchema,
@@ -15,6 +15,14 @@ import {
 } from "./executionTypes";
 import { DEFERRED_MODULE_IDS, getModuleExecutor } from "./moduleExecutors";
 import { startFocusSessionIntervention, transitionFocusSessionIntervention } from "@/support/lifecycle/focusSessionLifecycle";
+
+const startLocks = new Map();
+
+function withStartLock(lockKey, work) {
+  const next = (startLocks.get(lockKey) ?? Promise.resolve()).catch(() => {}).then(work);
+  startLocks.set(lockKey, next);
+  return next;
+}
 
 function now() {
   return new Date().toISOString();
@@ -110,19 +118,38 @@ export async function executeSupportModule(request) {
   }
 
   const idempotencyKey = executionRequest.metadata.idempotencyKey;
+  const lockKey = typeof idempotencyKey === "string" && idempotencyKey.trim()
+    ? `${executionRequest.userId}:${module.id}:${idempotencyKey.trim()}`
+    : null;
+
+  const startModule = async () => {
   if (typeof idempotencyKey === "string" && idempotencyKey.trim()) {
-    const existing = getInterventionHistory(executionRequest.userId).find(
-      (entry) =>
-        entry.intervention.moduleId === module.id &&
-        entry.intervention.parameters?.execution?.metadata?.idempotencyKey === idempotencyKey,
-    );
-    if (existing) {
-      return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.RUNNING, "duplicate_start"), {
-        ok: true,
-        status: ExecutionStatus.RUNNING,
-        interventionId: existing.intervention.id,
-        reasonCodes: ["duplicate_start"],
-      });
+    if (module.id === "support.focus_session") {
+      const repository = await getRole4Repository(executionRequest.userId);
+      const existing = (await repository.listInterventionsByModule(executionRequest.userId, module.id)).find(
+        (item) => item.parameters?.execution?.metadata?.idempotencyKey === idempotencyKey,
+      );
+      if (existing) {
+        return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.RUNNING, "duplicate_start"), {
+          ok: true,
+          status: ExecutionStatus.RUNNING,
+          interventionId: existing.id,
+          reasonCodes: ["duplicate_start"],
+        });
+      }
+    } else {
+      const repository = await getRole4Repository(executionRequest.userId);
+      const existing = (await repository.listInterventionsByModule(executionRequest.userId, module.id)).find(
+        (item) => item.parameters?.execution?.metadata?.idempotencyKey === idempotencyKey,
+      );
+      if (existing) {
+        return createResult(executionRequest, appendState(lifecycle, ExecutionStatus.RUNNING, "duplicate_start"), {
+          ok: true,
+          status: ExecutionStatus.RUNNING,
+          interventionId: existing.id,
+          reasonCodes: ["duplicate_start"],
+        });
+      }
     }
   }
 
@@ -159,7 +186,7 @@ export async function executeSupportModule(request) {
     }
   }
 
-  const delivered = deliverIntervention({
+  const delivered = await deliverInterventionAsync({
     userId: executionRequest.userId,
     module,
     interventionId,
@@ -183,7 +210,7 @@ export async function executeSupportModule(request) {
     });
   }
 
-  transitionIntervention({
+  await transitionInterventionAsync({
     userId: executionRequest.userId,
     interventionId,
     toStatus: InterventionStatus.STARTED,
@@ -213,7 +240,7 @@ export async function executeSupportModule(request) {
       reasonCodes: ["execution_started"],
     });
   } catch (error) {
-    transitionIntervention({
+    await transitionInterventionAsync({
       userId: executionRequest.userId,
       interventionId,
       toStatus: InterventionStatus.FAILED,
@@ -226,4 +253,7 @@ export async function executeSupportModule(request) {
       reasonCodes: ["executor_failed"],
     });
   }
+  };
+
+  return lockKey ? withStartLock(lockKey, startModule) : startModule();
 }

@@ -7,6 +7,7 @@ import {
   saveInterventionLifecycleEvent,
   saveInterventionOutcome,
 } from "@/support/persistence/role4Store";
+import { getRole4Repository } from "@/support/persistence/role4Repository";
 import { getSupportModuleById } from "@/support/framework/supportModuleRegistry";
 import { selectIntervention } from "@/support/framework/interventionSelection";
 import { ROLE4_COLLECTIONS, ROLE4_SCHEMA_VERSION, normalizeUserId } from "@/support/schemas/storageKeys";
@@ -156,6 +157,12 @@ export function getInterventionForUser(userId, interventionId) {
   }
 }
 
+export async function getInterventionForUserAsync(userId, interventionId, { repository: suppliedRepository } = {}) {
+  const normalizedUserId = normalizeUserId(userId);
+  const repository = suppliedRepository || await getRole4Repository(normalizedUserId);
+  return repository.getIntervention(normalizedUserId, interventionId);
+}
+
 export function deliverIntervention(options = {}) {
   const userId = normalizeUserId(options.userId);
   const selection = options.module
@@ -240,6 +247,35 @@ export function deliverIntervention(options = {}) {
   };
 }
 
+export async function deliverInterventionAsync(options = {}) {
+  const userId = normalizeUserId(options.userId);
+  const repository = options.repository || await getRole4Repository(userId);
+  const selection = options.module
+    ? { selectedModule: options.module, rankedModules: [], fallbackUsed: false, safety: { allowed: true, reasonCodes: [] }, reasonCodes: ["explicit_module_delivery"] }
+    : selectIntervention(options);
+  if (!selection.selectedModule || selection.safety?.allowed === false) {
+    return { status: "blocked", intervention: null, delivery: null, selection, reasonCodes: selection.safety?.allowed === false ? selection.safety.reasonCodes : selection.reasonCodes, safety: selection.safety };
+  }
+  const module = getSupportModuleById(selection.selectedModule.id) || selection.selectedModule;
+  const now = new Date().toISOString();
+  const intervention = await repository.createIntervention({
+    schemaVersion: ROLE4_SCHEMA_VERSION, id: options.interventionId || makeId("intervention"), userId,
+    moduleId: module.id, interventionType: options.interventionType || module.interventionTypes[0], category: module.category,
+    status: InterventionStatus.SHOWN, title: module.title, description: module.description, route: module.route,
+    source: OutcomeSource.SYSTEM_INFERENCE, privacy: module.privacyDefault || PrivacyLevel.PRIVATE, tags: module.tags,
+    parameters: options.parameters || {}, rationale: selection.reasonCodes.join(", "), contextSnapshot: options.currentContext,
+    createdAt: now, updatedAt: now,
+  });
+  const lifecycleEvent = await repository.appendLifecycleEvent({
+    schemaVersion: ROLE4_SCHEMA_VERSION, id: makeId("lifecycle"), userId, interventionId: intervention.id,
+    moduleId: intervention.moduleId, interventionType: intervention.interventionType, fromStatus: null,
+    toStatus: InterventionStatus.SHOWN, source: OutcomeSource.SYSTEM_INFERENCE, privacy: intervention.privacy,
+    reason: "intervention_delivered", metadata: { fallbackUsed: selection.fallbackUsed, reasonCodes: selection.reasonCodes, safety: selection.safety },
+    contextSnapshot: intervention.contextSnapshot, createdAt: now, updatedAt: now,
+  });
+  return { status: "delivered", intervention, lifecycleEvent, selection, delivery: { route: module.route, title: module.title, moduleId: module.id, interventionType: intervention.interventionType, safetyMessage: selection.safety?.message } };
+}
+
 export function transitionIntervention(options = {}) {
   const userId = normalizeUserId(options.userId);
   const intervention = loadInterventionForUser(userId, options.interventionId);
@@ -265,6 +301,23 @@ export function transitionIntervention(options = {}) {
     lifecycleEvent: event,
     allowedNextStatuses: getAllowedTransitions(updated.status),
   };
+}
+
+export async function transitionInterventionAsync(options = {}) {
+  const userId = normalizeUserId(options.userId);
+  const repository = options.repository || await getRole4Repository(userId);
+  const intervention = await repository.getIntervention(userId, options.interventionId);
+  if (!intervention) throw new Error("Intervention not found for user");
+  assertTransitionAllowed(intervention.status, options.toStatus);
+  const updated = await repository.updateIntervention({ ...intervention, status: options.toStatus, updatedAt: new Date().toISOString() });
+  const now = new Date().toISOString();
+  const lifecycleEvent = await repository.appendLifecycleEvent({
+    schemaVersion: ROLE4_SCHEMA_VERSION, id: options.eventId || makeId("lifecycle"), userId, interventionId: updated.id,
+    moduleId: updated.moduleId, interventionType: updated.interventionType, fromStatus: intervention.status, toStatus: options.toStatus,
+    source: options.source || OutcomeSource.MODULE_EVENT, privacy: options.privacy || updated.privacy, reason: options.reason,
+    metadata: options.metadata || {}, contextSnapshot: options.contextSnapshot || updated.contextSnapshot, createdAt: now, updatedAt: now,
+  });
+  return { intervention: updated, lifecycleEvent, allowedNextStatuses: getAllowedTransitions(updated.status) };
 }
 
 export function recordInterventionOutcome(options = {}) {
@@ -293,6 +346,22 @@ export function recordInterventionOutcome(options = {}) {
     contextSnapshot: options.contextSnapshot || intervention.contextSnapshot,
     createdAt: now,
     updatedAt: now,
+  });
+}
+
+export async function recordInterventionOutcomeAsync(options = {}) {
+  const userId = normalizeUserId(options.userId);
+  const repository = options.repository || await getRole4Repository(userId);
+  const intervention = await repository.getIntervention(userId, options.interventionId);
+  if (!intervention) throw new Error("Intervention not found for user");
+  const now = new Date().toISOString();
+  return repository.appendOutcome({
+    schemaVersion: ROLE4_SCHEMA_VERSION, id: options.outcomeId || makeId("outcome"), userId, interventionId: intervention.id,
+    moduleId: intervention.moduleId, interventionType: intervention.interventionType, category: intervention.category,
+    status: options.status || intervention.status, source: options.source || OutcomeSource.MODULE_EVENT,
+    privacy: options.privacy || intervention.privacy || PrivacyLevel.PRIVATE, accepted: options.accepted, completed: options.completed,
+    durationMs: options.durationMs, rating: options.rating, userFeedback: options.userFeedback, metrics: options.metrics || {},
+    contextSnapshot: options.contextSnapshot || intervention.contextSnapshot, createdAt: now, updatedAt: now,
   });
 }
 

@@ -25,12 +25,13 @@ already gets, not to change what any of these features send to Gemini.
 import os
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
-from ..auth import CurrentUser, get_current_user
+from ..auth import CurrentUser, get_current_user, require_ai_consent
 from ..services.rate_limiter import SlidingWindowRateLimiter
+from ..services.ai_privacy import minimize_contents
 
 router = APIRouter()
 
@@ -55,14 +56,19 @@ class GenerateRequest(BaseModel):
 
 
 @router.post("/generate")
-def generate(request: GenerateRequest, user: CurrentUser = Depends(get_current_user)) -> dict:
+def generate(
+    request: GenerateRequest,
+    user: CurrentUser = Depends(get_current_user),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
+) -> dict:
+    require_ai_consent(user, ai_consent)
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="AI features aren't configured on the backend (missing GEMINI_API_KEY).")
 
     _rate_limiter.check(user.id)
 
     model = request.model if request.model in _ALLOWED_MODELS else _DEFAULT_MODEL
-    body: dict[str, Any] = {"contents": request.contents}
+    body: dict[str, Any] = {"contents": minimize_contents(request.contents)}
     if request.generation_config:
         body["generationConfig"] = request.generation_config
 

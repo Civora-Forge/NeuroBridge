@@ -5,6 +5,7 @@ import time
 import google.generativeai as genai
 from google.api_core.exceptions import DeadlineExceeded, InternalServerError, ServiceUnavailable
 from typing import List
+from .ai_privacy import redact_direct_identifiers
 
 # Configure Gemini
 api_key = os.getenv("GEMINI_API_KEY")
@@ -66,7 +67,7 @@ def generate_exposure_suggestions(category: str) -> List[str]:
         safe = [s for s in suggestions if not _contains_reassurance(s)]
         return safe or ["Touch a doorknob", "Don't wash hands for 1 minute"]
     except Exception as e:
-        print(f"Error generating exposure tasks: {e}")
+        print("Error generating exposure tasks")
         return ["Touch a doorknob", "Don't wash hands for 1 minute"]
 
 
@@ -86,7 +87,7 @@ def summarize_erp_session(pre_suds: int, post_suds: int, duration: int, resisted
     Pre-SUDS: {pre_suds}/100, Post-SUDS: {post_suds}/100.
     Duration: {duration} seconds.
     Resisted compulsion: {resisted}.
-    Notes: {notes}
+    Notes: {redact_direct_identifiers(notes)}
     """
     try:
         response = _generate_with_retry(model, prompt)
@@ -109,9 +110,9 @@ def analyze_journal_entry(trigger: str, obsession: str, emotion: str, anxiety: i
     do not say anything is safe or fine, and do not debate whether the obsession is true or false —
     only describe a practice step.
 
-    Trigger: {trigger}
-    Obsession: {obsession}
-    Emotion: {emotion}
+    Trigger: {redact_direct_identifiers(trigger)}
+    Obsession: {redact_direct_identifiers(obsession)}
+    Emotion: {redact_direct_identifiers(emotion)}
     Anxiety: {anxiety}/100
     """
     try:

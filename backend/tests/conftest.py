@@ -43,7 +43,7 @@ def login_as():
 
 
 def make_user(email: str = None) -> CurrentUser:
-    return CurrentUser(id=str(uuid.uuid4()), email=email or "test@example.com")
+    return CurrentUser(id=str(uuid.uuid4()), email=email or "test@example.com", ai_consent=True)
 
 
 @pytest.fixture

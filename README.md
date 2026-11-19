@@ -76,7 +76,7 @@ The adaptive architecture is split across four engineering roles:
 | Animation | Framer Motion 10.12 |
 | Charts | Recharts 2.15 |
 | Forms | react-hook-form + Zod |
-| Backend | Flask |
+| Backend | FastAPI + Uvicorn |
 | Auth & Database | Supabase |
 | Testing | Vitest + jsdom + Testing Library |
 | Icons | lucide-react |
@@ -89,7 +89,7 @@ The adaptive architecture is split across four engineering roles:
 
 - Node.js 18+
 - npm
-- Python 3+ (for the Flask backend)
+- Python 3+ (for the FastAPI backend)
 
 ### Installation
 
@@ -124,7 +124,7 @@ Runs on `http://localhost:8080`.
 bash start-dev.sh
 ```
 
-The Flask backend runs on port `5000`; Vite proxies `/api` requests to it.
+The FastAPI backend runs on port `8000`; Vite proxies `/api` requests to it. API documentation is available at `http://localhost:8000/docs`.
 
 ### Build
 

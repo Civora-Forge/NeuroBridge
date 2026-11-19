@@ -31,18 +31,19 @@ function getOrCreateDemoSessionId() {
  * resolution, and duplicating it risks the two copies drifting apart.
  */
 export async function backendAuthHeaders(user) {
+  const consentHeaders = user?.aiConsent ? { "X-NeuroBridge-AI-Consent": "accepted" } : {};
   if (user?._supabase) {
     try {
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
-      return token ? { Authorization: `Bearer ${token}` } : {};
+      return token ? { Authorization: `Bearer ${token}`, ...consentHeaders } : {};
     } catch {
       return {};
     }
   }
   if (user?.id) {
     const sessionId = getOrCreateDemoSessionId();
-    return { Authorization: `Bearer demo:${user.id}:${sessionId}` };
+    return { Authorization: `Bearer demo:${user.id}:${sessionId}`, ...consentHeaders };
   }
   return {};
 }

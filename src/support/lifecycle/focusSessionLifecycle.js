@@ -29,6 +29,17 @@ export async function startFocusSessionIntervention({ userId, interventionId, pa
   const normalizedUserId = normalizeUserId(userId);
   const repository = suppliedRepository || await getRole4Repository(normalizedUserId);
   const module = getSupportModuleById("support.focus_session");
+  if (interventionId) {
+    const existing = await repository.getIntervention(normalizedUserId, interventionId);
+    if (existing) {
+      if (existing.status === InterventionStatus.SHOWN) {
+        const started = await repository.updateIntervention({ ...existing, status: InterventionStatus.STARTED, updatedAt: new Date().toISOString() });
+        const lifecycleEvent = await repository.appendLifecycleEvent(eventFor(normalizedUserId, started, InterventionStatus.STARTED, { fromStatus: InterventionStatus.SHOWN, reason: "execution_started" }));
+        return { intervention: started, lifecycleEvent, repositoryKind: repository.kind };
+      }
+      return { intervention: existing, lifecycleEvent: null, repositoryKind: repository.kind };
+    }
+  }
   const now = new Date().toISOString();
   const shown = await repository.createIntervention({
     schemaVersion: ROLE4_SCHEMA_VERSION, id: interventionId || makeId("intervention"), userId: normalizedUserId,

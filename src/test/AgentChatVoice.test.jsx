@@ -244,8 +244,12 @@ describe("AgentChat — accessible execution status while streaming", () => {
     storeMessages = [
       { id: "s2", role: "model", content: "You have 1 exposure hierarchy.", streaming: false, action_payload: null },
     ];
-    const { getByText, queryByText } = renderChat();
-    expect(getByText("You have 1 exposure hierarchy.")).toBeTruthy();
+    const { getAllByText, queryByText } = renderChat();
+    const replies = getAllByText("You have 1 exposure hierarchy.");
+    // The stable screen-reader status region mirrors finalized replies, while
+    // the dialog retains the visible conversation message.
+    expect(replies.some((reply) => reply.closest('[role="dialog"]'))).toBe(true);
+    expect(replies.some((reply) => reply.closest('[role="status"]'))).toBe(true);
     expect(queryByText(/checking/i)).toBeNull();
   });
 });

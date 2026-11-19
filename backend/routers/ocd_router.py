@@ -1,11 +1,11 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
-from ..auth import get_current_user, CurrentUser
+from ..auth import get_current_user, CurrentUser, require_ai_consent
 from ..models import ocd_models
 from ..schemas import ocd_schemas
 from ..services import ai_service
@@ -30,7 +30,9 @@ def create_hierarchy(
     hierarchy: ocd_schemas.ExposureHierarchyCreate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
+    require_ai_consent(user, ai_consent)
     _ai_write_limiter.check(user.id)
 
     db_hierarchy = ocd_models.ExposureHierarchy(**hierarchy.model_dump(), owner_id=user.id)
@@ -144,7 +146,9 @@ def create_session(
     session: ocd_schemas.ERPSessionCreate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
+    require_ai_consent(user, ai_consent)
     _ai_write_limiter.check(user.id)
 
     db_session = ocd_models.ERPSession(**session.model_dump(), owner_id=user.id, status="completed")
@@ -165,12 +169,15 @@ def complete_session(
     completion: ocd_schemas.ERPSessionComplete,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
     """Completes a session that already exists (e.g. one the agent started
     via start_erp_session) instead of creating a second, duplicate row the
     way POST /sessions/ would — this is the manual-UI equivalent of the
     agent's own complete_erp_session tool, reusing the exact same logic."""
     from datetime import datetime as _dt
+
+    require_ai_consent(user, ai_consent)
 
     session = db.query(ocd_models.ERPSession).filter_by(id=session_id, owner_id=user.id).first()
     if not session:
@@ -241,7 +248,9 @@ def create_journal_entry(
     entry: ocd_schemas.OCDJournalEntryCreate,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
+    require_ai_consent(user, ai_consent)
     _ai_write_limiter.check(user.id)
 
     db_entry = ocd_models.OCDJournalEntry(**entry.model_dump(), owner_id=user.id)

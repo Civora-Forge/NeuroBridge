@@ -59,7 +59,7 @@ describe("moodAgent interaction burst inference", () => {
       expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
 
       // Once the grace cooldown expires, the pre-burst baseline is restored.
-      vi.advanceTimersByTime(20_001);
+      vi.advanceTimersByTime(20001);
       expect(contextStore.getContext().mood.primaryMood).toBe("neutral");
     } finally {
       vi.useRealTimers();
@@ -75,7 +75,7 @@ describe("moodAgent interaction burst inference", () => {
 
       // New burst re-activates inside the grace window.
       handleInteractionSignal(burstSnapshot);
-      vi.advanceTimersByTime(30_000);
+      vi.advanceTimersByTime(30000);
       expect(contextStore.getContext().mood.primaryMood).toBe("stressed");
     } finally {
       vi.useRealTimers();

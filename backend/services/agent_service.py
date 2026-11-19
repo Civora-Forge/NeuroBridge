@@ -39,6 +39,7 @@ from ..auth import CurrentUser
 from ..database import SessionLocal
 from ..models import agent_models
 from . import agent_tools, context_scope, contextual_commands, fast_path, safety
+from .ai_privacy import redact_direct_identifiers
 from .agent_state import TERMINAL_STATES, ExecutionState
 from .agent_tools import RiskLevel, Tool, ToolContext, ToolError, ToolTimeoutError
 from .navigation import FEATURE_LABELS, match_navigation_shortcut, resolve_feature_route
@@ -297,6 +298,10 @@ class AgentOrchestrator:
             if personalization:
                 parts.append(personalization)
 
+        role4_context = agent_tools.get_role4_memory_context(relevant_modules, self.ctx)
+        if role4_context:
+            parts.append(role4_context)
+
         if client_context:
             parts.append(
                 "Additional self-reported context from the app (not verified server-side, use as soft signal only): "
@@ -359,7 +364,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         except Exception as e:  # never leak internals to the model/user
             status = "error"
             error_message = "Something went wrong performing that action."
-            print(f"[agent] tool '{tool.name}' failed: {e}")
+            print("[agent] tool execution failed")
         latency_ms = int((time.monotonic() - start) * 1000)
 
         db.add(
@@ -530,7 +535,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         try:
             return self._run_turn(execution, total_start, message, history, client_context, conversation_id, on_event)
         except Exception as e:
-            print(f"[agent] unhandled process_message error: {e}")
+            print("[agent] unhandled process_message error")
             try:
                 self._transition(execution, ExecutionState.FAILED, on_event, error="internal_error")
                 self._finish(execution, total_start)
@@ -677,7 +682,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
             system_instruction=self._system_prompt(context_bundle),
         )
         gemini_history = [
-            {"role": turn["role"], "parts": [turn["content"]]}
+            {"role": turn["role"], "parts": [redact_direct_identifiers(turn["content"])]}
             for turn in (history or [])
             if turn.get("role") in ("user", "model") and turn.get("content")
         ]
@@ -686,11 +691,11 @@ Relevant user context (already retrieved for you — do not re-ask for this):
         try:
             chat = model.start_chat(history=gemini_history)
             response = self._send_with_retry(
-                lambda: chat.send_message(message, request_options={"timeout": LLM_TIMEOUT_S}), execution
+                lambda: chat.send_message(redact_direct_identifiers(message), request_options={"timeout": LLM_TIMEOUT_S}), execution
             )
             execution.llm_call_count = (execution.llm_call_count or 0) + 1
         except Exception as e:
-            print(f"[agent] Gemini call failed: {e}")
+            print("[agent] Gemini call failed")
             execution.llm_latency_ms = int((time.monotonic() - llm_start) * 1000)
 
             # The model itself is unreachable (quota/429, timeout, transient API
@@ -898,7 +903,7 @@ Relevant user context (already retrieved for you — do not re-ask for this):
                 )
                 execution.llm_call_count = (execution.llm_call_count or 0) + 1
             except Exception as e:
-                print(f"[agent] Gemini follow-up call failed: {e}")
+                print("[agent] Gemini follow-up call failed")
                 execution.llm_latency_ms = (execution.llm_latency_ms or 0) + int((time.monotonic() - llm_start) * 1000)
                 break
             execution.llm_latency_ms = (execution.llm_latency_ms or 0) + int((time.monotonic() - llm_start) * 1000)

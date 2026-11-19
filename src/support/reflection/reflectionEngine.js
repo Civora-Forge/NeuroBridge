@@ -109,30 +109,50 @@ function buildReflection(intervention, history) {
     keyInsights: [],
     followUpSuggestions: [],
   };
-  return saveReflection(persistedIntervention.userId, reflection);
+  return reflection;
 }
 
 export function reflectIntervention(intervention) {
   const history = getInterventionHistory(intervention.userId).find(
     (entry) => entry.intervention.id === intervention.id,
   );
-  return buildReflection(intervention, history);
+  return saveReflection(intervention.userId, buildReflection(intervention, history));
 }
 
 /** Uses the Focus repository's normalized records while keeping reflection storage domain-local. */
 export async function reflectFocusIntervention(intervention, { repository: suppliedRepository } = {}) {
-  if (intervention?.moduleId !== "support.focus_session") {
-    throw new Error("Repository reflection is only available for Focus Sessions");
-  }
+  return reflectInterventionAsync(intervention, { repository: suppliedRepository });
+}
+
+export async function reflectInterventionAsync(intervention, { repository: suppliedRepository } = {}) {
   const repository = suppliedRepository || await getRole4Repository(intervention.userId);
   const [persistedIntervention, lifecycleEvents, outcomes] = await Promise.all([
     repository.getIntervention(intervention.userId, intervention.id),
     repository.listLifecycleEvents(intervention.userId, intervention.id),
     repository.listOutcomes(intervention.userId, intervention.id),
   ]);
-  return buildReflection(intervention, persistedIntervention ? {
+  const reflection = buildReflection(intervention, persistedIntervention ? {
     intervention: persistedIntervention,
     lifecycleEvents,
     outcomes,
   } : null);
+  const existing = (await repository.listReflections(intervention.userId, intervention.moduleId))
+    .find((item) => item.id === reflection.id);
+  if (existing && comparableReflection(existing, reflection)) return existing;
+  return repository.upsertReflection(reflection);
+}
+
+function comparableReflection(left, right) {
+  const fields = (record) => JSON.stringify({
+    interventionId: record.interventionId,
+    moduleId: record.moduleId,
+    outcomeSummary: record.outcomeSummary,
+    insights: record.insights,
+    summary: record.summary,
+    confidence: record.confidence,
+    metadata: record.metadata,
+    version: record.version,
+    reflectionVersion: record.reflectionVersion,
+  });
+  return fields(left) === fields(right);
 }

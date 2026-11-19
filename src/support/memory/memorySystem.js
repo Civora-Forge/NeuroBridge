@@ -118,19 +118,21 @@ export function clearModuleMemories(userId, moduleId) {
     .filter(Boolean).length;
 }
 
-export function deriveMemoryFromReflections(userId, moduleId) {
+export function deriveMemoryFromReflections(userId, moduleId, options = {}) {
   const normalizedUserId = normalizeUserId(userId);
   if (!isLearningEnabled(normalizedUserId)) {
     return { created: [], updated: [], superseded: [], unchanged: [], skipped: "learning_disabled" };
   }
   const rule = getModuleMemoryRule(moduleId);
   if (!rule) return { created: [], updated: [], superseded: [], unchanged: [], skipped: "unsupported_module" };
-  const reflections = listReflections(normalizedUserId).filter((reflection) => supportedReflection(reflection, moduleId));
+  const reflections = (options.reflections ?? listReflections(normalizedUserId)).filter((reflection) => supportedReflection(reflection, moduleId));
+  const persist = options.persist ?? ((record) => saveUserMemory(normalizedUserId, record));
+  const readMemory = options.getMemory ?? ((id) => getMemoryById(normalizedUserId, id));
   const candidates = candidatesFromObservations(rule(reflections));
   const result = { created: [], updated: [], superseded: [], unchanged: [] };
   candidates.forEach((candidate) => {
     const id = memoryId(moduleId, candidate.category, candidate.key);
-    const existing = getMemoryById(normalizedUserId, id);
+    const existing = readMemory(id);
     const hasNewEvidence = existing?.metadata?.observedReflectionIds?.some((reflectionId) => !candidate.observedReflectionIds.includes(reflectionId))
       || candidate.observedReflectionIds.some((reflectionId) => !existing?.metadata?.observedReflectionIds?.includes(reflectionId));
     const confidence = confidenceForEvidence(candidate.evidenceCount, candidate.contradictionCount);
@@ -191,7 +193,7 @@ export function deriveMemoryFromReflections(userId, moduleId) {
     } else if (next.status === MemoryStatus.DELETED) {
       result.unchanged.push(existing);
     } else {
-      const saved = saveUserMemory(normalizedUserId, next);
+      const saved = persist(next) ?? next;
       result[existing ? "updated" : "created"].push(saved);
     }
   });

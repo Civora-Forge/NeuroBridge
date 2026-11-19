@@ -18,7 +18,11 @@ import {
   saveInterventionOutcome,
   saveReflection,
   saveUserMemory,
+  clearUnsyncedRole4Record,
+  listUnsyncedRole4Records,
+  markRole4RecordUnsynced,
 } from "./role4Store";
+import { ROLE4_COLLECTIONS } from "@/support/schemas/storageKeys";
 import { supabase } from "@/lib/supabaseClient";
 
 const TABLES = {
@@ -29,6 +33,11 @@ const TABLES = {
   memories: "support_memories",
 };
 const degradedSupabaseUsers = new Set();
+const activeSynchronizations = new Map();
+const onlineListeners = new Set();
+const nextScheduledSyncAt = new Map();
+const SYNC_DELAYS_MS = [0, 250, 1000];
+const FAILED_SYNC_COOLDOWN_MS = 5000;
 
 function omitUndefined(record) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
@@ -85,6 +94,7 @@ function throwIfError(error) {
 export function createLocalRole4Repository() {
   return {
     kind: "local",
+    getPersistenceState: (userId) => ({ state: "local_only", unsyncedRecords: listUnsyncedRole4Records(userId) }),
     createIntervention: async (record) => saveIntervention(record.userId, record),
     getIntervention: async (userId, id) => getRole4Record(userId, "interventions", id),
     updateIntervention: async (record) => saveIntervention(record.userId, record),
@@ -112,12 +122,13 @@ export function createLocalRole4Repository() {
 export function createSupabaseRole4Repository(client = supabase) {
   return {
     kind: "supabase",
+    getPersistenceState: () => ({ state: "remote", unsyncedRecords: [] }),
     async createIntervention(record) { const { data, error } = await client.from(TABLES.interventions).insert(interventionToRow(record)).select().single(); throwIfError(error); return interventionFromRow(data); },
     async getIntervention(userId, id) { const { data, error } = await client.from(TABLES.interventions).select("*").eq("user_id", userId).eq("id", id).maybeSingle(); throwIfError(error); return data ? interventionFromRow(data) : null; },
     async updateIntervention(record) { const { data, error } = await client.from(TABLES.interventions).update(interventionToRow(record)).eq("user_id", record.userId).eq("id", record.id).select().single(); throwIfError(error); return interventionFromRow(data); },
     async deleteIntervention(userId, id) { const { error, count } = await client.from(TABLES.interventions).delete({ count: "exact" }).eq("user_id", userId).eq("id", id); throwIfError(error); return count > 0; },
-    async appendLifecycleEvent(record) { const { data, error } = await client.from(TABLES.lifecycleEvents).insert(lifecycleEventToRow(record)).select().single(); throwIfError(error); return lifecycleEventFromRow(data); },
-    async appendOutcome(record) { const { data, error } = await client.from(TABLES.outcomes).insert(outcomeToRow(record)).select().single(); throwIfError(error); return outcomeFromRow(data); },
+    async appendLifecycleEvent(record) { const { data: existing, error: readError } = await client.from(TABLES.lifecycleEvents).select("*").eq("user_id", record.userId).eq("id", record.id).maybeSingle(); throwIfError(readError); if (existing) return lifecycleEventFromRow(existing); const { data, error } = await client.from(TABLES.lifecycleEvents).insert(lifecycleEventToRow(record)).select().single(); throwIfError(error); return lifecycleEventFromRow(data); },
+    async appendOutcome(record) { const { data: existing, error: readError } = await client.from(TABLES.outcomes).select("*").eq("user_id", record.userId).eq("id", record.id).maybeSingle(); throwIfError(readError); if (existing) return outcomeFromRow(existing); const { data, error } = await client.from(TABLES.outcomes).insert(outcomeToRow(record)).select().single(); throwIfError(error); return outcomeFromRow(data); },
     async updateOutcome(record) { const { data, error } = await client.from(TABLES.outcomes).update(outcomeToRow(record)).eq("user_id", record.userId).eq("id", record.id).select().single(); throwIfError(error); return outcomeFromRow(data); },
     async upsertReflection(record) { const { data, error } = await client.from(TABLES.reflections).upsert(reflectionToRow(record), { onConflict: "id,user_id" }).select().single(); throwIfError(error); return reflectionFromRow(data); },
     async upsertMemory(record) { const { data, error } = await client.from(TABLES.memories).upsert(memoryToRow(record), { onConflict: "id,user_id" }).select().single(); throwIfError(error); return memoryFromRow(data); },
@@ -142,23 +153,51 @@ export function createSupabaseFallbackRole4Repository(remote, local = createLoca
     "upsertReflection",
     "upsertMemory",
   ]);
+  const collectionForMethod = {
+    createIntervention: ROLE4_COLLECTIONS.INTERVENTIONS,
+    updateIntervention: ROLE4_COLLECTIONS.INTERVENTIONS,
+    deleteIntervention: ROLE4_COLLECTIONS.INTERVENTIONS,
+    appendLifecycleEvent: ROLE4_COLLECTIONS.LIFECYCLE_EVENTS,
+    appendOutcome: ROLE4_COLLECTIONS.OUTCOMES,
+    updateOutcome: ROLE4_COLLECTIONS.OUTCOMES,
+    upsertReflection: ROLE4_COLLECTIONS.REFLECTIONS,
+    upsertMemory: ROLE4_COLLECTIONS.MEMORIES,
+  };
+  const markUnsynced = (method, args) => {
+    if (!mutations.has(method)) return;
+    const [first, second] = args;
+    const userId = typeof first === "string" ? first : first?.userId;
+    const id = method === "deleteIntervention" ? second : first?.id;
+    if (userId && id) markRole4RecordUnsynced(userId, collectionForMethod[method], id);
+  };
   const call = (method) => async (...args) => {
-    if (useLocal) return local[method](...args);
+    if (useLocal) {
+      markUnsynced(method, args);
+      return local[method](...args);
+    }
     try {
       const result = await remote[method](...args);
       // Mirror successful writes so a later fallback retains this session's history.
-      if (mutations.has(method)) await local[method](...args);
+      if (mutations.has(method)) {
+        try {
+          await local[method](...args);
+        } catch {
+          // Remote already committed; a local cache failure must not degrade the live repository.
+        }
+      }
       return result;
     } catch {
       // Keep a single session coherent once its remote connection has failed.
       useLocal = true;
       onFallback();
+      markUnsynced(method, args);
       return local[method](...args);
     }
   };
 
   return {
     kind: "supabase",
+    getPersistenceState: (userId) => ({ state: useLocal ? "unsynced_local" : "remote", unsyncedRecords: useLocal ? listUnsyncedRole4Records(userId) : [] }),
     createIntervention: call("createIntervention"),
     getIntervention: call("getIntervention"),
     updateIntervention: call("updateIntervention"),
@@ -177,15 +216,118 @@ export function createSupabaseFallbackRole4Repository(remote, local = createLoca
   };
 }
 
+function createUnsyncedLocalRole4Repository() {
+  const local = createLocalRole4Repository();
+  const mutationCollections = {
+    createIntervention: ROLE4_COLLECTIONS.INTERVENTIONS, updateIntervention: ROLE4_COLLECTIONS.INTERVENTIONS,
+    deleteIntervention: ROLE4_COLLECTIONS.INTERVENTIONS, appendLifecycleEvent: ROLE4_COLLECTIONS.LIFECYCLE_EVENTS,
+    appendOutcome: ROLE4_COLLECTIONS.OUTCOMES, updateOutcome: ROLE4_COLLECTIONS.OUTCOMES,
+    upsertReflection: ROLE4_COLLECTIONS.REFLECTIONS, upsertMemory: ROLE4_COLLECTIONS.MEMORIES,
+  };
+  const tracked = { ...local, getPersistenceState: (userId) => ({ state: "unsynced_local", unsyncedRecords: listUnsyncedRole4Records(userId) }) };
+  Object.entries(mutationCollections).forEach(([method, collection]) => {
+    tracked[method] = async (...args) => {
+      const [first, second] = args;
+      const userId = typeof first === "string" ? first : first?.userId;
+      const id = method === "deleteIntervention" ? second : first?.id;
+      if (userId && id) markRole4RecordUnsynced(userId, collection, id);
+      return local[method](...args);
+    };
+  });
+  return tracked;
+}
+
 export async function getRole4Repository(userId, { client = supabase } = {}) {
   const { data, error } = await client.auth.getSession();
   if (error || !data?.session?.user?.id || data.session.user.id !== userId) return createLocalRole4Repository();
-  if (degradedSupabaseUsers.has(userId)) return createLocalRole4Repository();
+  if (degradedSupabaseUsers.has(userId)) {
+    scheduleRole4Reconciliation(userId, { client });
+    return createUnsyncedLocalRole4Repository();
+  }
+  scheduleRole4Reconciliation(userId, { client });
   return createSupabaseFallbackRole4Repository(
     createSupabaseRole4Repository(client),
     createLocalRole4Repository(),
     () => degradedSupabaseUsers.add(userId),
   );
+}
+
+function wait(delayMs) {
+  return delayMs ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve();
+}
+
+function localRecord(userId, collection, id) {
+  return getRole4Record(userId, collection, id);
+}
+
+async function syncPendingRecord(repository, userId, pending) {
+  const record = localRecord(userId, pending.collection, pending.id);
+  if (pending.collection === ROLE4_COLLECTIONS.INTERVENTIONS) {
+    if (!record) return repository.deleteIntervention(userId, pending.id);
+    const existing = await repository.getIntervention(userId, pending.id);
+    return existing ? repository.updateIntervention(record) : repository.createIntervention(record);
+  }
+  if (!record) return true;
+  if (pending.collection === ROLE4_COLLECTIONS.LIFECYCLE_EVENTS) return repository.appendLifecycleEvent(record);
+  if (pending.collection === ROLE4_COLLECTIONS.OUTCOMES) return repository.appendOutcome(record);
+  if (pending.collection === ROLE4_COLLECTIONS.REFLECTIONS) return repository.upsertReflection(record);
+  if (pending.collection === ROLE4_COLLECTIONS.MEMORIES) return repository.upsertMemory(record);
+  return true;
+}
+
+function orderedPendingRecords(userId) {
+  const order = [
+    ROLE4_COLLECTIONS.INTERVENTIONS,
+    ROLE4_COLLECTIONS.LIFECYCLE_EVENTS,
+    ROLE4_COLLECTIONS.OUTCOMES,
+    ROLE4_COLLECTIONS.REFLECTIONS,
+    ROLE4_COLLECTIONS.MEMORIES,
+  ];
+  return listUnsyncedRole4Records(userId).sort((left, right) => order.indexOf(left.collection) - order.indexOf(right.collection));
+}
+
+export function reconcileRole4Records(userId, { client = supabase, delays = SYNC_DELAYS_MS, repository: suppliedRepository } = {}) {
+  if (activeSynchronizations.has(userId)) return activeSynchronizations.get(userId);
+  const synchronization = (async () => {
+    const { data, error } = await client.auth.getSession();
+    if (error || data?.session?.user?.id !== userId) return false;
+    const repository = suppliedRepository || createSupabaseRole4Repository(client);
+    for (const delay of delays) {
+      await wait(delay);
+      let failed = false;
+      for (const pending of orderedPendingRecords(userId)) {
+        try {
+          await syncPendingRecord(repository, userId, pending);
+          clearUnsyncedRole4Record(userId, pending.collection, pending.id);
+        } catch {
+          failed = true;
+          break;
+        }
+      }
+      if (!failed && listUnsyncedRole4Records(userId).length === 0) {
+        degradedSupabaseUsers.delete(userId);
+        return true;
+      }
+    }
+    return false;
+  })().finally(() => activeSynchronizations.delete(userId));
+  activeSynchronizations.set(userId, synchronization);
+  return synchronization;
+}
+
+function scheduleRole4Reconciliation(userId, options) {
+  const schedule = (force = false) => {
+    if (!listUnsyncedRole4Records(userId).length || (!force && Date.now() < (nextScheduledSyncAt.get(userId) ?? 0))) return;
+    void reconcileRole4Records(userId, options).then((synced) => {
+      if (synced) nextScheduledSyncAt.delete(userId);
+      else nextScheduledSyncAt.set(userId, Date.now() + FAILED_SYNC_COOLDOWN_MS);
+    });
+  };
+  schedule();
+  if (typeof window !== "undefined" && !onlineListeners.has(userId)) {
+    onlineListeners.add(userId);
+    window.addEventListener("online", () => schedule(true));
+  }
 }
 
 export async function mirrorRole4Records(userId, records = {}, { client = supabase } = {}) {
@@ -199,6 +341,13 @@ export async function mirrorRole4Records(userId, records = {}, { client = supaba
     for (const record of records.outcomes ?? []) await repository.appendOutcome(record);
     for (const record of records.reflections ?? []) await repository.upsertReflection(record);
     for (const record of records.memories ?? []) await repository.upsertMemory(record);
+    [
+      [ROLE4_COLLECTIONS.INTERVENTIONS, [...(records.interventions ?? []), ...(records.newInterventions ?? [])]],
+      [ROLE4_COLLECTIONS.LIFECYCLE_EVENTS, records.lifecycleEvents ?? []],
+      [ROLE4_COLLECTIONS.OUTCOMES, records.outcomes ?? []],
+      [ROLE4_COLLECTIONS.REFLECTIONS, records.reflections ?? []],
+      [ROLE4_COLLECTIONS.MEMORIES, records.memories ?? []],
+    ].forEach(([collection, entries]) => entries.forEach((record) => clearUnsyncedRole4Record(userId, collection, record.id)));
     return true;
   } catch {
     return false;

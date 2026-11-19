@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import get_db, SessionLocal
-from ..auth import get_current_user, CurrentUser
+from ..auth import get_current_user, CurrentUser, require_ai_consent
 from ..models import agent_models
 from ..schemas import agent_schemas
 from ..services.agent_service import AgentOrchestrator
@@ -81,7 +81,9 @@ def chat_with_agent(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
     authorization: Optional[str] = Header(default=None),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
+    require_ai_consent(user, ai_consent)
     _enforce_rate_limit(user)
 
     conversation = _get_or_create_conversation(db, user, request.conversation_id)
@@ -116,6 +118,7 @@ def chat_with_agent_stream(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
     authorization: Optional[str] = Header(default=None),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
     """Server-Sent Events variant of /chat: emits real backend state transitions
     (execution_started, state_changed, tool_started, tool_completed,
@@ -127,6 +130,7 @@ def chat_with_agent_stream(
     create the conversation and save the final message, never concurrently with
     the background thread's session.
     """
+    require_ai_consent(user, ai_consent)
     _enforce_rate_limit(user)
     conversation = _get_or_create_conversation(db, user, request.conversation_id)
     user_msg = agent_models.AgentMessage(conversation_id=conversation.id, role="user", content=request.message)
@@ -169,7 +173,7 @@ def chat_with_agent_stream(
             })
         except Exception as e:
             event_queue.put({"type": "execution_failed", "conversation_id": conversation_id, "error": "internal_error"})
-            print(f"[agent] stream execution failed: {e}")
+            print("[agent] stream execution failed")
         finally:
             thread_db.close()
             event_queue.put(None)
@@ -192,10 +196,13 @@ def execute_tool(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
     authorization: Optional[str] = Header(default=None),
+    ai_consent: Optional[str] = Header(default=None, alias="X-NeuroBridge-AI-Consent"),
 ):
     """Confirms and runs a tool the agent proposed but did not execute
     (risk_level == write_confirm). Re-validates auth/ownership/schema itself —
     never trusts that the frontend correctly gated the click."""
+    # Confirmed ERP completion can generate a Gemini summary through its tool.
+    require_ai_consent(user, ai_consent)
     conversation = db.query(agent_models.AgentConversation).filter(
         agent_models.AgentConversation.id == request.conversation_id,
         agent_models.AgentConversation.user_id == user.id

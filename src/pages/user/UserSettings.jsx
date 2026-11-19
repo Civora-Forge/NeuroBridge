@@ -48,6 +48,7 @@ export default function UserSettings() {
   const [privacy, setPrivacy] = useState(
     user?.privacy ?? { shareActivity: true, shareJournal: false, shareAlerts: true },
   );
+  const [aiConsent, setAiConsent] = useState(user?.aiConsent === true);
   const [saved, setSaved]             = useState(false);
   const abhaInputId = useId();
 
@@ -79,7 +80,7 @@ export default function UserSettings() {
     const selectedModuleDetails = SUPPORT_MODULE_REGISTRY.filter((module) => enabledModules.includes(module.id));
     const inferredDisorders = deriveDisordersFromModules(selectedModuleDetails);
 
-    updateUser({ abhaId, selectedProfile, accessibility, privacy, enabledModules });
+    updateUser({ abhaId, selectedProfile, accessibility, privacy, aiConsent, enabledModules });
     await updateDisorders(inferredDisorders);
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
@@ -197,6 +198,30 @@ export default function UserSettings() {
           placeholder="e.g. 14-2345-6789-0123"
           className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
+      </section>
+
+      <section className="neuro-card p-6 space-y-4 border-l-4 border-l-teal-500">
+        <h2 className="font-semibold flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-teal-600" /> Gemini Assistance
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          When enabled, text you choose to submit to AI features may be sent to Google Gemini to generate assistance. NeuroBridge removes common direct identifiers from text where possible, but do not enter names, contact details, health IDs, or other identifying information. You can turn this off at any time; AI features will stop sending new requests.
+        </p>
+        <div className="flex items-start gap-4">
+          <button
+            role="switch"
+            aria-checked={aiConsent}
+            aria-label="Enable Gemini assistance"
+            onClick={() => setAiConsent((value) => !value)}
+            className={`relative flex-shrink-0 mt-0.5 w-11 h-6 rounded-full transition-colors ${aiConsent ? "bg-teal-600" : "bg-border"}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${aiConsent ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+          <div>
+            <p className="text-sm font-medium">I opt in to Gemini assistance</p>
+            <p className="text-xs text-muted-foreground">Required before NeuroBridge sends a new request to Gemini.</p>
+          </div>
+        </div>
       </section>
 
       {/* My Plan — manual support tool controls */}

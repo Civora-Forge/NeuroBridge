@@ -19,7 +19,10 @@ from backend.routers import agent_router
 
 def _demo_header(role_id: str, session_id: str | None = None) -> dict:
     session_id = session_id or str(uuid.uuid4())
-    return {"Authorization": f"Bearer demo:{role_id}:{session_id}"}
+    return {
+        "Authorization": f"Bearer demo:{role_id}:{session_id}",
+        "X-NeuroBridge-AI-Consent": "accepted",
+    }
 
 
 @pytest.fixture(autouse=True)

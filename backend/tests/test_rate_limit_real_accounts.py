@@ -37,6 +37,9 @@ def test_real_and_demo_rate_limits_are_tracked_independently(login_as, user_a, m
     # Drop the real-user dependency override so this next request resolves through
     # the real get_current_user demo-token path instead of the overridden fixture user.
     app.dependency_overrides.pop(get_current_user, None)
-    demo_headers = {"Authorization": "Bearer demo:nb-user-042:some-other-browser-session"}
+    demo_headers = {
+        "Authorization": "Bearer demo:nb-user-042:some-other-browser-session",
+        "X-NeuroBridge-AI-Consent": "accepted",
+    }
     demo_response = client.post("/api/agent/chat", json={"message": "take me to the anxiety tools"}, headers=demo_headers)
     assert demo_response.status_code == 200  # unaffected by the real account's limit

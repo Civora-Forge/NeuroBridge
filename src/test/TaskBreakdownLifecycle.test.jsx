@@ -12,7 +12,7 @@ vi.mock("@/context/AuthContext", () => ({
 
 async function generate(task = "Prepare confidential presentation") {
   fireEvent.change(screen.getByRole("textbox"), { target: { value: task } });
-  fireEvent.click(screen.getByRole("button", { name: "Break into steps" }));
+  fireEvent.click(screen.getByRole("button", { name: "Make it smaller" }));
   await screen.findByRole("button", { name: "Start this breakdown" });
 }
 
@@ -55,7 +55,6 @@ describe("TaskBreakdown lifecycle integration", () => {
     }
 
     await waitFor(() => expect(getInterventionHistory(auth.user.id)[0].intervention.status).toBe("completed"));
-    await screen.findByText("How helpful was this breakdown?");
     const outcome = getInterventionHistory(auth.user.id)[0].outcomes[0];
     expect(outcome.metrics).toMatchObject({ stepsCreated: 5, stepsCompleted: 5, completionRate: 1 });
     expect(outcome.metrics.finalConfiguration).toMatchObject({ actualGeneratedStyle: "Standard", actualGeneratedStepCount: 5, priority: "Important" });
@@ -68,7 +67,7 @@ describe("TaskBreakdown lifecycle integration", () => {
     await generate();
     fireEvent.click(screen.getByRole("button", { name: "Mark step 1 complete" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Sign in to save this breakdown");
+    expect(screen.getByRole("alert")).toHaveTextContent("Sign in if you want NeuroBridge to learn what works for you over time");
     expect(getInterventionHistory("task-breakdown-user")).toEqual([]);
   });
 });

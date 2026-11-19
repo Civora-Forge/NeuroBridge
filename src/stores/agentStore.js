@@ -251,6 +251,12 @@ const useAgentStore = create((set, get) => ({
         set({ isLoading: false, isStreaming: false, error: body?.detail || 'You are sending messages too quickly — please wait a bit.' });
         return;
       }
+      if (res.status === 403) {
+        removeMessage(streamingId);
+        const body = await res.json().catch(() => null);
+        set({ isLoading: false, isStreaming: false, error: body?.detail || "Gemini assistance is off. Enable it in My Profile." });
+        return;
+      }
       if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
 
       const reader = res.body.getReader();

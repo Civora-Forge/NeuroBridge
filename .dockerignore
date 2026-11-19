@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+venv
+__pycache__
+.pytest_cache
+backend/tests
+backend/test_agent.db
+sql_app.db
+dist

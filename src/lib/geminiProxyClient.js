@@ -35,7 +35,8 @@ async function resolveAuthHeaders(user) {
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const aiConsent = data?.session?.user?.user_metadata?.aiConsent === true;
+    return token ? { Authorization: `Bearer ${token}`, ...(aiConsent ? { "X-NeuroBridge-AI-Consent": "accepted" } : {}) } : {};
   } catch {
     return {};
   }

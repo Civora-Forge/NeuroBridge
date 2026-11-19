@@ -20,6 +20,7 @@ function buildProfileFromSupabase(supabaseUser) {
     enabledModules: Array.isArray(meta.enabledModules) ? meta.enabledModules : [],
     onboardingCompleted: Boolean(meta.onboardingCompleted),
     privacy: meta.privacy ?? { shareActivity: true, shareJournal: false, shareAlerts: true },
+    aiConsent: meta.aiConsent === true,
     accessibility: meta.accessibility ?? { reduceMotion: false, screenReader: false },
     linkedWardIds: meta.linkedWardIds ?? [],
     linkedUserId: meta.linkedUserId ?? null,
@@ -521,6 +522,10 @@ export function AuthProvider({ children }) {
       })();
       localStorage.setItem(`nb_prefs_${prev.id}`, JSON.stringify({ ...existingPreferences, ...patch }));
       syncWardSettingsFromUser(updated, patch);
+      if (prev._supabase && Object.hasOwn(patch, "aiConsent")) {
+        // Backend consent is derived from this account metadata, never a client-only flag.
+        supabase.auth.updateUser({ data: { aiConsent: patch.aiConsent === true } }).catch(() => {});
+      }
       return updated;
     });
   }, []);

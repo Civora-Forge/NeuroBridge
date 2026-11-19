@@ -35,6 +35,7 @@ class CurrentUser(BaseModel):
     id: str
     email: Optional[str] = None
     is_demo: bool = False
+    ai_consent: bool = False
 
 
 def _validate_with_supabase(token: str) -> CurrentUser:
@@ -67,7 +68,12 @@ def _validate_with_supabase(token: str) -> CurrentUser:
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session.")
 
-    return CurrentUser(id=str(user_id), email=data.get("email"))
+    metadata = data.get("user_metadata") or {}
+    return CurrentUser(
+        id=str(user_id),
+        email=data.get("email"),
+        ai_consent=metadata.get("aiConsent") is True,
+    )
 
 
 def _resolve_demo_user(token: str) -> CurrentUser:
@@ -86,6 +92,20 @@ def _resolve_demo_user(token: str) -> CurrentUser:
     if role_id not in DEMO_ROLE_IDS or not session_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid demo session.")
     return CurrentUser(id=f"demo:{role_id}:{session_id}", email=None, is_demo=True)
+
+
+def require_ai_consent(user: CurrentUser, consent_header: Optional[str] = None) -> None:
+    """Block model calls unless the account explicitly opted in.
+
+    Real-account consent is read from Supabase user metadata. Demo identities have
+    no Supabase profile, so their explicit browser setting is passed in a header.
+    """
+    consented = user.ai_consent or (user.is_demo and consent_header == "accepted")
+    if not consented:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="AI features are off. Enable Gemini assistance in Privacy settings to continue.",
+        )
 
 
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> CurrentUser:

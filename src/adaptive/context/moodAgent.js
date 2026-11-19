@@ -352,7 +352,7 @@ let _burstRestoreTimer = null;
  * adaptive UI and its recommendation stay actionable after the user stops the
  * rapid movement (instead of disappearing within ~1s of the last move).
  */
-const BURST_RESTORE_COOLDOWN_MS = 20_000;
+const BURST_RESTORE_COOLDOWN_MS = 20000;
 
 function safeSetTimeout(handler, ms) {
   return typeof window !== "undefined"
