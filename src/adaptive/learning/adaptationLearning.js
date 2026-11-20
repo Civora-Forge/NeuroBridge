@@ -299,8 +299,11 @@ export function summarizePreference(events, key, { moduleId, now = Date.now(), c
  * keyed by preference key. Insufficient entries are included (marked
  * `sufficient: false`) so callers can explain why nothing changed.
  */
-export function getLearnedPreferences(userId, { moduleId, now = Date.now(), config = LEARNING_CONFIG } = {}) {
-  const events = getAdaptationFeedback(userId);
+export function getLearnedPreferences(userId, { moduleId, now = Date.now(), config = LEARNING_CONFIG, since } = {}) {
+  // Task 5: `since` ignores feedback recorded before a learned-personalization
+  // reset (possibly made on another device).
+  const all = getAdaptationFeedback(userId);
+  const events = typeof since === "number" && since > 0 ? all.filter((event) => event.at > since) : all;
   const keys = [...new Set(events.map((event) => event.key))];
   const out = {};
   for (const key of keys) {

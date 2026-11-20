@@ -37,6 +37,7 @@ import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { getSupportEvidenceAsync } from "@/support/evidence/supportEvidence";
 import { planSignature } from "@/adaptive/execution/uiExecution";
 import { getLearnedPreferences } from "@/adaptive/learning/adaptationLearning";
+import { resolveProfileView } from "@/adaptive/personalization/profileModel";
 
 const IDLE_DECISION = {
   plan: null,
@@ -83,6 +84,13 @@ function signatureOf(value) {
  *   (spec §5, labeled `derived` upstream). Stable reference required.
  * @param {object} [options.currentGoal] - Optional goal reference
  *   (spec §5, labeled `derived` upstream). Stable reference required.
+ * @param {object|null} [options.personalizationProfile] - The user's
+ *   persistent personalization profile (Task 5, profileStore). Resolved for
+ *   the current module before every decision; explicit preferences apply
+ *   whenever the runtime is on, promoted learned stances only behind the
+ *   reflection flag (same staging as Task 4).
+ * @param {object|null} [options.temporaryPreferences] - Session-only "for
+ *   now" state (never persisted); outranks stable presentation preferences.
  * @param {(outcome: { plan: object, trace: object }) => void} [options.onDecision]
  *   Called after every committed decision (including ones whose effective plan
  *   is unchanged and therefore cause no re-render) — e.g. to schedule the
@@ -105,6 +113,8 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     currentTask,
     currentGoal,
     onDecision,
+    personalizationProfile,
+    temporaryPreferences,
   } = options;
   const enabled = enabledOverride !== undefined ? enabledOverride : isAdaptiveRuntimeEnabled();
   const hasSnapshot = typeof getSnapshot === "function";
@@ -180,11 +190,23 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         }
         // Task 4: the user's learned preferences are supporting evidence for
         // this decision (staged behind the reflection flag; per-user only).
-        const learnedPreferences =
-          userId && isReflectionEnabled()
-            ? getLearnedPreferences(userId, { moduleId: moduleId ?? "generic" })
+        const reflection = Boolean(userId) && isReflectionEnabled();
+        const learnedPreferences = reflection
+          ? getLearnedPreferences(userId, {
+              moduleId: moduleId ?? "generic",
+              since: personalizationProfile?.resets?.learnedAt,
+            })
+          : undefined;
+        // Task 5: stable preferences are read before planning.
+        const personalization =
+          userId && personalizationProfile
+            ? resolveProfileView(personalizationProfile, {
+                moduleId,
+                temporary: temporaryPreferences ?? undefined,
+                includeLearned: reflection,
+              })
             : undefined;
-        const outcome = decide(input, { userId, learnedPreferences });
+        const outcome = decide(input, { userId, learnedPreferences, personalization });
         latestTraceRef.current = outcome.trace;
         const signature = planSignature(outcome.plan);
         if (signature !== committedSignatureRef.current) {
@@ -206,7 +228,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
     },
-    [enabled, buildInput, setError, userId, moduleId]
+    [enabled, buildInput, setError, userId, moduleId, personalizationProfile, temporaryPreferences]
   );
 
   const runDecision = useCallback(async () => {
@@ -258,7 +280,15 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       if (superseded()) {
         return;
       }
-      const signature = signatureOf({ snapshot, input, userId });
+      const signature = signatureOf({
+        snapshot,
+        input,
+        userId,
+        profile: personalizationProfile
+          ? [personalizationProfile.revision, personalizationProfile.updatedAt]
+          : null,
+        temporary: temporaryPreferences ?? null,
+      });
       const last = lastRunRef.current;
       if (last && last.signature === signature) {
         return;

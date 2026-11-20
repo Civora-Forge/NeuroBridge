@@ -66,6 +66,8 @@ import {
 } from "@/adaptive/learning/adaptationLearning";
 import { LEARNING_INFLUENCE } from "@backend/adaptive/engine/learning";
 import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
+import { isLearnedAvoided } from "@backend/adaptive/engine/personalization";
+import { promoteFromFeedback } from "@/adaptive/personalization/profileStore";
 
 /**
  * A user-actionable prompt (consent prompt / support card) that was visible at
@@ -334,7 +336,10 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   // outcome per exposure (duplicates are dropped by the store).
   const feedback = (key, outcome, exposureId) => {
     if (!userId || !key || !exposureId) return;
-    recordAdaptationFeedback({ userId, key, outcome, exposureId, moduleId: feedbackModuleId, decisionId });
+    const result = recordAdaptationFeedback({ userId, key, outcome, exposureId, moduleId: feedbackModuleId, decisionId });
+    // Task 5: feedback that has become reliable and stable is promoted into
+    // the persistent profile (no-op until the promotion gates are met).
+    if (result?.recorded && isReflectionEnabled()) promoteFromFeedback(userId).catch(() => {});
   };
   const resolution = useMemo(
     () =>
@@ -412,14 +417,23 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   const recommendationLearning = useMemo(() => {
     if (!recommendation || !userId || !isReflectionEnabled()) return null;
     const key = recommendationPreferenceKey(recommendation.id);
-    const learned = getLearnedPreferences(userId, { moduleId: feedbackModuleId })[key];
-    return learned?.sufficient && learned.score <= LEARNING_INFLUENCE.opposeAt ? learned : null;
-  }, [recommendation, userId, feedbackModuleId]);
+    const learned = getLearnedPreferences(userId, {
+      moduleId: feedbackModuleId,
+      since: runtime.personalization?.learnedSince,
+    })[key];
+    if (learned?.sufficient && learned.score <= LEARNING_INFLUENCE.opposeAt) return learned;
+    // Task 5: a declined offer promoted into the profile stays declined on
+    // every device and in later sessions — the user is not asked again.
+    return isLearnedAvoided(runtime.personalization, key) ? { key, source: "profile" } : null;
+  }, [recommendation, userId, feedbackModuleId, runtime.personalization]);
+
+  // Task 5: the user explicitly opted out of unrequested support offers.
+  const offersAllowed = runtime.personalization?.presentation?.allowUnrequestedOffers !== false;
 
   const [activeInterventionModal, setActiveInterventionModal] = useState(null);
 
   const activeRecommendation =
-    recommendation && !isRecommendationDismissed(recommendation.id) && !recommendationLearning
+    recommendation && offersAllowed && !isRecommendationDismissed(recommendation.id) && !recommendationLearning
       ? recommendation
       : null;
 

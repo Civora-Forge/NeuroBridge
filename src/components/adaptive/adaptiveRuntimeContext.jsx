@@ -26,6 +26,10 @@ import {
 } from "@/context/ContextProvider";
 import { useAdaptiveBehavioralEngine } from "@/hooks/useAdaptiveBehavioralEngine";
 import { buildUserPreferencesFragment } from "@/support/framework/userPreferencesAdapter";
+import { usePersonalizationProfile } from "@/adaptive/personalization/usePersonalizationProfile";
+import { resolveProfileView } from "@/adaptive/personalization/profileModel";
+import { promoteFromFeedback } from "@/adaptive/personalization/profileStore";
+import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
 import {
   getCanonicalSupportModuleId,
   getSupportModules,
@@ -105,12 +109,33 @@ export function AdaptiveRuntimeProvider({ children }) {
   );
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
+  // Task 5: persistent, user-owned personalization profile (local copy +
+  // account sync). Read before every decision.
+  const userId = user?.id ?? null;
+  const personalizationStore = usePersonalizationProfile(userId);
+  const profile = personalizationStore.profile;
+  const temporary = personalizationStore.temporary;
+  const profileLoaded = Boolean(profile);
+  useEffect(() => {
+    // Promote feedback that became reliable since the last session.
+    if (userId && profileLoaded && isReflectionEnabled()) promoteFromFeedback(userId).catch(() => {});
+  }, [userId, profileLoaded]);
+  const personalization = useMemo(
+    () =>
+      userId && profile
+        ? resolveProfileView(profile, { moduleId, temporary: temporary ?? undefined, includeLearned: isReflectionEnabled() })
+        : undefined,
+    [userId, profile, temporary, moduleId],
+  );
+
   const engine = useAdaptiveBehavioralEngine({
     moduleId,
     getSnapshot: context != null ? getSnapshot : undefined,
     userId: user?.id,
     userPreferences,
     onDecision,
+    personalizationProfile: profile,
+    temporaryPreferences: temporary,
   });
 
   const value = useMemo(
@@ -119,9 +144,12 @@ export function AdaptiveRuntimeProvider({ children }) {
       // Feedback capture (Task 4) is per user; never written into traces.
       userId: user?.id ?? null,
       userPreferences,
+      // Task 5: resolved profile for this module (presentation hints, offer
+      // suppression). Undefined until the profile is loaded.
+      personalization,
       ...engine,
     }),
-    [moduleId, user?.id, userPreferences, engine],
+    [moduleId, user?.id, userPreferences, personalization, engine],
   );
 
   return (

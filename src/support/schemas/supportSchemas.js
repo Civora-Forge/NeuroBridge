@@ -889,9 +889,31 @@ export const DecisionTraceSchema = z.object({
         effect: z.enum(["supported", "changed", "suppressed"]),
         evidenceBefore: confidenceRange,
         evidenceAfter: confidenceRange,
+        // Task 5: "profile" = a stance promoted into the persistent
+        // personalization profile (absent = live Task 4 feedback).
+        source: z.enum(["feedback", "profile"]).optional(),
       }),
     )
     .default([]),
+
+  // Task 5: how the persistent personalization profile shaped this decision.
+  // Field ids come from the closed profile vocabulary; no user content.
+  personalization: z
+    .object({
+      profileRevision: z.number().int().nonnegative(),
+      applied: z
+        .array(
+          z.object({
+            field: z.string().trim().min(1),
+            layer: z.enum(["explicit", "learned", "temporary"]),
+            scope: z.enum(["context", "global"]),
+            ruleId: idSchema,
+            effect: z.enum(["supported", "changed", "suppressed", "shaped"]),
+          }),
+        )
+        .default([]),
+    })
+    .optional(),
 });
 
 export const AdaptiveEngineInputSchema = z.object({

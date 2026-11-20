@@ -56,6 +56,11 @@ import { resolveConflicts } from "./conflictResolution.js";
 import { applyUserPreferences } from "./preferences.js";
 import { recommendFocusConfiguration } from "../reasoning/focusConfiguration.js";
 import { applyLearnedPreferences } from "./learning.js";
+import {
+  applyProfileConstraints,
+  buildPreferenceEvidence,
+  partitionInfluences,
+} from "./personalization.js";
 
 const DEFAULT_SAFETY_RESULT = {
   level: SafetyLevel.STANDARD,
@@ -317,6 +322,13 @@ function aggregateSafety(entries) {
  * @param {Record<string, object>} [options.learnedPreferences]
  *   Learned preferences (src/adaptive/learning getLearnedPreferences) used as
  *   bounded supporting evidence; their influence is recorded in trace.learning.
+ * @param {object} [options.personalization]
+ *   Resolved persistent personalization profile (Task 5,
+ *   src/adaptive/personalization resolveProfileView). Explicit preferred
+ *   modes become bounded supporting evidence, explicitly avoided modes become
+ *   constraints, presentation preferences shape UI parameters (calmer only),
+ *   and promoted learned stances back-fill missing live feedback. Never
+ *   touches safety or explicit tiers. Recorded in trace.personalization.
  * @returns {{ plan: import("../../../support/schemas/supportSchemas.js").AdaptationPlanSchema, trace: import("../../../support/schemas/supportSchemas.js").DecisionTraceSchema }}
  */
 export function decide(input = {}, options = {}) {
@@ -372,10 +384,15 @@ export function decide(input = {}, options = {}) {
   // ── 3a LEARNED PREFERENCES (Task 4) — bounded supporting evidence from the
   // user's explicit feedback history; current-state tiers only, never safety
   // or explicit preferences. No-op unless `options.learnedPreferences` given.
+  // Task 5: the persistent profile contributes evidence by type — explicit
+  // preferred modes outrank live feedback, which outranks promoted stances.
+  const personalizationView = isNonNullObject(options.personalization) ? options.personalization : undefined;
+  const preferenceEvidence = buildPreferenceEvidence(options.learnedPreferences, personalizationView);
   const learning = applyLearnedPreferences(
     { triggered: evaluated.triggered, suppressed: evaluated.suppressed ?? [] },
-    options.learnedPreferences,
+    preferenceEvidence.learned,
   );
+  const influences = partitionInfluences(learning.influences, preferenceEvidence);
   const triggered = learning.triggered;
   const evidenceSuppressed = learning.suppressed;
   const focusRecommendation = recommendFocusConfiguration(normalized.role4Signals?.supportEvidence);
@@ -408,8 +425,13 @@ export function decide(input = {}, options = {}) {
     options.preference,
   );
 
+  // ── 5a PERSONALIZATION PROFILE (Task 5) — explicitly avoided modes are
+  // constraints; presentation preferences shape UI parameters (calmer only).
+  // Runs before safety, so safety still has the final word.
+  const profileStage = applyProfileConstraints(preference.entries, personalizationView);
+
   // ── 6 SAFETY (production default reuses assessSupportSafety; DI preserved) ──
-  const safety = runSafetyStage(preference.entries, context, options.safety ?? safetyGate);
+  const safety = runSafetyStage(profileStage.kept, context, options.safety ?? safetyGate);
 
   // ── 7 HYSTERESIS (D6) — per (user, module, target) state; safety first ──
   // Why an active adaptation disappeared before the hysteresis stage (trace).
@@ -422,6 +444,7 @@ export function decide(input = {}, options = {}) {
   markDropped(restricted.rejected, "a module-restricted dimension");
   markDropped(conflict.rejected, "conflict resolution (higher-precedence candidate)");
   markDropped(preference.dropped, "an explicit user preference");
+  markDropped(profileStage.dropped, "an explicit personalization preference");
   markDropped(safety.blocked, "the safety stage");
 
   const hysteresis = runHysteresisStage(safety.kept, {
@@ -476,6 +499,7 @@ export function decide(input = {}, options = {}) {
     ...restricted.rejected,
     ...conflict.rejected,
     ...preference.dropped,
+    ...profileStage.dropped,
     ...safety.blocked,
     ...hysteresis.rejected,
   ];
@@ -486,9 +510,15 @@ export function decide(input = {}, options = {}) {
       typeof entry.confidence === "number" ? ` (confidence ${entry.confidence})` : ""
     }`,
   }));
+  const profileOverrides = profileStage.dropped.map((entry) => ({
+    kind: "preference",
+    applied: true,
+    detail: `rule "${entry.ruleId}" not applied: support mode avoided in the personalization profile`,
+  }));
   const overrides = [
     ...evidenceOverrides,
     ...preference.overrides,
+    ...profileOverrides,
     ...safety.overrides,
     ...hysteresis.overrides,
   ];
@@ -505,8 +535,11 @@ export function decide(input = {}, options = {}) {
   if (policyState !== userState) {
     sourceTags.add("learned_personalization");
   }
-  if (learning.influences.length > 0) {
+  if (influences.learning.length > 0) {
     sourceTags.add("learned_preferences");
+  }
+  if (personalizationView !== undefined) {
+    sourceTags.add("personalization_profile");
   }
 
   const trace = {
@@ -530,8 +563,16 @@ export function decide(input = {}, options = {}) {
     finalActions: plan.actions,
     confidence: plan.overallConfidence,
     sources: [...sourceTags],
-    learning: learning.influences,
+    learning: influences.learning,
   };
+  if (personalizationView !== undefined) {
+    trace.personalization = {
+      profileRevision: Number.isInteger(personalizationView.revision) && personalizationView.revision >= 0
+        ? personalizationView.revision
+        : 0,
+      applied: [...influences.applied, ...profileStage.applied],
+    };
+  }
   if (typeof userState?.timestamp === "string") {
     trace.inputRef.userStateRef = userState.timestamp;
   }

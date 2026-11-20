@@ -10,6 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import { SUPPORT_MODULE_REGISTRY } from "@backend/adaptive/reasoning/disorderFeatureRegistry";
 import { deriveDisordersFromModules } from "@backend/adaptive/reasoning/interventionRanking";
 import { API_BASE_URL, backendAuthHeaders } from "@/lib/backendAuth";
+import PersonalizationProfilePanel from "@/components/adaptive/PersonalizationProfilePanel";
+import { deletePersonalizationData } from "@/adaptive/personalization/profileStore";
 
 // ─────────────────────────────────────────────
 //  Neuro-category options (mirrors Index.jsx)
@@ -137,6 +139,9 @@ export default function UserSettings() {
       }
       const res = await fetch(`${API_BASE_URL}/api/privacy/data`, { method: "DELETE", headers });
       if (!res.ok) throw new Error(`Deletion failed (${res.status})`);
+      // The personalization profile lives in a Supabase-native table the
+      // backend deletion does not reach; delete it (account + device) too.
+      await deletePersonalizationData(user?.id);
       setConfirmingDelete(false);
       handleLogout();
     } catch (err) {
@@ -424,6 +429,9 @@ export default function UserSettings() {
         ))}
       </section>
 
+      {/* Task 5 — persistent personalization profile (explicit vs learned) */}
+      <PersonalizationProfilePanel userId={user?.id ?? null} />
+
       {/* Privacy — data export & deletion */}
       <section className="neuro-card p-6 space-y-4 border-l-4 border-l-rose-500">
         <h2 className="font-semibold flex items-center gap-2">
@@ -460,7 +468,7 @@ export default function UserSettings() {
           ) : (
             <div className="flex-1 space-y-2">
               <p className="text-xs font-medium text-rose-600">
-                This permanently deletes all your OCD/ADHD/anxiety/ASD activity and chat history. This cannot be undone.
+                This permanently deletes all your OCD/ADHD/anxiety/ASD activity, chat history and personalization profile. This cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
