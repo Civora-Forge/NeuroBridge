@@ -360,7 +360,10 @@ export function decide(input = {}, options = {}) {
       ? normalized.role4Signals.strategyEffectiveness
       : undefined,
   );
-  const { triggered } = evaluatePolicies(rules, policyState);
+  // Evidence-grounded evaluation: rules whose trigger values matched but whose
+  // evidence was stale or too weak are returned as `suppressed` and recorded
+  // in the trace; they never reach the plan.
+  const { triggered, suppressed: evidenceSuppressed = [] } = evaluatePolicies(rules, policyState);
   const focusRecommendation = recommendFocusConfiguration(normalized.role4Signals?.supportEvidence);
   const learnedFocusEntry = context?.moduleId === "support.focus_session" && focusRecommendation
     ? [{ ruleId: "role4.focus_configuration", version: 1, scope: "user", tier: 9, priority: 0, confidence: focusRecommendation.confidence, action: { type: "MODIFY", target: "PACING", parameters: { focusConfiguration: focusRecommendation } }, matchedTriggers: [], reversal: "auto" }]
@@ -429,13 +432,26 @@ export function decide(input = {}, options = {}) {
 
   // ── 9 TRACE (structural linkage only; no persistence) ──
   const rejectedEntries = [
+    ...evidenceSuppressed,
     ...restricted.rejected,
     ...conflict.rejected,
     ...preference.dropped,
     ...safety.blocked,
     ...hysteresis.rejected,
   ];
-  const overrides = [...preference.overrides, ...safety.overrides, ...hysteresis.overrides];
+  const evidenceOverrides = evidenceSuppressed.map((entry) => ({
+    kind: "evidence",
+    applied: false,
+    detail: `rule "${entry.ruleId}" not applied: ${entry.evidenceReason}${
+      typeof entry.confidence === "number" ? ` (confidence ${entry.confidence})` : ""
+    }`,
+  }));
+  const overrides = [
+    ...evidenceOverrides,
+    ...preference.overrides,
+    ...safety.overrides,
+    ...hysteresis.overrides,
+  ];
 
   // Spec §5 availability rules: the trace records which optional input
   // fragments were present at runtime (role4Signals / userPreferences).

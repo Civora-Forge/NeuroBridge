@@ -251,6 +251,9 @@ function inferEmotionalState(signals) {
   const emotion = signals.emotion;
   const label = signalValue(signals, "emotion");
 
+  if (emotion?.stale) {
+    return unknown(`Emotion evidence from ${emotion.staleSource} is stale — not used for current state`);
+  }
   if (!signalAvailable(signals, "emotion") || label === "unknown") {
     return unknown("No emotion signal provided");
   }
@@ -324,7 +327,9 @@ function inferCognitiveLoad(signals) {
 
   if (emotionLabel === "overwhelmed" || emotionLabel === "panicked") {
     reasons.push(`Emotion is "${emotionLabel}" — indicates overwhelming cognitive load`);
-    return dim("overwhelming", confidence * emotionConfidence, reasons, sources);
+    // The emotion is the deciding evidence: carry its confidence once rather
+    // than multiplying it by itself (which under-reported real evidence).
+    return dim("overwhelming", emotionConfidence, reasons, sources);
   }
 
   if (highSwitching && highComplexity) {
@@ -396,7 +401,8 @@ function inferEnergyLevel(signals) {
   // Exhausting emotions drain energy
   if (ENERGY_DRAINING_EMOTIONS.has(emotionLabel)) {
     reasons.push(`Emotion "${emotionLabel}" is associated with reduced energy`);
-    const energyConfidence = confidence * emotionConfidence;
+    // Emotion-derived: the emotion's confidence is the evidence (not squared).
+    const energyConfidence = emotionConfidence;
     if (emotionLabel === "overwhelmed" || emotionLabel === "panicked") {
       return dim("exhausted", energyConfidence, reasons, sources);
     }
@@ -546,7 +552,8 @@ function inferStressLevel(signals) {
 
   // Start with emotion-derived stress
   let stressValue = stressFromEmotion || "unknown";
-  let stressConfidence = confidence * (stressFromEmotion ? emotionConfidence : 0.3);
+  // Emotion-derived stress carries the emotion's own confidence (not squared).
+  let stressConfidence = stressFromEmotion ? emotionConfidence : confidence * 0.3;
 
   const reasons_local = [...reasons];
 
@@ -648,6 +655,10 @@ function inferUrgency(signals) {
   const reasons = [];
   const sources = [];
 
+  if (signals.urgency?.stale) {
+    reasons.push(`Urgency evidence from ${signals.urgency.staleSource} is stale — ignored`);
+  }
+
   // Primary: conversation urgency
   const urgency = signalValue(signals, "urgency");
   if (signalAvailable(signals, "urgency") && urgency !== "unknown") {
@@ -676,6 +687,12 @@ function inferUrgency(signals) {
     return dim("low", 0.4, reasons, sources);
   }
 
+  if (signals.explicitRequest?.stale) {
+    reasons.push("Explicit request is older than the conversation freshness window — ignored");
+  }
+  if (reasons.length > 0) {
+    return dim("unknown", 0, reasons, []);
+  }
   return unknown("No urgency signals available");
 }
 
@@ -790,6 +807,11 @@ export function buildUserState(snapshot = null) {
   // Collect all unique sources
   const allSources = [...new Set(dimensions.flatMap((d) => d.sources))];
 
+  // Evidence withdrawn for staleness (explainability; see snapshotNormalizer)
+  const staleSignals = Object.entries(signals)
+    .filter(([, signal]) => signal?.stale === true)
+    .map(([key]) => key);
+
   // Build the UserState with both DimensionResult objects and convenience getters
   const state = {
     emotionalState,
@@ -804,6 +826,7 @@ export function buildUserState(snapshot = null) {
     overallConfidence,
     timestamp: safe.timestamp || new Date().toISOString(),
     sources: allSources,
+    staleSignals,
   };
 
   // Backward-compatible convenience accessors
@@ -889,6 +912,7 @@ function createUserStateProxy(state) {
     overallConfidence: state.overallConfidence,
     timestamp: state.timestamp,
     sources: state.sources,
+    staleSignals: state.staleSignals,
 
     _dimensions: {
       emotionalState: emotionalStateDim,

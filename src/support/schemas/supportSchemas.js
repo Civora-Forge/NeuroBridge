@@ -752,7 +752,9 @@ export const ConflictRecordSchema = z.object({
 });
 
 export const OverrideRecordSchema = z.object({
-  kind: z.enum(["preference", "safety", "hysteresis"]),
+  // "evidence": a value-matched rule withheld because its supporting
+  // evidence was stale or below the confidence threshold (Task 1).
+  kind: z.enum(["preference", "safety", "hysteresis", "evidence"]),
   actionId: idSchema.optional(),
   applied: z.boolean(),
   detail: z.string().trim().optional(),

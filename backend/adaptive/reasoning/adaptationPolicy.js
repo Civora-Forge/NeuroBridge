@@ -311,6 +311,45 @@ function comparePrecedence(left, right) {
 }
 
 /**
+ * Evidence thresholds for state-driven triggers (Task 1: evidence-grounded
+ * adaptation).
+ *
+ *   - `minTriggerConfidence`: a trigger group fires only when at least one of
+ *     its matched triggers rests on evidence at or above this confidence. A
+ *     low-confidence dimension can therefore never trigger an adaptation on
+ *     its own.
+ *   - `minSupportingConfidence`: below this, a dimension's evidence is treated
+ *     as absent — it cannot even corroborate a stronger trigger in the same
+ *     AND group.
+ *
+ * Thresholds apply only to dimensions that carry evidence metadata (a
+ * UserState built by `buildUserState`, which exposes `_dimensions`, or a raw
+ * DimensionResult object). Dimensions without metadata — e.g. the synthetic,
+ * schema-validated `strategyEffectiveness:<id>` learned dimensions — are
+ * treated as explicit inputs. Tier 1 SAFETY rules are exempt from the
+ * confidence/staleness floor (a weak safety signal still acts), but never
+ * from the missing-evidence rule.
+ */
+export const EVIDENCE_THRESHOLDS = Object.freeze({
+  minTriggerConfidence: 0.5,
+  minSupportingConfidence: 0.25,
+});
+
+/** Policy dimension names that alias a UserState `_dimensions` key. */
+const DIMENSION_EVIDENCE_ALIASES = Object.freeze({
+  mood: "emotionalState",
+  attention: "attentionState",
+  energy: "energyLevel",
+  engagement: "engagementLevel",
+});
+
+/** Machine-readable reasons a value-matched rule was suppressed. */
+export const EvidenceSuppressionReason = Object.freeze({
+  STALE: "stale_evidence",
+  LOW_CONFIDENCE: "low_confidence_evidence",
+});
+
+/**
  * Read a state dimension value. UserState exposes dimension values as
  * strings via property access; raw DimensionResult objects are unwrapped.
  */
@@ -323,6 +362,57 @@ function readDimension(resolvedState, dimension) {
 }
 
 /**
+ * Missing evidence is never a positive signal: an absent, null, empty or
+ * "unknown" value cannot satisfy any trigger (including `not_in`).
+ */
+function isMissingValue(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    value === "unknown" ||
+    (typeof value === "string" && value.trim().length === 0)
+  );
+}
+
+/**
+ * Evidence metadata for a dimension, or `null` when the state carries none.
+ * @returns {{ confidence: number, stale: boolean } | null}
+ */
+function readEvidence(resolvedState, dimension) {
+  const toEvidence = (candidate) => {
+    if (!candidate || typeof candidate !== "object" || !("confidence" in candidate)) {
+      return null;
+    }
+    const confidence =
+      typeof candidate.confidence === "number" && Number.isFinite(candidate.confidence)
+        ? Math.min(1, Math.max(0, candidate.confidence))
+        : 0;
+    return { confidence, stale: candidate.stale === true };
+  };
+
+  const direct = toEvidence(resolvedState?.[dimension]);
+  if (direct) return direct;
+
+  const dimensions = resolvedState?._dimensions;
+  if (!dimensions || typeof dimensions !== "object") return null;
+  const key = DIMENSION_EVIDENCE_ALIASES[dimension] ?? dimension;
+  return toEvidence(dimensions[key]);
+}
+
+function resolveThresholds(options) {
+  const pick = (key) => {
+    const value = options?.evidence?.[key];
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1
+      ? value
+      : EVIDENCE_THRESHOLDS[key];
+  };
+  return {
+    minTriggerConfidence: pick("minTriggerConfidence"),
+    minSupportingConfidence: pick("minSupportingConfidence"),
+  };
+}
+
+/**
  * Evaluate a single trigger against a resolved state.
  * @param {import("../../../support/schemas/supportSchemas").TriggerSchema} trigger
  * @param {object} resolvedState
@@ -330,6 +420,9 @@ function readDimension(resolvedState, dimension) {
  */
 function evaluateTrigger(trigger, resolvedState) {
   const actual = readDimension(resolvedState, trigger.dimension);
+  if (isMissingValue(actual)) {
+    return false;
+  }
   switch (trigger.condition) {
     case TriggerCondition.GTE:
       return actual >= trigger.value;
@@ -347,14 +440,73 @@ function evaluateTrigger(trigger, resolvedState) {
 }
 
 /**
+ * Evaluate one AND trigger group with evidence gating.
+ *
+ * @returns {{ status: "matched"|"no_match"|"suppressed", matchedTriggers: object[],
+ *             reason?: string, weakestConfidence?: number }}
+ */
+function evaluateGroup(group, resolvedState, thresholds, exempt) {
+  const matchedTriggers = [];
+  let strongest = null; // strongest evidence among matched triggers
+  let weakest = null;
+  let anyUngated = false;
+  let suppression = null;
+
+  for (const trigger of group.triggers) {
+    if (!evaluateTrigger(trigger, resolvedState)) {
+      return { status: "no_match", matchedTriggers: [] };
+    }
+    matchedTriggers.push(trigger);
+
+    const evidence = readEvidence(resolvedState, trigger.dimension);
+    if (evidence === null || exempt) {
+      anyUngated = true;
+      continue;
+    }
+    strongest = strongest === null ? evidence.confidence : Math.max(strongest, evidence.confidence);
+    weakest = weakest === null ? evidence.confidence : Math.min(weakest, evidence.confidence);
+    if (evidence.stale) {
+      suppression = EvidenceSuppressionReason.STALE;
+    } else if (evidence.confidence < thresholds.minSupportingConfidence && suppression === null) {
+      suppression = EvidenceSuppressionReason.LOW_CONFIDENCE;
+    }
+  }
+
+  if (suppression === null && !anyUngated && (strongest ?? 0) < thresholds.minTriggerConfidence) {
+    suppression = EvidenceSuppressionReason.LOW_CONFIDENCE;
+  }
+
+  if (suppression !== null) {
+    return {
+      status: "suppressed",
+      matchedTriggers,
+      reason: suppression,
+      weakestConfidence: weakest ?? undefined,
+    };
+  }
+  return { status: "matched", matchedTriggers };
+}
+
+/**
  * Evaluate policies against a resolved state.
+ *
+ * Evidence-grounded (Task 1): a rule fires only when a trigger group is
+ * satisfied by known, fresh evidence of adequate confidence (see
+ * EVIDENCE_THRESHOLDS). Rules whose trigger values matched but whose
+ * evidence was stale or too weak are reported in `suppressed` (never in
+ * `triggered`) so the decision trace can explain the neutral outcome.
  *
  * @param {Array<import("../../../support/schemas/supportSchemas").PolicyRuleSchema>} rules
  * @param {object} resolvedState - UserState (dimensions readable by name)
- * @returns {{ triggered: Array<object> }}
+ * @param {object} [options]
+ * @param {{ minTriggerConfidence?: number, minSupportingConfidence?: number }} [options.evidence]
+ *   Threshold overrides (0..1); defaults to EVIDENCE_THRESHOLDS.
+ * @returns {{ triggered: Array<object>, suppressed: Array<object> }}
  */
-export function evaluatePolicies(rules, resolvedState) {
+export function evaluatePolicies(rules, resolvedState, options = {}) {
+  const thresholds = resolveThresholds(options);
   const triggered = [];
+  const suppressed = [];
 
   for (const rule of rules) {
     if (!rule || rule.active === false) {
@@ -364,28 +516,48 @@ export function evaluatePolicies(rules, resolvedState) {
       continue;
     }
 
+    const exempt = rule.tier === PriorityTier.SAFETY;
     const matchedGroups = [];
+    const suppressedGroups = [];
     rule.triggerGroups.forEach((group, groupIndex) => {
       if (!group || !Array.isArray(group.triggers) || group.triggers.length === 0) {
         return;
       }
-      const matchedTriggers = group.triggers.filter((trigger) => evaluateTrigger(trigger, resolvedState));
-      if (matchedTriggers.length === group.triggers.length) {
-        matchedGroups.push({ groupIndex, matchedTriggers });
+      const result = evaluateGroup(group, resolvedState, thresholds, exempt);
+      if (result.status === "matched") {
+        matchedGroups.push({ groupIndex, matchedTriggers: result.matchedTriggers });
+      } else if (result.status === "suppressed") {
+        suppressedGroups.push({ groupIndex, ...result });
       }
     });
 
-    if (matchedGroups.length === 0) {
-      continue;
-    }
-
-    triggered.push({
+    const base = {
       ruleId: rule.id,
       version: rule.version ?? 1,
       tier: rule.tier,
       priority: rule.priority ?? 0,
       scope: rule.scope,
       action: rule.action,
+    };
+
+    if (matchedGroups.length === 0) {
+      if (suppressedGroups.length > 0) {
+        const first = suppressedGroups[0];
+        const record = {
+          ...base,
+          matchedTriggers: suppressedGroups.flatMap((group) => group.matchedTriggers),
+          evidenceReason: first.reason,
+        };
+        if (typeof first.weakestConfidence === "number") {
+          record.confidence = first.weakestConfidence;
+        }
+        suppressed.push(record);
+      }
+      continue;
+    }
+
+    triggered.push({
+      ...base,
       matchedGroups,
       matchedTriggers: matchedGroups.flatMap((group) => group.matchedTriggers),
       // Carry policy-declared metadata through to downstream stages:
@@ -398,8 +570,9 @@ export function evaluatePolicies(rules, resolvedState) {
   }
 
   triggered.sort(comparePrecedence);
+  suppressed.sort(comparePrecedence);
 
-  return { triggered };
+  return { triggered, suppressed };
 }
 
 /**
