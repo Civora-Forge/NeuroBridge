@@ -24,6 +24,7 @@ import {
   subscribeProfile,
   syncProfile,
   undoLastProfileChange,
+  watchAuthForSync,
 } from "./profileStore.js";
 
 export function usePersonalizationProfile(userId) {
@@ -36,8 +37,11 @@ export function usePersonalizationProfile(userId) {
     if (!getProfileSnapshot(userId).profile) loadProfile(userId);
     const onOnline = () => syncProfile(userId);
     if (typeof window !== "undefined") window.addEventListener("online", onOnline);
+    // Task 6: push pending changes once an expired session is refreshed.
+    const stopWatchingAuth = watchAuthForSync(userId);
     return () => {
       if (typeof window !== "undefined") window.removeEventListener("online", onOnline);
+      stopWatchingAuth();
     };
   }, [userId]);
 

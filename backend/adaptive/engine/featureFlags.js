@@ -9,19 +9,20 @@
  * Activation is explicit and config-driven, never hardcoded ON: each switch's
  * product default is read from the Vite environment (`VITE_NEUROBRIDGE_ADAPTIVE_*`)
  * at module load and defaults to OFF when unset. Production activation is
- * expressed in `.env.production` (currently only stage A: `runtime`), so it
- * can be rolled back by editing config without touching code.
+ * expressed in `.env.production`. Values are inlined by Vite at BUILD time:
+ * changing or rolling back a flag requires a rebuild + redeploy (there is no
+ * runtime kill switch). See docs/ADAPTIVE_ENGINE_RELEASE.md.
  *
- * Staged activation plan:
- *   - Stage A (current): `runtime` ON for production builds via config. The
- *     live app produces decisions + traces only; it never auto-executes
- *     (execution is the explicit `execute()` step, gated by `uiExecution`).
- *   - Stage B (future): `reflection` — learned signals feeding Tier 9.
- *   - Stage C (future): `uiExecution` — UI executor applying actions to live
- *     rendering. Deliberately OFF: changing live rendering behind a flag still
- *     needs the executor integration review; unsupported executors (timing /
- *     notification / assistance / content / task / interaction / pacing) have
- *     no implementation and stay OFF.
+ * Staged activation (production state as of Task 6):
+ *   - Stage A `runtime`: ON. Decisions + traces; support-card offers.
+ *   - Stage B `reflection`: ON. Learned feedback / promoted profile stances
+ *     act as bounded supporting evidence.
+ *   - Stage C `uiExecution`: OFF (unset). UI actions are resolved as
+ *     REJECTED before any consent prompt, so the live UI mode never changes.
+ *     Kept off pending a live-browser verification and a per-user cohort
+ *     gate (see the release doc). Non-UI executors (timing / notification /
+ *     assistance / content / task / interaction / pacing) are not
+ *     implemented.
  *
  * The pure resolver `resolveDefaultFlags(env)` is exported for tests; the
  * module default reads the real environment. `decide()` itself is flag-free:

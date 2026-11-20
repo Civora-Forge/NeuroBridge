@@ -17,7 +17,7 @@
  * Ownership: Adaptive Experience Engineer
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -30,6 +30,8 @@ import { usePersonalizationProfile } from "@/adaptive/personalization/usePersona
 import { resolveProfileView } from "@/adaptive/personalization/profileModel";
 import { promoteFromFeedback } from "@/adaptive/personalization/profileStore";
 import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
+import { createReEvaluationScheduler } from "@/adaptive/execution/reEvaluationScheduler";
+import { bindExecutionStoreToUser } from "@/adaptive/execution/uiExecution";
 import {
   getCanonicalSupportModuleId,
   getSupportModules,
@@ -90,28 +92,34 @@ export function AdaptiveRuntimeProvider({ children }) {
   // confirm and stale adaptations expire even without new user interaction.
   // Scheduled from every committed decision (Task 3) — including decisions
   // whose effective plan is unchanged and so cause no re-render.
-  const timerRef = useRef(null);
-  const onDecision = useCallback(
-    (outcome) => {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-      const reEvaluateAt = outcome?.plan?.reEvaluateAt;
-      if (typeof reEvaluateAt !== "number" || typeof refreshContext !== "function") {
-        return;
-      }
-      const delay = Math.min(Math.max(reEvaluateAt - Date.now(), 1000), 10 * 60 * 1000);
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        refreshContext();
-      }, delay);
-    },
-    [refreshContext],
-  );
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  // Task 6: one pending timer, clamped delay, and a refresh budget so a
+  // re-evaluation that is always due can never become a runaway loop.
+  const refreshRef = useRef(refreshContext);
+  refreshRef.current = refreshContext;
+  const schedulerRef = useRef(null);
+  if (schedulerRef.current === null) {
+    schedulerRef.current = createReEvaluationScheduler({
+      refresh: () => {
+        if (typeof refreshRef.current === "function") refreshRef.current();
+      },
+    });
+  }
+  const onDecision = useCallback((outcome) => {
+    schedulerRef.current.schedule(outcome?.plan?.reEvaluateAt);
+  }, []);
+  useEffect(() => () => schedulerRef.current?.reset(), []);
 
   // Task 5: persistent, user-owned personalization profile (local copy +
   // account sync). Read before every decision.
   const userId = user?.id ?? null;
+
+  // Task 6: per-user isolation. Consent decisions / dismissals belong to the
+  // signed-in user, and a re-evaluation scheduled for one user never fires
+  // for the next. Layout effect: bound before the UI runtime resolves.
+  useLayoutEffect(() => {
+    bindExecutionStoreToUser(userId);
+    schedulerRef.current?.reset();
+  }, [userId]);
   const personalizationStore = usePersonalizationProfile(userId);
   const profile = personalizationStore.profile;
   const temporary = personalizationStore.temporary;

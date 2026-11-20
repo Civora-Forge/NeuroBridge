@@ -171,6 +171,16 @@ export function createSupabaseProfileRemote(client, userId) {
   };
 }
 
+/** Default auth watcher: Supabase session changes → signed-in user id. */
+function defaultSubscribeAuth(callback) {
+  try {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session?.user?.id ?? null));
+    return () => data?.subscription?.unsubscribe?.();
+  } catch {
+    return () => {};
+  }
+}
+
 async function defaultResolveRemote(userId) {
   try {
     const { data, error } = await supabase.auth.getSession();
@@ -188,8 +198,11 @@ async function defaultResolveRemote(userId) {
 let config = {
   local: createLocalProfileStorage(),
   resolveRemote: defaultResolveRemote,
+  subscribeAuth: defaultSubscribeAuth,
   now: () => Date.now(),
 };
+/** In-flight loads, so concurrent mounts share one fetch (Task 6). */
+const loadsInFlight = new Map();
 const states = new Map();
 const listeners = new Map();
 const queues = new Map();
@@ -205,6 +218,7 @@ export function configurePersonalizationPersistence(overrides = {}) {
   config = {
     local: overrides.local ?? config.local,
     resolveRemote: overrides.resolveRemote ?? config.resolveRemote,
+    subscribeAuth: overrides.subscribeAuth ?? config.subscribeAuth,
     now: overrides.now ?? config.now,
   };
 }
@@ -216,7 +230,41 @@ export function resetPersonalizationStore() {
   queues.clear();
   temporaryByUser.clear();
   unavailableRemote.clear();
-  config = { local: createLocalProfileStorage(), resolveRemote: defaultResolveRemote, now: () => Date.now() };
+  loadsInFlight.clear();
+  config = {
+    local: createLocalProfileStorage(),
+    resolveRemote: defaultResolveRemote,
+    subscribeAuth: defaultSubscribeAuth,
+    now: () => Date.now(),
+  };
+}
+
+/**
+ * Sign-out boundary (Task 6): drop every in-memory profile and temporary
+ * state while keeping the configured adapters. Local copies are removed by
+ * the app-wide sign-out wipe (`nb_*` keys).
+ */
+export function clearPersonalizationSession() {
+  const users = [...states.keys()];
+  states.clear();
+  temporaryByUser.clear();
+  unavailableRemote.clear();
+  loadsInFlight.clear();
+  for (const userId of users) {
+    for (const listener of listeners.get(userId) ?? []) listener();
+  }
+}
+
+/**
+ * Re-sync when the user's account session (re)appears — e.g. after an
+ * expired session is refreshed — if local changes are still pending.
+ * Returns an unsubscribe function.
+ */
+export function watchAuthForSync(userId) {
+  if (!userId || typeof config.subscribeAuth !== "function") return () => {};
+  return config.subscribeAuth((sessionUserId) => {
+    if (sessionUserId === userId && getProfileSnapshot(userId).pending) syncProfile(userId);
+  });
 }
 
 const IDLE_SNAPSHOT = Object.freeze({ profile: null, status: SyncStatus.IDLE, pending: false, temporary: null, error: null });
@@ -277,10 +325,13 @@ function settleLocal(userId, profile, { pending, status, error = null }) {
  * Reconcile `profile` with the user's remote row: fetch → merge → conditional
  * write, retrying on concurrent updates. Never throws; reports via status.
  */
-async function reconcile(userId, profile) {
+async function reconcile(userId, profile, { changed = false } = {}) {
   const remote = await remoteFor(userId);
   if (!remote) {
-    return settleLocal(userId, profile, { pending: false, status: SyncStatus.LOCAL_ONLY });
+    // No account session (demo, signed out, or an expired session). A change
+    // made now stays pending so it is pushed once the session returns.
+    const pending = changed || getProfileSnapshot(userId).pending === true;
+    return settleLocal(userId, profile, { pending, status: SyncStatus.LOCAL_ONLY });
   }
   setState(userId, { status: SyncStatus.SYNCING });
   let working = profile;
@@ -319,11 +370,14 @@ async function reconcile(userId, profile) {
 /** Load (local first, then reconcile with the account copy). */
 export function loadProfile(userId) {
   if (!userId) return Promise.resolve(IDLE_SNAPSHOT);
-  return enqueue(userId, async () => {
+  if (loadsInFlight.has(userId)) return loadsInFlight.get(userId);
+  const run = enqueue(userId, async () => {
     const state = ensureLocalState(userId);
     setState(userId, { status: SyncStatus.LOADING });
     return reconcile(userId, state.profile);
-  });
+  }).finally(() => loadsInFlight.delete(userId));
+  loadsInFlight.set(userId, run);
+  return run;
 }
 
 /** Push any pending local changes (e.g. when the device comes back online). */
@@ -340,7 +394,7 @@ function mutate(userId, change) {
     const next = { ...changed, revision: state.profile.revision + 1 };
     // Local first: the change survives even if the account sync fails.
     settleLocal(userId, next, { pending: true, status: SyncStatus.SYNCING });
-    return reconcile(userId, next);
+    return reconcile(userId, next, { changed: true });
   });
 }
 

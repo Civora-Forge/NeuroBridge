@@ -41,7 +41,7 @@
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useRef, useState, useEffect, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType, PriorityTier } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
@@ -442,6 +442,17 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   // Exposure tracking for prompts the user can act on (consent + card).
   const consentExposure = useRef(null);
   const cardExposure = useRef(null);
+  // Task 6: on a user switch, forget the previous user's exposures and applied
+  // adaptations WITHOUT recording feedback — otherwise their unanswered prompt
+  // would be logged as "ignored" (or an override) in the new user's history.
+  const feedbackOwnerRef = useRef(userId);
+  useLayoutEffect(() => {
+    if (feedbackOwnerRef.current === userId) return;
+    feedbackOwnerRef.current = userId;
+    consentExposure.current = null;
+    cardExposure.current = null;
+    appliedRef.current = { actions: [], at: null };
+  }, [userId]);
   const trackExposure = (ref, key) => {
     const current = ref.current;
     if (current && current.key === key) return;

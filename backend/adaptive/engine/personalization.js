@@ -42,8 +42,19 @@ const EXPLICIT_SUPPORT = Object.freeze({ score: 0.85, confidence: 1 });
 const DENSE_CAP = 2;
 
 function isView(view) {
-  return view !== null && typeof view === "object" && typeof view.presentation === "object";
+  // Task 6: a malformed view (e.g. `presentation: null`) is ignored, never thrown on.
+  return (
+    view !== null &&
+    typeof view === "object" &&
+    view.presentation !== null &&
+    typeof view.presentation === "object" &&
+    !Array.isArray(view.presentation)
+  );
 }
+
+const listOf = (value) => (Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : []);
+const recordOf = (value) => (value !== null && typeof value === "object" && !Array.isArray(value) ? value : {});
+const scopeOf = (scope) => (scope === "context" ? "context" : "global");
 
 function isProtected(entry) {
   return PROTECTED_RULE_IDS.includes(entry?.ruleId) || entry?.action?.parameters?.showEmergencySupport === true;
@@ -66,7 +77,8 @@ export function buildPreferenceEvidence(live, view) {
   const profileKeys = new Set();
   const explicitKeys = new Map();
 
-  for (const [key, stance] of Object.entries(view.learned ?? {})) {
+  for (const [key, stance] of Object.entries(recordOf(view.learned))) {
+    if (!stance || typeof stance !== "object" || typeof stance.score !== "number" || typeof stance.confidence !== "number") continue;
     out[key] = {
       key,
       scope: stance.scope === "context" ? "context" : "global",
@@ -83,7 +95,8 @@ export function buildPreferenceEvidence(live, view) {
       profileKeys.delete(key);
     }
   }
-  for (const { mode, scope } of view.supportModes?.preferred ?? []) {
+  for (const { mode, scope: rawScope } of listOf(recordOf(view.supportModes).preferred)) {
+    const scope = scopeOf(rawScope);
     for (const ruleId of SUPPORT_MODES[mode]?.ruleIds ?? []) {
       const key = `${AdaptationDimension.UI}:${ruleId}`;
       out[key] = { key, scope, ...EXPLICIT_SUPPORT, evidenceCount: 1, sufficient: true };
@@ -91,7 +104,7 @@ export function buildPreferenceEvidence(live, view) {
       profileKeys.delete(key);
     }
   }
-  for (const { mode } of view.supportModes?.avoided ?? []) {
+  for (const { mode } of listOf(recordOf(view.supportModes).avoided)) {
     for (const ruleId of SUPPORT_MODES[mode]?.ruleIds ?? []) {
       delete out[`${AdaptationDimension.UI}:${ruleId}`];
     }
@@ -132,9 +145,10 @@ export function partitionInfluences(influences, evidence) {
  */
 export function applyProfileConstraints(entries, view) {
   if (!isView(view)) return { kept: entries, dropped: [], applied: [] };
-  const avoidedModes = new Map((view.supportModes?.avoided ?? []).map((item) => [item.mode, item.scope]));
+  const avoidedModes = new Map(listOf(recordOf(view.supportModes).avoided).map((item) => [item.mode, scopeOf(item.scope)]));
   const presentation = view.presentation;
-  const motionSource = view.preferences?.motion;
+  const preferences = recordOf(view.preferences);
+  const motionSource = recordOf(preferences.motion).source ? preferences.motion : undefined;
   const kept = [];
   const dropped = [];
   const applied = [];
@@ -164,18 +178,18 @@ export function applyProfileConstraints(entries, view) {
     }
     const parameters = { ...(action.parameters ?? {}) };
     let shaped = false;
-    if (presentation.reduceMotion && parameters.reduceAnimations !== true) {
+    if (presentation.reduceMotion === true && parameters.reduceAnimations !== true) {
       parameters.reduceAnimations = true;
       shaped = true;
       applied.push({
         field: motionSource ? "motion" : "avoid:animations",
         layer: motionSource?.source === "temporary" ? "temporary" : "explicit",
-        scope: motionSource?.scope ?? "global",
+        scope: scopeOf(motionSource?.scope),
         ruleId: entry.ruleId,
         effect: "shaped",
       });
     }
-    const density = view.preferences?.informationDensity;
+    const density = recordOf(preferences.informationDensity);
     if (
       presentation.informationDensity === "minimal" &&
       !isProtected(entry) &&
@@ -186,8 +200,8 @@ export function applyProfileConstraints(entries, view) {
       shaped = true;
       applied.push({
         field: "informationDensity",
-        layer: density?.source === "temporary" ? "temporary" : "explicit",
-        scope: density?.scope ?? "global",
+        layer: density.source === "temporary" ? "temporary" : "explicit",
+        scope: scopeOf(density.scope),
         ruleId: entry.ruleId,
         effect: "shaped",
       });

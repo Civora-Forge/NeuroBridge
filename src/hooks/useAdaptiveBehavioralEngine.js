@@ -249,6 +249,23 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     return decideWithSnapshot(snapshot, sequence);
   }, [enabled, getSnapshot, decideWithSnapshot, setError]);
 
+  // Task 6: user switching must not leak state. The previous user's committed
+  // plan, trace and execution summary are dropped and any decision still in
+  // flight for them is superseded. Declared before the decide effect so the
+  // new user's first decision is not cancelled by this reset.
+  const ownerRef = useRef(userId);
+  useEffect(() => {
+    if (ownerRef.current === userId) return;
+    ownerRef.current = userId;
+    sequenceRef.current += 1;
+    committedSignatureRef.current = null;
+    lastRunRef.current = null;
+    latestTraceRef.current = null;
+    executedRef.current = { signature: null, summary: null };
+    setDecision(IDLE_DECISION);
+    setExecution(null);
+  }, [userId]);
+
   useEffect(() => {
     if (!enabled || !hasSnapshot) {
       return undefined;

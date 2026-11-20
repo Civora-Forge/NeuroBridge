@@ -119,8 +119,35 @@ let store = loadStore();
 let version = 0;
 const listeners = new Set();
 
-function emptyStore() {
-  return { consent: {}, dismissed: {} };
+/** Bound on stored consent decisions / dismissals (Task 6). */
+export const MAX_STORED_DECISIONS = 200;
+
+function emptyStore(owner = null) {
+  return { owner, consent: {}, dismissed: {} };
+}
+
+function plainRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+/** Drop expired / malformed entries and keep the newest MAX_STORED_DECISIONS. */
+function pruneEntries(entries, now, keep) {
+  const live = Object.entries(plainRecord(entries)).filter(
+    ([, entry]) => entry && typeof entry.at === "number" && Number.isFinite(entry.at) && keep(entry, now),
+  );
+  live.sort((left, right) => right[1].at - left[1].at);
+  return Object.fromEntries(live.slice(0, MAX_STORED_DECISIONS));
+}
+
+function pruneStore(current, now = Date.now()) {
+  return {
+    owner: typeof current.owner === "string" ? current.owner : null,
+    // Grants last for the session; declines and dismissals expire.
+    consent: pruneEntries(current.consent, now, (entry, at) =>
+      entry.decision === "granted" || (entry.decision === "declined" && at - entry.at < DISMISSAL_TTL_MS),
+    ),
+    dismissed: pruneEntries(current.dismissed, now, (entry, at) => at - entry.at < DISMISSAL_TTL_MS),
+  };
 }
 
 function safeSession() {
@@ -135,8 +162,8 @@ function loadStore() {
   try {
     const raw = safeSession()?.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed && typeof parsed === "object") {
-      return { consent: { ...(parsed.consent ?? {}) }, dismissed: { ...(parsed.dismissed ?? {}) } };
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return pruneStore(parsed);
     }
   } catch {
     // Storage unavailable or corrupt: fall back to an in-memory session store.
@@ -145,6 +172,7 @@ function loadStore() {
 }
 
 function persist() {
+  store = pruneStore(store);
   try {
     safeSession()?.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch {
@@ -205,7 +233,24 @@ export function dismissRecommendation(id, now = Date.now()) {
 }
 
 export function isRecommendationDismissed(id, now = Date.now()) {
-  return Boolean(id) && isLive(store.dismissed[id], now);
+  return Boolean(id) && Boolean(isLive(store.dismissed[id], now));
+}
+
+/**
+ * Scope consent decisions and dismissals to the signed-in user (Task 6). A
+ * consent granted by one user must never apply an adaptation for another
+ * user of the same tab, so switching users starts from an empty store.
+ */
+export function bindExecutionStoreToUser(userId) {
+  const owner = typeof userId === "string" && userId.length > 0 ? userId : null;
+  if (store.owner === owner) return false;
+  store = emptyStore(owner);
+  changed();
+  return true;
+}
+
+export function getExecutionStoreOwner() {
+  return store.owner;
 }
 
 /** Test / sign-out boundary. */

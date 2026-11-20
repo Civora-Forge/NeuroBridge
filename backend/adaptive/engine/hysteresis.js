@@ -41,6 +41,7 @@
  */
 
 import { PriorityTier } from "@/support/schemas/supportSchemas";
+import { EVIDENCE_THRESHOLDS } from "../reasoning/adaptationPolicy.js";
 
 export const MAX_ADAPTATION_STATES = 10000;
 
@@ -289,6 +290,17 @@ export function stabilizeCandidates(input = {}, options = {}) {
       const inDwell = now - state.activeSince < (cfg.minDurationMs ?? 0);
       if (weak && weak.evidenceReason === "stale_evidence") {
         withdrawals.push({ key, ruleId: rule.id, target, reason: "supporting evidence is stale" });
+        continue;
+      }
+      // Task 6: evidence below the supporting floor is treated as absent by
+      // the policy evaluator; it must not hold an adaptation through its
+      // minimum duration either (missing evidence never maintains).
+      if (
+        weak &&
+        (!isFiniteIn01(weak.evidenceConfidence) ||
+          weak.evidenceConfidence < EVIDENCE_THRESHOLDS.minSupportingConfidence)
+      ) {
+        withdrawals.push({ key, ruleId: rule.id, target, reason: "supporting evidence is unreliable (below the supporting confidence floor)" });
         continue;
       }
       if (weak && isFiniteIn01(weak.evidenceConfidence) && weak.evidenceConfidence > (cfg.deactivationThreshold ?? 0)) {
