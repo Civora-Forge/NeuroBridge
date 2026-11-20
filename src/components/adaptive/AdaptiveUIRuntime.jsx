@@ -260,6 +260,38 @@ export function deriveInterventionRecommendation(plan) {
 }
 
 /**
+ * Whether the plan carries at least one adaptation the ENGINE triggered from
+ * the user's state (Tier 8 current state / Tier 9 learned) or from safety
+ * (Tier 1). Explicit preference / request / restriction / goal / module /
+ * task tiers (2–7) are the user's own settings, not a detected opportunity:
+ * on their own they must never surface a support offer — otherwise a
+ * standing preference such as `accessibility.reduceMotion` would make the
+ * evidence-ungated situation fallback of `deriveInterventionRecommendation`
+ * reachable without any evidence-gated trigger. Actions without a tier
+ * (hand-built plans) are treated as state-driven.
+ */
+export function hasStateDrivenAction(plan) {
+  if (!plan || !Array.isArray(plan.actions)) return false;
+  return plan.actions.some((action) => {
+    if (!action) return false;
+    const tier = action.tier;
+    return tier === undefined || tier === PriorityTier.SAFETY || tier >= PriorityTier.CURRENT_STATE;
+  });
+}
+
+/**
+ * Only the state-driven actions of a plan (see hasStateDrivenAction); the
+ * support offer is derived from these alone.
+ */
+function stateDrivenPlan(plan) {
+  const actions = plan.actions.filter((action) => {
+    const tier = action?.tier;
+    return tier === undefined || tier === PriorityTier.SAFETY || tier >= PriorityTier.CURRENT_STATE;
+  });
+  return { ...plan, actions };
+}
+
+/**
  * Human-readable labels for module-targeted engine actions.
  */
 const MODULE_ACTION_LABELS = {
@@ -399,16 +431,17 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   }, [resolution.signature]);
 
   // An intervention opportunity exists only when the engine actually triggered
-  // an adaptation action, and never while a safety outcome overrides ordinary
-  // adaptation. Recommendations are offers (user-started), so they are not
-  // gated by the UI execution flag.
+  // a state-driven (evidence-gated) adaptation action, and never while a
+  // safety outcome overrides ordinary adaptation. Explicit-preference actions
+  // alone (Tier 2–7) never count. Recommendations are offers (user-started),
+  // so they are not gated by the UI execution flag.
   const recommendation = useMemo(() => {
     const plan = rawPlan;
-    if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
+    if (!hasStateDrivenAction(plan)) {
       return null;
     }
     if (resolution.suppressRecommendations) return null;
-    return deriveInterventionRecommendation(plan);
+    return deriveInterventionRecommendation(stateDrivenPlan(plan));
   }, [rawPlan, resolution.suppressRecommendations]);
 
   // Learned preference for this offer (Task 4): an offer the user has

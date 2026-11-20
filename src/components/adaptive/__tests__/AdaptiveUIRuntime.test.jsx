@@ -4,6 +4,7 @@ import AdaptiveUIRuntime, {
   deriveInterventionRecommendation,
   deriveModuleAdjustments,
   deriveUIModeFromPlan,
+  hasStateDrivenAction,
   MODE_LABELS,
 } from "../AdaptiveUIRuntime.jsx";
 import {
@@ -13,6 +14,7 @@ import {
 import {
   AdaptationActionType,
   AdaptationDimension,
+  PriorityTier,
 } from "@/support/schemas/supportSchemas";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
@@ -634,6 +636,57 @@ describe("AdaptiveUIRuntime card behavior", () => {
     rerender(<Harness runtimeValue={sensory} />);
 
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
+    expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
+  });
+});
+// H5: an explicit-preference action alone (Tier 2–7) is the user's own
+// setting, not an engine-detected opportunity — it must never surface the
+// evidence-ungated situation fallback as a support offer.
+describe("support offers require a state-driven action", () => {
+  const preferenceOnlyPlan = () =>
+    planWith(
+      [uiAction("accessibility.reduceMotion", { reduceMotion: true }, { tier: PriorityTier.EXPLICIT_PREFERENCE })],
+      { situation: "attention_fragmentation" },
+    );
+
+  it("hasStateDrivenAction distinguishes explicit tiers from state / safety tiers", () => {
+    expect(hasStateDrivenAction(null)).toBe(false);
+    expect(hasStateDrivenAction(planWith([]))).toBe(false);
+    expect(hasStateDrivenAction(preferenceOnlyPlan())).toBe(false);
+    expect(hasStateDrivenAction(planWith([uiAction("s", { mode: "focus" }, { tier: PriorityTier.CURRENT_STATE })]))).toBe(true);
+    expect(hasStateDrivenAction(planWith([uiAction("l", { mode: "focus" }, { tier: PriorityTier.LEARNED_PERSONALIZATION })]))).toBe(true);
+    expect(hasStateDrivenAction(planWith([uiAction("x", { mode: "focus" }, { tier: PriorityTier.SAFETY })]))).toBe(true);
+  });
+
+  it("does not show a card when the only action is an explicit preference", () => {
+    const { container } = render(<Harness runtimeValue={runtimeValue(preferenceOnlyPlan(), stressedSnapshot)} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("real engine: reduceMotion preference + one page switch yields no offer", () => {
+    resetAdaptiveHysteresis();
+    const { plan } = decide(
+      {
+        contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z", behavior: { taskSwitchFrequency: 0.2, confidence: 0.7 } },
+        userPreferences: { accessibility: { reduceMotion: true } },
+      },
+      { now: Date.parse("2026-08-01T00:00:00.000Z"), userId: "h5-user" },
+    );
+    // The engine still records the preference action and the situation...
+    expect(plan.actions.some((a) => a.tier === PriorityTier.EXPLICIT_PREFERENCE)).toBe(true);
+    expect(plan.situation).toBe("attention_fragmentation");
+    // ...but the runtime does not surface an offer from it.
+    const { container } = render(<Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("a state-driven action next to an explicit preference still surfaces its offer", () => {
+    const plan = planWith([
+      uiAction("accessibility.reduceMotion", { reduceMotion: true }, { tier: PriorityTier.EXPLICIT_PREFERENCE }),
+      uiAction("low_stimulation", { mode: "low_stimulation", reduceColorIntensity: true }, { tier: PriorityTier.CURRENT_STATE }),
+    ]);
+    const { container } = render(<Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
     expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
   });
 });

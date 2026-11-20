@@ -16,8 +16,9 @@
  *   3. User consent — a `requireConfirmation` guardrail defers the action
  *      until the user explicitly accepts it; a decline is honoured
  *      (DISMISSED) and persists for the session.
- *   4. Safety modifications — `reducedIntensity` keeps only protective flags
- *      (reduced motion / colour) and drops layout-changing mode switches.
+ *   4. Safety modifications — on UI actions, `reducedIntensity` keeps only
+ *      protective flags (reduced motion / colour) and drops layout-changing
+ *      mode switches. Non-UI (module-owned) actions keep their parameters.
  *
  * A small session store keeps consent decisions and recommendation dismissals
  * stable across unrelated state changes (and across remounts, via
@@ -356,7 +357,14 @@ export function resolvePlanExecution(plan, context = {}) {
       }
     }
 
-    if (action.parameters?.reducedIntensity === true) {
+    // reducedIntensity is a UI guardrail: it drops layout-changing mode
+    // switches and keeps only protective motion/colour flags. Module-owned
+    // (non-UI) actions carry no motion/colour parameters, so applying the same
+    // filter would erase their content (e.g. TASK/GUIDE `{ guidedBreathing }`
+    // → `{}`) and leave an empty adaptation behind the user's consent. For
+    // non-UI targets the action passes through with its parameters intact;
+    // the module's own executor owns its intensity.
+    if (isUI && action.parameters?.reducedIntensity === true) {
       effective.push(reduceIntensity(action));
       record(PlanExecutionStatus.MODIFIED, "safety guardrail reducedIntensity: only protective (motion/colour) changes applied");
       continue;

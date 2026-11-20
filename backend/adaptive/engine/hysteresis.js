@@ -56,6 +56,23 @@ function isNonNegativeFinite(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+/**
+ * Separator between a userId and an optional decision-path scope. Independent
+ * decision paths (the app-level runtime and each module-level consumer) feed
+ * `decide()` different snapshots; sharing one state slot would let them
+ * advance / reset each other's confirmation clocks and withdrawals. A scoped
+ * path therefore keys its state as `<userId>@<scope>|module|target`.
+ */
+export const STATE_SCOPE_SEPARATOR = "@";
+
+/** The user part of a state key, optionally namespaced by decision path. */
+export function scopedStateUser(userId, scope) {
+  const user = typeof userId === "string" && userId.trim().length > 0 ? userId : "default";
+  return typeof scope === "string" && scope.trim().length > 0
+    ? `${user}${STATE_SCOPE_SEPARATOR}${scope.trim()}`
+    : user;
+}
+
 /** Stable per (user, module, target) identity. */
 export function adaptationStateKey(userId, moduleId, target) {
   const user = typeof userId === "string" && userId.trim().length > 0 ? userId : "default";
@@ -92,13 +109,17 @@ export function deleteAdaptationState(key) {
   lastTouched.delete(key);
 }
 
-/** Clear adaptation state for a user, optionally restricted to a module. */
+/**
+ * Clear adaptation state for a user — including every decision-path scope of
+ * that user (`<userId>@<scope>`) — optionally restricted to a module.
+ */
 export function clearAdaptiveHysteresis(userId, moduleId) {
-  const prefix = `${userId ?? "default"}|`;
+  const user = userId ?? "default";
   const module = typeof moduleId === "string" ? moduleId : null;
   for (const key of [...states.keys()]) {
-    if (!key.startsWith(prefix)) continue;
-    if (module !== null && !key.startsWith(`${prefix}${module}|`)) continue;
+    const userPart = key.slice(0, key.indexOf("|"));
+    if (userPart !== user && !userPart.startsWith(`${user}${STATE_SCOPE_SEPARATOR}`)) continue;
+    if (module !== null && !key.startsWith(`${userPart}|${module}|`)) continue;
     deleteAdaptationState(key);
   }
 }
@@ -183,8 +204,8 @@ function stateModuleFor(entry, moduleId) {
   return entry?.scope === "generic" ? "generic" : moduleId;
 }
 
-function keyFor(entry, userId, moduleId) {
-  return adaptationStateKey(userId, stateModuleFor(entry, moduleId), entry?.action?.target ?? "unknown");
+function keyFor(entry, userId, moduleId, scope) {
+  return adaptationStateKey(scopedStateUser(userId, scope), stateModuleFor(entry, moduleId), entry?.action?.target ?? "unknown");
 }
 
 /** Signal strength for an entry: rule-declared → evidence → reasoning. */
@@ -261,7 +282,7 @@ function precedes(left, right) {
  */
 export function stabilizeCandidates(input = {}, options = {}) {
   const now = typeof options.now === "function" ? options.now() : isNonNegativeFinite(options.now) ? options.now : Date.now();
-  const { userId, moduleId } = options;
+  const { userId, moduleId, stateScope } = options;
   const triggered = Array.isArray(input.triggered) ? input.triggered : [];
   const suppressed = Array.isArray(input.suppressed) ? input.suppressed : [];
   const rulesById = new Map((input.rules ?? []).filter(Boolean).map((rule) => [rule.id, rule]));
@@ -272,8 +293,9 @@ export function stabilizeCandidates(input = {}, options = {}) {
   const withdrawals = [];
   const overrides = [];
 
-  // Active incumbents relevant to this decision (user + generic/module scope).
-  const user = typeof userId === "string" && userId.trim().length > 0 ? userId : "default";
+  // Active incumbents relevant to this decision (user + generic/module scope),
+  // within this decision path's state scope only.
+  const user = scopedStateUser(userId, stateScope);
   const scopes = new Set([`${user}|generic|`, `${user}|${moduleId ?? "generic"}|`]);
   for (const [key, state] of states) {
     if (state?.activeSince == null) continue;
@@ -510,6 +532,7 @@ export function runHysteresisStage(entries, options = {}) {
         : Date.now();
   const userId = options.userId;
   const moduleId = options.moduleId;
+  const stateScope = options.stateScope;
   const reasoningConfidence = options.reasoningConfidence;
   const temporal = options.temporal ?? {};
   const droppedBy = options.droppedBy ?? {};
@@ -551,7 +574,7 @@ export function runHysteresisStage(entries, options = {}) {
     const governing = gated[0];
     const cfg = governing.hysteresis;
     const signal = signalFor(governing, reasoningConfidence);
-    const key = keyFor(governing, userId, moduleId);
+    const key = keyFor(governing, userId, moduleId, stateScope);
     touchedKeys.add(key);
     const state = readAdaptationState(key);
     const decision = decideHysteresis({ state, cfg, signal, now, governing });
@@ -692,7 +715,7 @@ export function runHysteresisStage(entries, options = {}) {
     withdrawn.add(key);
   }
   const keptIds = new Set(kept.map((entry) => entry.ruleId));
-  const user = typeof userId === "string" && userId.trim().length > 0 ? userId : "default";
+  const user = scopedStateUser(userId, stateScope);
   const prefixes = [`${user}|generic|`, `${user}|${moduleId ?? "generic"}|`];
   for (const [key, state] of [...states]) {
     if (!prefixes.some((prefix) => key.startsWith(prefix)) || withdrawn.has(key)) continue;

@@ -91,6 +91,9 @@ function signatureOf(value) {
  *   reflection flag (same staging as Task 4).
  * @param {object|null} [options.temporaryPreferences] - Session-only "for
  *   now" state (never persisted); outranks stable presentation preferences.
+ * @param {string} [options.stateScope] - Hysteresis state namespace for an
+ *   additional, independent decision path (see `decide` options.stateScope).
+ *   The app-level runtime omits it; module-level consumers set it.
  * @param {(outcome: { plan: object, trace: object }) => void} [options.onDecision]
  *   Called after every committed decision (including ones whose effective plan
  *   is unchanged and therefore cause no re-render) — e.g. to schedule the
@@ -115,6 +118,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     onDecision,
     personalizationProfile,
     temporaryPreferences,
+    stateScope,
   } = options;
   const enabled = enabledOverride !== undefined ? enabledOverride : isAdaptiveRuntimeEnabled();
   const hasSnapshot = typeof getSnapshot === "function";
@@ -206,7 +210,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
                 includeLearned: reflection,
               })
             : undefined;
-        const outcome = decide(input, { userId, learnedPreferences, personalization });
+        const outcome = decide(input, { userId, learnedPreferences, personalization, stateScope });
         latestTraceRef.current = outcome.trace;
         const signature = planSignature(outcome.plan);
         if (signature !== committedSignatureRef.current) {
@@ -228,7 +232,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
     },
-    [enabled, buildInput, setError, userId, moduleId, personalizationProfile, temporaryPreferences]
+    [enabled, buildInput, setError, userId, moduleId, personalizationProfile, temporaryPreferences, stateScope]
   );
 
   const runDecision = useCallback(async () => {

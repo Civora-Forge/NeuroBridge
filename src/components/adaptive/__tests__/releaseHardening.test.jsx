@@ -39,7 +39,15 @@ import {
 } from "@/adaptive/learning/adaptationLearning";
 import { resetAdaptiveSession } from "@/adaptive/session/adaptiveSession";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
-import { adaptationStateCount, resetAdaptiveHysteresis } from "@backend/adaptive/engine/hysteresis";
+import {
+  adaptationStateCount,
+  adaptationStateKey,
+  clearAdaptiveHysteresis,
+  readAdaptationState,
+  resetAdaptiveHysteresis,
+} from "@backend/adaptive/engine/hysteresis";
+import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
+import { moduleStateScope, useModuleAdaptation } from "@/hooks/useModuleAdaptation";
 import { configureAdaptiveFlags, resetAdaptiveFlags } from "@backend/adaptive/engine/featureFlags";
 import { SafetyLevel } from "@/support/schemas/supportSchemas";
 
@@ -266,5 +274,93 @@ describe("duplicate and delayed execution", () => {
     const resolution = resolvePlanExecution(outcome.plan, { trace: outcome.trace });
     expect(resolution.status).toBe("applied");
     expect(resolution.effectivePlan.actions[0].parameters.mode).toBe("low_stimulation");
+  });
+});
+
+// H2 / H3: production flags (uiExecution OFF) with a REAL CAUTION module from
+// the registry. UI actions stay rejected, but the module's own (non-UI)
+// policies legitimately ask for consent — and a granted consent applies them
+// with their parameters intact (reducedIntensity reshapes UI actions only).
+describe("CAUTION module under production flags", () => {
+  const panicked = { timestamp: new Date(T0).toISOString(), mood: { primaryMood: "panicked", confidence: 0.9 }, metadata: { stalenessFlags: {} } };
+
+  it("a real CAUTION module still asks consent for module-owned actions", () => {
+    configureAdaptiveFlags({ uiExecution: false });
+    const outcome = decide({ contextSnapshot: panicked, moduleContext: buildModuleContext("support.grounding") }, { now: T0, userId: A });
+    const resolution = resolvePlanExecution(outcome.plan, { trace: outcome.trace });
+    expect(resolution.records.filter((r) => r.target === "UI").every((r) => r.status === "rejected")).toBe(true);
+    expect(resolution.pendingConsent.length).toBeGreaterThan(0);
+    expect(resolution.pendingConsent.every((p) => p.action.target !== "UI")).toBe(true);
+  });
+
+  it("granted consent applies a non-UI action with its parameters intact", () => {
+    configureAdaptiveFlags({ uiExecution: false });
+    const outcome = decide({ contextSnapshot: panicked, moduleContext: buildModuleContext("support.grounding") }, { now: T0, userId: A });
+    const pending = resolvePlanExecution(outcome.plan, { trace: outcome.trace }).pendingConsent
+      .find((p) => p.action.target === "TASK");
+    expect(pending.action.parameters.reducedIntensity).toBe(true);
+    grantConsent(pending.key);
+    const resolution = resolvePlanExecution(outcome.plan, { trace: outcome.trace });
+    const task = resolution.effectivePlan.actions.find((a) => a.target === "TASK");
+    expect(task.parameters.guidedBreathing).toBe(true);
+    expect(resolution.records.find((r) => r.target === "TASK").status).toBe("applied");
+  });
+
+  it("reducedIntensity still strips layout changes from UI actions", () => {
+    configureAdaptiveFlags({ uiExecution: true });
+    const outcome = decide({ contextSnapshot: panicked, moduleContext: buildModuleContext("support.grounding") }, { now: T0, userId: A });
+    const ui = resolvePlanExecution(outcome.plan, { trace: outcome.trace }).pendingConsent.find((p) => p.action.target === "UI");
+    grantConsent(ui.key);
+    const resolution = resolvePlanExecution(outcome.plan, { trace: outcome.trace });
+    const applied = resolution.effectivePlan.actions.find((a) => a.target === "UI");
+    expect(applied.parameters.mode).toBeUndefined();
+    expect(applied.parameters.reduceAnimations).toBe(true);
+    expect(resolution.records.find((r) => r.target === "UI").status).toBe("modified");
+  });
+});
+
+// H4: the app-level runtime and module-level consumers run independent
+// decide() paths for the same user; their temporal state must not interfere.
+describe("decision-path hysteresis isolation", () => {
+  const anxious = (t) => ({ timestamp: new Date(t).toISOString(), mood: { primaryMood: "anxious", confidence: 0.55 }, metadata: { stalenessFlags: {} } });
+  const calm = (t) => ({ timestamp: new Date(t).toISOString(), mood: { primaryMood: "calm", confidence: 0.9 }, metadata: { stalenessFlags: {} } });
+  const SCOPE = moduleStateScope("support.grounding");
+
+  it("a scoped path's confirmation clock does not confirm the default path", () => {
+    decide({ contextSnapshot: anxious(T0) }, { now: T0, userId: A, stateScope: SCOPE });
+    // Without isolation the default path would inherit pendingSince = T0 and activate here.
+    const app = decide({ contextSnapshot: anxious(T0 + 3500) }, { now: T0 + 3500, userId: A });
+    expect(app.plan.actions).toHaveLength(0);
+    const scoped = decide({ contextSnapshot: anxious(T0 + 3500) }, { now: T0 + 3500, userId: A, stateScope: SCOPE });
+    expect(scoped.plan.actions.map((a) => a.parameters.mode)).toContain("low_stimulation");
+  });
+
+  it("a scoped path on a calm snapshot cannot withdraw the default path's active adaptation", () => {
+    decide({ contextSnapshot: anxious(T0) }, { now: T0, userId: A });
+    const active = decide({ contextSnapshot: anxious(T0 + 3500) }, { now: T0 + 3500, userId: A });
+    expect(active.plan.actions).toHaveLength(1);
+    decide({ contextSnapshot: calm(T0 + 30000) }, { now: T0 + 30000, userId: A, stateScope: SCOPE });
+    const key = adaptationStateKey(A, "generic", "UI");
+    expect(readAdaptationState(key).activeSince).toBe(T0 + 3500);
+  });
+
+  it("clearing a user's hysteresis clears every scope of that user only", () => {
+    decide({ contextSnapshot: anxious(T0) }, { now: T0, userId: A });
+    decide({ contextSnapshot: anxious(T0) }, { now: T0, userId: A, stateScope: SCOPE });
+    decide({ contextSnapshot: anxious(T0) }, { now: T0, userId: B, stateScope: SCOPE });
+    expect(adaptationStateCount()).toBe(3);
+    clearAdaptiveHysteresis(A);
+    expect(adaptationStateCount()).toBe(1);
+    expect(readAdaptationState(adaptationStateKey(`${B}@${SCOPE}`, "generic", "UI"))).toBeDefined();
+  });
+
+  it("useModuleAdaptation decides in its own module scope", async () => {
+    const snapshot = anxious(Date.now());
+    const getSnapshot = () => snapshot;
+    renderHook(() => useModuleAdaptation({ moduleId: "support.grounding", getSnapshot, userId: A, enabled: true }));
+    await waitFor(() => {
+      expect(readAdaptationState(adaptationStateKey(`${A}@${SCOPE}`, "generic", "UI"))).toBeDefined();
+    });
+    expect(readAdaptationState(adaptationStateKey(A, "generic", "UI"))).toBeUndefined();
   });
 });

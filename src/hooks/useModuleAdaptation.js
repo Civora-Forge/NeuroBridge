@@ -16,10 +16,26 @@
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useCallback, useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useAdaptiveBehavioralEngine } from "@/hooks/useAdaptiveBehavioralEngine";
 import { deriveModuleAdjustments } from "@/components/adaptive/AdaptiveUIRuntime.jsx";
-import { resolvePlanExecution } from "@/adaptive/execution/uiExecution";
+import {
+  getExecutionStoreVersion,
+  resolvePlanExecution,
+  subscribeExecutionStore,
+} from "@/adaptive/execution/uiExecution";
+import { usePersonalizationProfile } from "@/adaptive/personalization/usePersonalizationProfile";
+
+/**
+ * Hysteresis namespace for module-level decisions. The app-level runtime
+ * (AdaptiveRuntimeProvider) runs its own decide() path for the same user,
+ * often on a different (app-level vs module-local) snapshot; a separate
+ * scope keeps the two paths from advancing or resetting each other's
+ * temporal state.
+ */
+export function moduleStateScope(moduleId) {
+  return `module:${typeof moduleId === "string" && moduleId ? moduleId : "generic"}`;
+}
 
 /**
  * @param {object} options
@@ -51,6 +67,12 @@ export function useModuleAdaptation({
   const snapshotProducer =
     typeof getSnapshot === "function" ? getSnapshot : getAppSnapshot;
 
+  // The user's persistent personalization profile applies to module-level
+  // decisions exactly as it does at the app level (explicit avoided modes are
+  // constraints, presentation is calmer-only). The store is shared, so this
+  // reuses the provider's loaded copy rather than fetching again.
+  const personalizationStore = usePersonalizationProfile(userId ?? null);
+
   const engine = useAdaptiveBehavioralEngine({
     moduleId,
     getSnapshot: snapshotProducer,
@@ -58,7 +80,19 @@ export function useModuleAdaptation({
     enabled: enabledOverride,
     userPreferences,
     role4Signals,
+    personalizationProfile: personalizationStore.profile ?? null,
+    temporaryPreferences: personalizationStore.temporary ?? null,
+    stateScope: moduleStateScope(moduleId),
   });
+
+  // Consent decisions are made in the app-level prompt; re-resolve when the
+  // shared execution store changes so a grant / decline applies immediately
+  // rather than on this path's next plan change.
+  const storeVersion = useSyncExternalStore(
+    subscribeExecutionStore,
+    getExecutionStoreVersion,
+    getExecutionStoreVersion,
+  );
 
   // Same execution guardrails as the app shell (Task 3): safety outcomes and
   // requireConfirmation consent apply to module-owned (non-UI) actions too.
@@ -66,7 +100,9 @@ export function useModuleAdaptation({
     if (!engine.plan || !Array.isArray(engine.plan.actions)) return null;
     const targets = [...new Set(engine.plan.actions.map((a) => a?.target).filter((t) => t && t !== "UI"))];
     return resolvePlanExecution(engine.plan, { trace: engine.trace, targets });
-  }, [engine.plan, engine.trace]);
+    // storeVersion: consent decisions change the resolution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine.plan, engine.trace, storeVersion]);
   const effectivePlan = execution?.effectivePlan ?? null;
 
   const moduleActions = useMemo(() => {

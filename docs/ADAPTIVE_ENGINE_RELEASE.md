@@ -42,10 +42,27 @@ state (8) › learned (9). Learned and profile influence only ever touch tier
 offers (support cards) are shown and their feedback is learned, explicit
 personalization preferences are honoured for offers (e.g. "no unrequested
 offers"). **No adaptive UI mode change (low-stimulation, focus, simplified,
-guided) is applied**, and no consent prompts are shown, because
-`resolvePlanExecution` rejects every UI action while the flag is off
-(covered by `releaseHardening.test.jsx`). Do not describe production as
-"adapting the UI" until Stage C is on.
+guided) is applied**, and no consent prompt is ever shown *for a UI
+adaptation*, because `resolvePlanExecution` rejects every UI action while the
+flag is off (covered by `releaseHardening.test.jsx`). Do not describe
+production as "adapting the UI" until Stage C is on.
+
+**Consent prompts DO appear in production for module-owned (non-UI)
+adaptations in CAUTION modules.** The `uiExecution` flag gates UI actions
+only. On a CAUTION module route (e.g. `support.grounding`,
+`support.cognitive_reframing`, `anxiety.hub`), the module's own policies
+(TASK / PACING / CONTENT / …) are marked `requireConfirmation` by the safety
+gate, and `AdaptiveUIRuntime` asks *"Apply "…" to this activity?"*. A grant is
+stored in the shared execution store and applied by that page's
+`useModuleAdaptation` consumer, with the action's parameters intact
+(`reducedIntensity` reshapes UI actions only). Covered by
+`releaseHardening.test.jsx` ("a real CAUTION module still asks consent for
+module-owned actions").
+
+Support offers are surfaced only when the plan carries a state-driven action
+(Tier 1 safety or Tier ≥ 8 current-state / learned); an explicit preference
+action alone (e.g. `accessibility.reduceMotion`, Tier 4) never surfaces an
+offer.
 
 ### Why Stage C stays off (blocker)
 
@@ -88,7 +105,7 @@ explicit preferences keep working. Stored data is unaffected by rollback.
 | Personalization profile (Task 5) | localStorage `…:adaptive_profile` + Supabase `support_personalization_profiles` (RLS, one row per user, cascade on account deletion) | device + account | sign-out wipes the device copy; resets sync to all devices; "Delete all my data" deletes the row |
 | Temporary "for now" state | memory only | tab session | reload, sign-out |
 | Consent decisions / offer dismissals | sessionStorage `neurobridge.adaptive.execution.v1` | tab session, **bound to one user** (Task 6), ≤ 200 entries, expired pruned | user switch, sign-out |
-| Hysteresis state | memory, keyed `user|module|target`, ≤ 10 000 entries, idle-pruned | tab session | sign-out |
+| Hysteresis state | memory, keyed `user|module|target` (app-level path) and `user@module:<id>|module|target` (each `useModuleAdaptation` path), ≤ 10 000 entries, idle-pruned | tab session | sign-out (all scopes of the user) |
 
 Cross-device sync works only for authenticated Supabase users **after the
 migration `20261120000000_adaptive_personalization_profiles.sql` is applied**;
@@ -109,6 +126,11 @@ and Firebase-only identities are device-local by design.
   learned signals; learning never writes explicit preferences.
 - `requireConfirmation` adaptations wait for explicit consent; consent is
   per user and never carries over to another user in the same tab.
+- `reducedIntensity` keeps only protective motion/colour flags on UI actions;
+  module-owned (non-UI) actions keep their parameters.
+- The app-level runtime and each module-level `useModuleAdaptation` path keep
+  separate hysteresis state (`decide` option `stateScope`), so one path's
+  snapshot cannot advance or reset the other's confirmation windows.
 - Scheduled re-evaluations: one timer, delay clamped to 1 s – 10 min, at most
   12 refreshes per minute.
 - Engine or input failures fall back to the baseline UI (no stale adaptation).

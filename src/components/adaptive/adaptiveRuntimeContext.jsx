@@ -1,7 +1,9 @@
 /**
  * adaptiveRuntimeContext.js — Adaptive Engine live runtime context (Phase 4)
  *
- * Single decision path for the running app. Mounted once inside
+ * App-level decision path for the running app (module pages may run an
+ * additional, independent path through `useModuleAdaptation`, which keeps its
+ * own hysteresis scope — see `moduleStateScope`). Mounted once inside
  * `ContextProvider`, it drives `useAdaptiveBehavioralEngine` with the live
  * ContextSnapshot (module resolved from the current URL path), the
  * authenticated userId, and the D14 `userPreferences` fragment — then exposes

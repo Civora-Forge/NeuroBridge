@@ -319,6 +319,11 @@ function aggregateSafety(entries) {
  * @param {string} [options.userId]
  *   Normalized Role 4 userId used to key per-user hysteresis state and
  *   recorded on the trace when present.
+ * @param {string} [options.stateScope]
+ *   Optional decision-path namespace for hysteresis state (e.g. "module").
+ *   Callers running an additional, independent decision path for the same
+ *   user pass a scope so their temporal state is isolated from the app-level
+ *   runtime. Omitted → the shared default slot (unchanged behaviour).
  * @param {Record<string, object>} [options.learnedPreferences]
  *   Learned preferences (src/adaptive/learning getLearnedPreferences) used as
  *   bounded supporting evidence; their influence is recorded in trace.learning.
@@ -360,6 +365,13 @@ export function decide(input = {}, options = {}) {
   const userId =
     typeof options.userId === "string" && options.userId.trim().length > 0
       ? options.userId
+      : undefined;
+  // Independent decision paths (app-level runtime vs module-level consumers)
+  // keep separate temporal state so they never advance or reset each other's
+  // confirmation windows / withdrawals from different snapshots.
+  const stateScope =
+    typeof options.stateScope === "string" && options.stateScope.trim().length > 0
+      ? options.stateScope.trim()
       : undefined;
 
   // ── 2 REASON (existing Cognitive Reasoning Core) ──
@@ -407,7 +419,7 @@ export function decide(input = {}, options = {}) {
   // Reinstated entries still pass restriction, conflict, preference and safety.
   const temporal = stabilizeCandidates(
     { triggered, suppressed: evidenceSuppressed, rules, userState: policyState },
-    { now, userId, moduleId: context?.moduleId, reasoningConfidence: reasoning.confidence },
+    { now, userId, moduleId: context?.moduleId, reasoningConfidence: reasoning.confidence, stateScope },
   );
   const maintainedIds = new Set(temporal.maintainedIds);
   const reportedSuppressed = evidenceSuppressed.filter((entry) => !maintainedIds.has(entry.ruleId));
@@ -452,6 +464,7 @@ export function decide(input = {}, options = {}) {
     reasoningConfidence: reasoning.confidence,
     userId,
     moduleId: context?.moduleId,
+    stateScope,
     temporal,
     droppedBy,
   });
