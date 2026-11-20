@@ -179,9 +179,12 @@ describe("missing evidence", () => {
     expect(ruleIds(decide({ contextSnapshot: idle }, { now: T0, userId: USER }))).not.toContain("focus_mode");
 
     // With real behavioral evidence the same counters are meaningful.
+    // Focus mode must persist past its confirmation window before entering
+    // (Task 2), so evaluate twice across that window.
     const observed = { ...idle, behavior: { ...idle.behavior, confidence: 0.7 } };
     expect(buildUserState(observed).attentionState).toBe("focused");
-    expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0, userId: USER }))).toContain("focus_mode");
+    expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0, userId: USER }))).not.toContain("focus_mode");
+    expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0 + 10000, userId: USER }))).toContain("focus_mode");
   });
 
   it("grounds urgency confidence in the conversation analysis confidence", () => {

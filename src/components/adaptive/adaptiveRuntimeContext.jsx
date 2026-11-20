@@ -17,7 +17,7 @@
  * Ownership: Adaptive Experience Engineer
  */
 
-import { createContext, useCallback, useContext, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -71,7 +71,7 @@ export function resolveCanonicalModuleId(pathname) {
 export function AdaptiveRuntimeProvider({ children }) {
   const location = useLocation();
   const { user } = useAuth();
-  const { context } = useContextState();
+  const { context, refreshContext } = useContextState();
 
   const moduleId = resolveCanonicalModuleId(location.pathname) ?? null;
   const getSnapshot = useCallback(() => context, [context]);
@@ -86,6 +86,22 @@ export function AdaptiveRuntimeProvider({ children }) {
     userId: user?.id,
     userPreferences,
   });
+
+  // Temporal stability (Task 2): the engine schedules its own re-evaluation
+  // (confirmation windows, minimum-duration ends, periodic review of active
+  // adaptations). Refresh the live snapshot at that time so pending entries
+  // confirm and stale adaptations expire even without new user interaction.
+  const reEvaluateAt = engine.plan?.reEvaluateAt;
+  useEffect(() => {
+    if (typeof reEvaluateAt !== "number" || typeof refreshContext !== "function") {
+      return undefined;
+    }
+    const delay = Math.min(Math.max(reEvaluateAt - Date.now(), 250), 10 * 60 * 1000);
+    const timer = setTimeout(() => {
+      refreshContext();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [reEvaluateAt, refreshContext]);
 
   const value = useMemo(
     () => ({

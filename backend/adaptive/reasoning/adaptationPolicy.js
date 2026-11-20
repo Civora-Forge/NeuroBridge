@@ -147,12 +147,44 @@ export const ADAPTATION_RULES = [
  * numeric priorities act only as within-tier tie-breakers at Tier 8
  * (CURRENT COGNITIVE/EMOTIONAL STATE).
  */
+/**
+ * Temporal stability profiles for the shipped policies (Task 2). Entering an
+ * adaptation needs stronger, persistent evidence than maintaining it:
+ *   - activationThreshold   = the evidence floor for a NEW adaptation
+ *   - deactivationThreshold = weaker evidence that still maintains it
+ *   - confirmationMs        = how long entry evidence must persist (transient
+ *                             signals do not change the UI) ...
+ *   - immediateActivationThreshold = ... unless it is this strong
+ *   - minDurationMs         = brief contradiction cannot withdraw it sooner
+ *   - cooldownMs            = the same mode cannot re-enter sooner
+ *   - maxDurationMs         = maintenance without fresh entry-level evidence
+ *                             is capped (never indefinitely active)
+ * Urgency is never delayed (no confirmation window).
+ */
+const URGENT_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 0,
+  minDurationMs: 15000, cooldownMs: 5000, maxDurationMs: 300000,
+});
+const DISTRESS_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 3000,
+  immediateActivationThreshold: 0.75, minDurationMs: 20000, cooldownMs: 15000, maxDurationMs: 600000,
+});
+const LOAD_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 5000,
+  immediateActivationThreshold: 0.85, minDurationMs: 20000, cooldownMs: 20000, maxDurationMs: 600000,
+});
+const FOCUS_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 8000,
+  immediateActivationThreshold: 0.9, minDurationMs: 30000, cooldownMs: 30000, maxDurationMs: 900000,
+});
+
 const rawPolicies = [
   {
     id: "critical_urgency",
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 110,
+    hysteresis: URGENT_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -176,6 +208,7 @@ const rawPolicies = [
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 100,
+    hysteresis: DISTRESS_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -202,6 +235,7 @@ const rawPolicies = [
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 90,
+    hysteresis: DISTRESS_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -230,6 +264,7 @@ const rawPolicies = [
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 80,
+    hysteresis: LOAD_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -254,6 +289,7 @@ const rawPolicies = [
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 70,
+    hysteresis: LOAD_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -277,6 +313,7 @@ const rawPolicies = [
     scope: PolicyScope.GENERIC,
     tier: PriorityTier.CURRENT_STATE,
     priority: 60,
+    hysteresis: FOCUS_STABILITY,
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
@@ -476,15 +513,19 @@ function evaluateGroup(group, resolvedState, thresholds, exempt) {
     suppression = EvidenceSuppressionReason.LOW_CONFIDENCE;
   }
 
+  // Strongest supporting evidence; 1 when no matched trigger carried evidence
+  // metadata (explicit / un-instrumented input, treated as certain above).
+  const evidenceConfidence = strongest ?? 1;
   if (suppression !== null) {
     return {
       status: "suppressed",
       matchedTriggers,
       reason: suppression,
       weakestConfidence: weakest ?? undefined,
+      evidenceConfidence,
     };
   }
-  return { status: "matched", matchedTriggers };
+  return { status: "matched", matchedTriggers, evidenceConfidence };
 }
 
 /**
@@ -519,6 +560,7 @@ export function evaluatePolicies(rules, resolvedState, options = {}) {
     const exempt = rule.tier === PriorityTier.SAFETY;
     const matchedGroups = [];
     const suppressedGroups = [];
+    const matchedEvidence = [];
     rule.triggerGroups.forEach((group, groupIndex) => {
       if (!group || !Array.isArray(group.triggers) || group.triggers.length === 0) {
         return;
@@ -526,6 +568,7 @@ export function evaluatePolicies(rules, resolvedState, options = {}) {
       const result = evaluateGroup(group, resolvedState, thresholds, exempt);
       if (result.status === "matched") {
         matchedGroups.push({ groupIndex, matchedTriggers: result.matchedTriggers });
+        matchedEvidence.push(result.evidenceConfidence);
       } else if (result.status === "suppressed") {
         suppressedGroups.push({ groupIndex, ...result });
       }
@@ -547,6 +590,7 @@ export function evaluatePolicies(rules, resolvedState, options = {}) {
           ...base,
           matchedTriggers: suppressedGroups.flatMap((group) => group.matchedTriggers),
           evidenceReason: first.reason,
+          evidenceConfidence: Math.max(...suppressedGroups.map((group) => group.evidenceConfidence ?? 0)),
         };
         if (typeof first.weakestConfidence === "number") {
           record.confidence = first.weakestConfidence;
@@ -560,6 +604,8 @@ export function evaluatePolicies(rules, resolvedState, options = {}) {
       ...base,
       matchedGroups,
       matchedTriggers: matchedGroups.flatMap((group) => group.matchedTriggers),
+      // Strongest evidence behind the firing group(s): the hysteresis signal.
+      evidenceConfidence: Math.max(...matchedEvidence),
       // Carry policy-declared metadata through to downstream stages:
       // hysteresis enforcement (D6) and planner timing/expiry derive from it.
       confidence: rule.confidence,
