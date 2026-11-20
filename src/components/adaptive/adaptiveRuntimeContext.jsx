@@ -116,10 +116,12 @@ export function AdaptiveRuntimeProvider({ children }) {
   const value = useMemo(
     () => ({
       moduleId,
+      // Feedback capture (Task 4) is per user; never written into traces.
+      userId: user?.id ?? null,
       userPreferences,
       ...engine,
     }),
-    [moduleId, userPreferences, engine],
+    [moduleId, user?.id, userPreferences, engine],
   );
 
   return (

@@ -10,6 +10,8 @@ export const ROLE4_COLLECTIONS = {
   MEMORIES: "memories",
   PERSONALIZATION_PROFILES: "personalization_profiles",
   ADAPTATION_DECISIONS: "adaptation_decisions",
+  // Task 4: explicit feedback on adaptive UI decisions (learning loop).
+  ADAPTATION_FEEDBACK: "adaptation_feedback",
   MIGRATIONS: "migrations",
 };
 

@@ -591,6 +591,11 @@ export function evaluatePolicies(rules, resolvedState, options = {}) {
           matchedTriggers: suppressedGroups.flatMap((group) => group.matchedTriggers),
           evidenceReason: first.reason,
           evidenceConfidence: Math.max(...suppressedGroups.map((group) => group.evidenceConfidence ?? 0)),
+          // Policy timing metadata travels with the record so a candidate the
+          // learning stage promotes is still temporally gated (Task 4).
+          hysteresis: rule.hysteresis,
+          durationMs: rule.durationMs,
+          expiry: rule.expiry,
         };
         if (typeof first.weakestConfidence === "number") {
           record.confidence = first.weakestConfidence;

@@ -873,6 +873,25 @@ export const DecisionTraceSchema = z.object({
   confidence: confidenceRange,
   reEvaluateAt: epochNumber.optional(),
   sources: tagsSchema,
+
+  // Task 4: learned preferences that influenced this decision (supporting
+  // evidence only). Keys are adaptation identities (target:ruleId); no
+  // user-identifying or snapshot content is recorded.
+  learning: z
+    .array(
+      z.object({
+        key: z.string().trim().min(1),
+        ruleId: idSchema,
+        scope: z.enum(["context", "global"]),
+        score: confidenceRange,
+        confidence: confidenceRange,
+        evidenceCount: z.number().int().nonnegative(),
+        effect: z.enum(["supported", "changed", "suppressed"]),
+        evidenceBefore: confidenceRange,
+        evidenceAfter: confidenceRange,
+      }),
+    )
+    .default([]),
 });
 
 export const AdaptiveEngineInputSchema = z.object({

@@ -55,6 +55,7 @@ import { runHysteresisStage, stabilizeCandidates } from "./hysteresis.js";
 import { resolveConflicts } from "./conflictResolution.js";
 import { applyUserPreferences } from "./preferences.js";
 import { recommendFocusConfiguration } from "../reasoning/focusConfiguration.js";
+import { applyLearnedPreferences } from "./learning.js";
 
 const DEFAULT_SAFETY_RESULT = {
   level: SafetyLevel.STANDARD,
@@ -313,6 +314,9 @@ function aggregateSafety(entries) {
  * @param {string} [options.userId]
  *   Normalized Role 4 userId used to key per-user hysteresis state and
  *   recorded on the trace when present.
+ * @param {Record<string, object>} [options.learnedPreferences]
+ *   Learned preferences (src/adaptive/learning getLearnedPreferences) used as
+ *   bounded supporting evidence; their influence is recorded in trace.learning.
  * @returns {{ plan: import("../../../support/schemas/supportSchemas.js").AdaptationPlanSchema, trace: import("../../../support/schemas/supportSchemas.js").DecisionTraceSchema }}
  */
 export function decide(input = {}, options = {}) {
@@ -363,7 +367,17 @@ export function decide(input = {}, options = {}) {
   // Evidence-grounded evaluation: rules whose trigger values matched but whose
   // evidence was stale or too weak are returned as `suppressed` and recorded
   // in the trace; they never reach the plan.
-  const { triggered, suppressed: evidenceSuppressed = [] } = evaluatePolicies(rules, policyState);
+  const evaluated = evaluatePolicies(rules, policyState);
+
+  // ── 3a LEARNED PREFERENCES (Task 4) — bounded supporting evidence from the
+  // user's explicit feedback history; current-state tiers only, never safety
+  // or explicit preferences. No-op unless `options.learnedPreferences` given.
+  const learning = applyLearnedPreferences(
+    { triggered: evaluated.triggered, suppressed: evaluated.suppressed ?? [] },
+    options.learnedPreferences,
+  );
+  const triggered = learning.triggered;
+  const evidenceSuppressed = learning.suppressed;
   const focusRecommendation = recommendFocusConfiguration(normalized.role4Signals?.supportEvidence);
   const learnedFocusEntry = context?.moduleId === "support.focus_session" && focusRecommendation
     ? [{ ruleId: "role4.focus_configuration", version: 1, scope: "user", tier: 9, priority: 0, confidence: focusRecommendation.confidence, action: { type: "MODIFY", target: "PACING", parameters: { focusConfiguration: focusRecommendation } }, matchedTriggers: [], reversal: "auto" }]
@@ -491,6 +505,9 @@ export function decide(input = {}, options = {}) {
   if (policyState !== userState) {
     sourceTags.add("learned_personalization");
   }
+  if (learning.influences.length > 0) {
+    sourceTags.add("learned_preferences");
+  }
 
   const trace = {
     decisionId: plan.decisionTraceId,
@@ -513,6 +530,7 @@ export function decide(input = {}, options = {}) {
     finalActions: plan.actions,
     confidence: plan.overallConfidence,
     sources: [...sourceTags],
+    learning: learning.influences,
   };
   if (typeof userState?.timestamp === "string") {
     trace.inputRef.userStateRef = userState.timestamp;

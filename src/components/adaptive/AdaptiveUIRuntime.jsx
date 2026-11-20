@@ -43,7 +43,7 @@
 
 import { useMemo, useRef, useState, useEffect, useSyncExternalStore } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
-import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
+import { AdaptationDimension, AdaptationActionType, PriorityTier } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
 import AdaptiveSupportCard from "./AdaptiveSupportCard.jsx";
 import { getInterventionMeta } from "@/components/interventions/InterventionResolver";
@@ -57,6 +57,23 @@ import {
   resolvePlanExecution,
   subscribeExecutionStore,
 } from "@/adaptive/execution/uiExecution";
+import {
+  FeedbackOutcome,
+  getLearnedPreferences,
+  preferenceKey,
+  recommendationPreferenceKey,
+  recordAdaptationFeedback,
+} from "@/adaptive/learning/adaptationLearning";
+import { LEARNING_INFLUENCE } from "@backend/adaptive/engine/learning";
+import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
+
+/**
+ * A user-actionable prompt (consent prompt / support card) that was visible at
+ * least this long and then disappeared without any response is recorded as
+ * "ignored" (a weak signal). Shorter exposures record nothing: silence and
+ * flicker are never treated as rejection.
+ */
+export const IGNORED_AFTER_MS = 8000;
 
 /** Human-readable labels for the engine's UI modes. */
 export const MODE_LABELS = {
@@ -308,6 +325,17 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   );
 
   const rawPlan = runtime.enabled ? runtime.plan : null;
+  const userId = runtime.userId ?? null;
+  const feedbackModuleId = runtime.moduleId ?? "generic";
+  const decisionId = rawPlan?.decisionTraceId ?? null;
+
+  // Task 4 feedback capture — written to the learning store from event
+  // handlers / one-shot effects only (no React state → no render loops); one
+  // outcome per exposure (duplicates are dropped by the store).
+  const feedback = (key, outcome, exposureId) => {
+    if (!userId || !key || !exposureId) return;
+    recordAdaptationFeedback({ userId, key, outcome, exposureId, moduleId: feedbackModuleId, decisionId });
+  };
   const resolution = useMemo(
     () =>
       resolvePlanExecution(rawPlan, {
@@ -336,12 +364,32 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
   const [lastExecution, setLastExecution] = useState(null);
   const onExecutionRef = useRef(onExecution);
   onExecutionRef.current = onExecution;
+  const appliedRef = useRef({ actions: [], at: null });
   useEffect(() => {
     const { duplicate, entry } = ledgerRef.current.commit(resolution, rawPlan);
     if (!duplicate && entry) {
       setLastExecution(entry);
       onExecutionRef.current?.(entry);
     }
+    // Explicit override: a state-driven adaptation that was applied is
+    // replaced on the same target by the user's explicit preference.
+    const previous = appliedRef.current;
+    const explicitTargets = new Set(
+      (rawPlan?.actions ?? [])
+        .filter((a) => a.tier >= PriorityTier.EXPLICIT_USER_REQUEST && a.tier <= PriorityTier.EXPLICIT_PREFERENCE)
+        .map((a) => a.target),
+    );
+    for (const action of previous.actions) {
+      if (explicitTargets.has(action.target)) {
+        feedback(preferenceKey(action), FeedbackOutcome.OVERRIDDEN, `applied:${previous.at}`);
+      }
+    }
+    const applied = (resolution.effectivePlan?.actions ?? []).filter(
+      (a) => (a.tier ?? 0) >= PriorityTier.CURRENT_STATE,
+    );
+    const sameAdaptations =
+      applied.map(preferenceKey).join("|") === previous.actions.map(preferenceKey).join("|");
+    appliedRef.current = sameAdaptations ? previous : { actions: applied, at: Date.now() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolution.signature]);
 
@@ -358,14 +406,52 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
     return deriveInterventionRecommendation(plan);
   }, [rawPlan, resolution.suppressRecommendations]);
 
+  // Learned preference for this offer (Task 4): an offer the user has
+  // repeatedly declined in this context, with sufficient evidence, is not
+  // re-surfaced. Offers only — never an explicit setting.
+  const recommendationLearning = useMemo(() => {
+    if (!recommendation || !userId || !isReflectionEnabled()) return null;
+    const key = recommendationPreferenceKey(recommendation.id);
+    const learned = getLearnedPreferences(userId, { moduleId: feedbackModuleId })[key];
+    return learned?.sufficient && learned.score <= LEARNING_INFLUENCE.opposeAt ? learned : null;
+  }, [recommendation, userId, feedbackModuleId]);
+
   const [activeInterventionModal, setActiveInterventionModal] = useState(null);
 
   const activeRecommendation =
-    recommendation && !isRecommendationDismissed(recommendation.id)
+    recommendation && !isRecommendationDismissed(recommendation.id) && !recommendationLearning
       ? recommendation
       : null;
 
   const pending = resolution.pendingConsent[0] ?? null;
+
+  // Exposure tracking for prompts the user can act on (consent + card).
+  const consentExposure = useRef(null);
+  const cardExposure = useRef(null);
+  const trackExposure = (ref, key) => {
+    const current = ref.current;
+    if (current && current.key === key) return;
+    if (current && !current.handled && Date.now() - current.shownAt >= IGNORED_AFTER_MS) {
+      feedback(current.key, FeedbackOutcome.IGNORED, current.id);
+    }
+    ref.current = key ? { key, shownAt: Date.now(), id: `shown:${key}:${Date.now()}`, handled: false } : null;
+  };
+  const pendingFeedbackKey = pending ? preferenceKey(pending.action) : null;
+  const cardFeedbackKey = activeRecommendation ? recommendationPreferenceKey(activeRecommendation.id) : null;
+  useEffect(() => {
+    trackExposure(consentExposure, pendingFeedbackKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFeedbackKey]);
+  useEffect(() => {
+    trackExposure(cardExposure, cardFeedbackKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardFeedbackKey]);
+  const respond = (ref, outcome) => {
+    const exposure = ref.current;
+    if (!exposure || exposure.handled) return;
+    exposure.handled = true;
+    feedback(exposure.key, outcome, exposure.id);
+  };
 
   const wrapperProps = {
     "data-adaptive-root": "true",
@@ -416,10 +502,24 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
               : `Apply "${MODULE_ACTION_LABELS[`${pending.action.target}:${pending.action.type}`] ?? "this adjustment"}" to this activity?`}
           </p>
           <div className="mt-2 flex gap-2">
-            <button type="button" className="neuro-btn" onClick={() => grantConsent(pending.key)}>
+            <button
+              type="button"
+              className="neuro-btn"
+              onClick={() => {
+                respond(consentExposure, FeedbackOutcome.ACCEPTED);
+                grantConsent(pending.key);
+              }}
+            >
               Apply
             </button>
-            <button type="button" className="neuro-btn-ghost" onClick={() => declineConsent(pending.key)}>
+            <button
+              type="button"
+              className="neuro-btn-ghost"
+              onClick={() => {
+                respond(consentExposure, FeedbackOutcome.REJECTED);
+                declineConsent(pending.key);
+              }}
+            >
               Keep current view
             </button>
           </div>
@@ -434,10 +534,14 @@ export default function AdaptiveUIRuntime({ children, onExecution }) {
           recommendation={cardRecommendation}
           onStartSupport={(id) => {
             // Start Support opens the intervention and suppresses the same offer.
+            respond(cardExposure, FeedbackOutcome.ACCEPTED);
             persistDismissal(id);
             setActiveInterventionModal(id);
           }}
-          onDismiss={(id) => persistDismissal(id)}
+          onDismiss={(id) => {
+            respond(cardExposure, FeedbackOutcome.DISMISSED);
+            persistDismissal(id);
+          }}
         />
       )}
 

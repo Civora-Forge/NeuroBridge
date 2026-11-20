@@ -30,12 +30,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isAdaptiveRuntimeEnabled } from "@backend/adaptive/engine/featureFlags";
+import { isAdaptiveRuntimeEnabled, isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
 import { executeAdaptation } from "@backend/adaptive/engine/executor";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { getSupportEvidenceAsync } from "@/support/evidence/supportEvidence";
 import { planSignature } from "@/adaptive/execution/uiExecution";
+import { getLearnedPreferences } from "@/adaptive/learning/adaptationLearning";
 
 const IDLE_DECISION = {
   plan: null,
@@ -177,7 +178,13 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         if (sequence !== sequenceRef.current) {
           return null; // superseded by a newer decision while awaiting input
         }
-        const outcome = decide(input, { userId });
+        // Task 4: the user's learned preferences are supporting evidence for
+        // this decision (staged behind the reflection flag; per-user only).
+        const learnedPreferences =
+          userId && isReflectionEnabled()
+            ? getLearnedPreferences(userId, { moduleId: moduleId ?? "generic" })
+            : undefined;
+        const outcome = decide(input, { userId, learnedPreferences });
         latestTraceRef.current = outcome.trace;
         const signature = planSignature(outcome.plan);
         if (signature !== committedSignatureRef.current) {
@@ -199,7 +206,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
     },
-    [enabled, buildInput, setError, userId]
+    [enabled, buildInput, setError, userId, moduleId]
   );
 
   const runDecision = useCallback(async () => {
