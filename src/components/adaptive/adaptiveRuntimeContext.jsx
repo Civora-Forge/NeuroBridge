@@ -17,7 +17,7 @@
  * Ownership: Adaptive Experience Engineer
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -80,28 +80,38 @@ export function AdaptiveRuntimeProvider({ children }) {
     [user],
   );
 
+  // Temporal stability (Task 2): the engine schedules its own re-evaluation
+  // (confirmation windows, minimum-duration ends, periodic review of active
+  // adaptations). Refresh the live snapshot at that time so pending entries
+  // confirm and stale adaptations expire even without new user interaction.
+  // Scheduled from every committed decision (Task 3) — including decisions
+  // whose effective plan is unchanged and so cause no re-render.
+  const timerRef = useRef(null);
+  const onDecision = useCallback(
+    (outcome) => {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      const reEvaluateAt = outcome?.plan?.reEvaluateAt;
+      if (typeof reEvaluateAt !== "number" || typeof refreshContext !== "function") {
+        return;
+      }
+      const delay = Math.min(Math.max(reEvaluateAt - Date.now(), 1000), 10 * 60 * 1000);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        refreshContext();
+      }, delay);
+    },
+    [refreshContext],
+  );
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
   const engine = useAdaptiveBehavioralEngine({
     moduleId,
     getSnapshot: context != null ? getSnapshot : undefined,
     userId: user?.id,
     userPreferences,
+    onDecision,
   });
-
-  // Temporal stability (Task 2): the engine schedules its own re-evaluation
-  // (confirmation windows, minimum-duration ends, periodic review of active
-  // adaptations). Refresh the live snapshot at that time so pending entries
-  // confirm and stale adaptations expire even without new user interaction.
-  const reEvaluateAt = engine.plan?.reEvaluateAt;
-  useEffect(() => {
-    if (typeof reEvaluateAt !== "number" || typeof refreshContext !== "function") {
-      return undefined;
-    }
-    const delay = Math.min(Math.max(reEvaluateAt - Date.now(), 250), 10 * 60 * 1000);
-    const timer = setTimeout(() => {
-      refreshContext();
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [reEvaluateAt, refreshContext]);
 
   const value = useMemo(
     () => ({

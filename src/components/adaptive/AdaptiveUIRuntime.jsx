@@ -26,21 +26,37 @@
  *     recommendation). An unchanged persistent recommendation from the engine
  *     does NOT re-show the card after dismissal.
  *   - When the user dismisses or completes the intervention, the card is
- *     hidden. It stays hidden as long as the engine continues to carry the
- *     same recommendation. A genuinely new future recommendation (different id
- *     or changed content) will appear normally.
+ *     hidden and the dismissal is kept in the session execution store, so it
+ *     survives unrelated state changes (plan flicker, re-decisions, remounts).
+ *     A recommendation with a different id appears normally.
+ *
+ * Execution (Task 3): the shell never applies a raw plan. Every plan goes
+ * through `resolvePlanExecution` (src/adaptive/execution/uiExecution.js),
+ * which enforces the uiExecution flag, safety outcomes, requireConfirmation
+ * consent and reducedIntensity, and the result is recorded in an idempotent
+ * execution ledger. When nothing may be applied the wrapper is the baseline.
  *   - The engine's hysteresis stage keeps a sustained target from
  *     re-activating repeatedly, so the same opportunity is not re-emitted.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useSyncExternalStore } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
 import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
 import AdaptiveSupportCard from "./AdaptiveSupportCard.jsx";
 import { getInterventionMeta } from "@/components/interventions/InterventionResolver";
+import {
+  createExecutionLedger,
+  declineConsent,
+  dismissRecommendation as persistDismissal,
+  getExecutionStoreVersion,
+  grantConsent,
+  isRecommendationDismissed,
+  resolvePlanExecution,
+  subscribeExecutionStore,
+} from "@/adaptive/execution/uiExecution";
 
 /** Human-readable labels for the engine's UI modes. */
 export const MODE_LABELS = {
@@ -273,80 +289,83 @@ export function deriveModuleAdjustments(plan) {
 }
 
 /**
+ * App-level shell: resolves the live plan through the execution guardrails,
+ * applies the effective UI state to the subtree, and surfaces consent prompts
+ * and the Role 3 support card.
+ *
  * @param {object} props
  * @param {import("react").ReactNode} props.children
+ * @param {(entry: object) => void} [props.onExecution] - Receives each new
+ *   execution-ledger entry (applied / modified / deferred / rejected /
+ *   dismissed, with reasons).
  */
-export default function AdaptiveUIRuntime({ children }) {
+export default function AdaptiveUIRuntime({ children, onExecution }) {
   const runtime = useAdaptiveRuntime();
-  const derived = useMemo(() => deriveUIModeFromPlan(runtime.plan), [runtime.plan]);
+  const storeVersion = useSyncExternalStore(
+    subscribeExecutionStore,
+    getExecutionStoreVersion,
+    getExecutionStoreVersion,
+  );
+
+  const rawPlan = runtime.enabled ? runtime.plan : null;
+  const resolution = useMemo(
+    () =>
+      resolvePlanExecution(rawPlan, {
+        trace: runtime.trace,
+        runtimeEnabled: runtime.enabled !== false,
+      }),
+    // storeVersion: consent decisions change the resolution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawPlan, runtime.trace, runtime.enabled, storeVersion],
+  );
+
+  // Deterministic, update-free application: an equivalent resolution (same
+  // signature) reuses the previous derived state object.
+  const derivedRef = useRef({ signature: null, derived: null });
+  if (derivedRef.current.signature !== resolution.signature) {
+    derivedRef.current = {
+      signature: resolution.signature,
+      derived: deriveUIModeFromPlan(resolution.effectivePlan),
+    };
+  }
+  const derived = derivedRef.current.derived;
+
+  // Traceability: record each effective change once (idempotent ledger).
+  const ledgerRef = useRef(null);
+  if (ledgerRef.current === null) ledgerRef.current = createExecutionLedger();
+  const [lastExecution, setLastExecution] = useState(null);
+  const onExecutionRef = useRef(onExecution);
+  onExecutionRef.current = onExecution;
+  useEffect(() => {
+    const { duplicate, entry } = ledgerRef.current.commit(resolution, rawPlan);
+    if (!duplicate && entry) {
+      setLastExecution(entry);
+      onExecutionRef.current?.(entry);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolution.signature]);
 
   // An intervention opportunity exists only when the engine actually triggered
-  // an adaptation action. Persistent reasoning labels (plan.situation,
-  // adaptiveState, etc.) do NOT by themselves constitute an opportunity — the
-  // card is hidden by default and appears only while the engine carries an
-  // active, adapted event. Without a triggered action the specific situation
-  // label is irrelevant.
+  // an adaptation action, and never while a safety outcome overrides ordinary
+  // adaptation. Recommendations are offers (user-started), so they are not
+  // gated by the UI execution flag.
   const recommendation = useMemo(() => {
-    const plan = runtime.plan;
+    const plan = rawPlan;
     if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
       return null;
     }
+    if (resolution.suppressRecommendations) return null;
     return deriveInterventionRecommendation(plan);
-  }, [runtime.plan]);
+  }, [rawPlan, resolution.suppressRecommendations]);
 
-  // Session-scoped dismissal: "Not now" (or starting) suppresses that same
-  // recommendation id until a genuinely NEW intervention opportunity arrives.
-  // A new opportunity is detected when the recommendation id or its content
-  // (title, description, reason) changes from the previously shown
-  // recommendation. An unchanged persistent recommendation from the engine
-  // does NOT re-show the card after dismissal — maintaining the
-  // intervention-event lifecycle (hidden → new event → visible → consumed →
-  // hidden).
-  const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
-    () => new Set(),
-  );
   const [activeInterventionModal, setActiveInterventionModal] = useState(null);
 
-  const dismissRecommendation = (id) => {
-    if (!id) return;
-    setDismissedRecommendationIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  };
-
   const activeRecommendation =
-    recommendation && !dismissedRecommendationIds.has(recommendation.id)
+    recommendation && !isRecommendationDismissed(recommendation.id)
       ? recommendation
       : null;
 
-  // Track the previously surfaced recommendation to detect whether the engine
-  // has produced a NEW intervention opportunity (as opposed to an unchanged
-  // persistent recommendation, which must NOT re-show a dismissed card).
-  const prevRecommendationRef = useRef(null);
-
-  useEffect(() => {
-    const prev = prevRecommendationRef.current;
-    const now = recommendation;
-
-    const sameOpportunity =
-      prev !== null &&
-      now !== null &&
-      prev.id === now.id &&
-      prev.title === now.title &&
-      prev.description === now.description &&
-      prev.reason === now.reason;
-
-    if (!sameOpportunity) {
-      // A genuinely new recommendation (or clear) restores the dismissed set so
-      // the new opportunity can be surfaced to the user.
-      setDismissedRecommendationIds(() => new Set());
-    }
-
-    prevRecommendationRef.current = now;
-  }, [recommendation]);
+  const pending = resolution.pendingConsent[0] ?? null;
 
   const wrapperProps = {
     "data-adaptive-root": "true",
@@ -356,6 +375,8 @@ export default function AdaptiveUIRuntime({ children }) {
     "data-adaptive-focus": String(derived.flags.focus),
     "data-adaptive-guide": String(derived.flags.guide),
     "data-adaptive-simplify-nav": String(derived.flags.simplifyNav),
+    "data-adaptive-execution": resolution.status,
+    "data-adaptive-execution-reason": (lastExecution?.reason ?? resolution.reason) || undefined,
   };
 
   if (!runtime.enabled) {
@@ -379,6 +400,32 @@ export default function AdaptiveUIRuntime({ children }) {
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
+      {/* Consent: adaptations the safety stage marked requireConfirmation are
+          only applied after the user explicitly accepts them. */}
+      {pending && (
+        <div
+          role="region"
+          aria-live="polite"
+          aria-label="Suggested adaptation"
+          data-adaptive-consent="pending"
+          className="fixed bottom-4 left-4 z-40 max-w-sm rounded-lg border bg-background p-3 shadow"
+        >
+          <p className="text-sm">
+            {pending.action.target === AdaptationDimension.UI
+              ? `Switch to ${MODE_LABELS[pending.action.parameters?.mode] ?? "a calmer interface"}?`
+              : `Apply "${MODULE_ACTION_LABELS[`${pending.action.target}:${pending.action.type}`] ?? "this adjustment"}" to this activity?`}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" className="neuro-btn" onClick={() => grantConsent(pending.key)}>
+              Apply
+            </button>
+            <button type="button" className="neuro-btn-ghost" onClick={() => declineConsent(pending.key)}>
+              Keep current view
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Role 3: Non-intrusive Adaptive Support Card — mirrors the engine plan
           exactly: mounted while the plan carries a recommendation, hidden the
           moment it clears. */}
@@ -387,10 +434,10 @@ export default function AdaptiveUIRuntime({ children }) {
           recommendation={cardRecommendation}
           onStartSupport={(id) => {
             // Start Support opens the intervention and suppresses the same offer.
-            dismissRecommendation(id);
+            persistDismissal(id);
             setActiveInterventionModal(id);
           }}
-          onDismiss={(id) => dismissRecommendation(id)}
+          onDismiss={(id) => persistDismissal(id)}
         />
       )}
 
@@ -402,7 +449,7 @@ export default function AdaptiveUIRuntime({ children }) {
         onComplete={() => {
           setActiveInterventionModal(null);
           if (activeInterventionModal) {
-            dismissRecommendation(activeInterventionModal);
+            persistDismissal(activeInterventionModal);
           }
         }}
         autoStart

@@ -35,6 +35,7 @@ import { decide } from "@backend/adaptive/engine/adaptiveEngine";
 import { executeAdaptation } from "@backend/adaptive/engine/executor";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { getSupportEvidenceAsync } from "@/support/evidence/supportEvidence";
+import { planSignature } from "@/adaptive/execution/uiExecution";
 
 const IDLE_DECISION = {
   plan: null,
@@ -81,6 +82,16 @@ function signatureOf(value) {
  *   (spec §5, labeled `derived` upstream). Stable reference required.
  * @param {object} [options.currentGoal] - Optional goal reference
  *   (spec §5, labeled `derived` upstream). Stable reference required.
+ * @param {(outcome: { plan: object, trace: object }) => void} [options.onDecision]
+ *   Called after every committed decision (including ones whose effective plan
+ *   is unchanged and therefore cause no re-render) — e.g. to schedule the
+ *   engine's `plan.reEvaluateAt` without re-rendering the subtree.
+ *
+ * Reliability (Task 3): every decision carries a sequence number and only the
+ * newest one may commit, so a slow asynchronous decision can never overwrite
+ * a newer one. A decision whose effective plan content is unchanged keeps the
+ * previous plan object (no state update, no UI re-render). A failed decision
+ * falls back to the baseline (no plan) instead of leaving a stale adaptation.
  */
 export function useAdaptiveBehavioralEngine(options = {}) {
   const {
@@ -92,6 +103,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     userPreferences,
     currentTask,
     currentGoal,
+    onDecision,
   } = options;
   const enabled = enabledOverride !== undefined ? enabledOverride : isAdaptiveRuntimeEnabled();
   const hasSnapshot = typeof getSnapshot === "function";
@@ -102,12 +114,22 @@ export function useAdaptiveBehavioralEngine(options = {}) {
   // Tracks the signature of the last decision so an unstable producer
   // identity or option reference does not re-run decide() with unchanged data.
   const lastRunRef = useRef(null);
+  // Newest decision sequence number; older async decisions are discarded.
+  const sequenceRef = useRef(0);
+  const committedSignatureRef = useRef(null);
+  const latestTraceRef = useRef(null);
+  const onDecisionRef = useRef(onDecision);
+  onDecisionRef.current = onDecision;
+  const executedRef = useRef({ signature: null, summary: null });
 
   const setError = useCallback((error) => {
-    setDecision((current) => ({
-      ...current,
+    // Fail safe: a failed decision restores the baseline instead of leaving a
+    // previously applied adaptation in place.
+    committedSignatureRef.current = null;
+    setDecision({
+      ...IDLE_DECISION,
       error: error?.message ?? String(error),
-    }));
+    });
   }, []);
 
   const buildInput = useCallback(
@@ -146,22 +168,34 @@ export function useAdaptiveBehavioralEngine(options = {}) {
   );
 
   const decideWithSnapshot = useCallback(
-    async (snapshot) => {
+    async (snapshot, sequence = ++sequenceRef.current, preparedInput) => {
       if (!enabled) {
         return null;
       }
       try {
-        const outcome = decide(await buildInput(snapshot), { userId });
-        setDecision({
-          plan: outcome.plan,
-          trace: outcome.trace,
-          error: null,
-          decisionId: outcome.plan.decisionTraceId,
-          lastDecisionAt: outcome.plan.timestamp,
-        });
+        const input = preparedInput ?? (await buildInput(snapshot));
+        if (sequence !== sequenceRef.current) {
+          return null; // superseded by a newer decision while awaiting input
+        }
+        const outcome = decide(input, { userId });
+        latestTraceRef.current = outcome.trace;
+        const signature = planSignature(outcome.plan);
+        if (signature !== committedSignatureRef.current) {
+          committedSignatureRef.current = signature;
+          setDecision({
+            plan: outcome.plan,
+            trace: outcome.trace,
+            error: null,
+            decisionId: outcome.plan.decisionTraceId,
+            lastDecisionAt: outcome.plan.timestamp,
+          });
+        }
+        onDecisionRef.current?.(outcome);
         return outcome;
       } catch (error) {
-        setError(error);
+        if (sequence === sequenceRef.current) {
+          setError(error);
+        }
         return null;
       }
     },
@@ -172,14 +206,18 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     if (!enabled) {
       return null;
     }
+    const sequence = ++sequenceRef.current;
     let snapshot;
     try {
       snapshot = typeof getSnapshot === "function" ? await getSnapshot() : null;
     } catch (error) {
-      setError(error);
+      if (sequence === sequenceRef.current) setError(error);
       return null;
     }
-    return decideWithSnapshot(snapshot);
+    if (sequence !== sequenceRef.current) {
+      return null; // a newer decision started while the snapshot loaded
+    }
+    return decideWithSnapshot(snapshot, sequence);
   }, [enabled, getSnapshot, decideWithSnapshot, setError]);
 
   useEffect(() => {
@@ -187,17 +225,19 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       return undefined;
     }
     let cancelled = false;
+    const sequence = ++sequenceRef.current;
+    const superseded = () => cancelled || sequence !== sequenceRef.current;
     (async () => {
       let snapshot;
       try {
         snapshot = await getSnapshot();
       } catch (error) {
-        if (!cancelled) {
+        if (!superseded()) {
           setError(error);
         }
         return;
       }
-      if (cancelled) {
+      if (superseded()) {
         return;
       }
       // Content-based de-duplication: both the snapshot producer and the
@@ -208,13 +248,16 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       // input content preserves the "re-decide on real change" contract while
       // ignoring identity churn.
       const input = await buildInput(snapshot);
+      if (superseded()) {
+        return;
+      }
       const signature = signatureOf({ snapshot, input, userId });
       const last = lastRunRef.current;
       if (last && last.signature === signature) {
         return;
       }
       lastRunRef.current = { signature };
-      await decideWithSnapshot(snapshot);
+      await decideWithSnapshot(snapshot, sequence, input);
     })();
     return () => {
       cancelled = true;
@@ -233,7 +276,14 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       }
       plan = outcome.plan;
     }
+    // Idempotent: executing an unchanged plan again returns the previous
+    // summary (flagged as a duplicate) instead of re-applying it.
+    const signature = planSignature(plan);
+    if (executedRef.current.signature === signature && executedRef.current.summary) {
+      return { ...executedRef.current.summary, duplicate: true };
+    }
     const summary = executeAdaptation(plan);
+    executedRef.current = { signature, summary };
     setExecution(summary);
     return summary;
   }, [enabled, decision.plan, runDecision]);
@@ -250,6 +300,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
       lastDecisionAt: decision.lastDecisionAt,
       refresh: runDecision,
       execute,
+      getLatestTrace: () => latestTraceRef.current,
     }),
     [enabled, decision, execution, runDecision, execute]
   );

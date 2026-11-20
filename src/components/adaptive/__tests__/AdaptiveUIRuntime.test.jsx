@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import AdaptiveUIRuntime, {
   deriveInterventionRecommendation,
@@ -20,6 +20,20 @@ import { contextEngine } from "@/adaptive/context";
 import { contextStore } from "@/adaptive/context/contextStore.js";
 import { resetMoodAgent } from "@/adaptive/context/moodAgent.js";
 import { resetInteractionTracker } from "@/adaptive/context/contextInteractionTracker.js";
+import { resetExecutionStore } from "@/adaptive/execution/uiExecution";
+import { resetAdaptiveHysteresis } from "@backend/adaptive/engine/hysteresis";
+import { configureAdaptiveFlags, resetAdaptiveFlags } from "@backend/adaptive/engine/featureFlags";
+
+// Task 3: the shell applies UI actions only when the uiExecution flag is ON,
+// and dismissals / consent persist for the session — isolate both per test.
+beforeEach(() => {
+  resetExecutionStore();
+  resetAdaptiveHysteresis();
+  configureAdaptiveFlags({ uiExecution: true });
+});
+afterEach(() => {
+  resetAdaptiveFlags();
+});
 
 vi.mock("@/components/interventions/InterventionModal", () => ({
   __esModule: true,
@@ -507,7 +521,13 @@ describe("AdaptiveUIRuntime card behavior", () => {
     );
     expect(card(calmContainer)).toBeNull();
 
-    const stressedOutcome = decide({ contextSnapshot: stressedSnapshot });
+    // Evidence-grounded + temporally stable (Tasks 1–2): behavioural load
+    // must come from observed interaction (the live tracker reports 0.7) and
+    // persist past the 5s confirmation window before the UI changes.
+    const observed = { ...stressedSnapshot, behavior: { ...stressedSnapshot.behavior, confidence: 0.7 } };
+    const t0 = Date.parse("2026-08-01T00:00:00.000Z");
+    expect(decide({ contextSnapshot: observed }, { now: t0 }).plan.actions).toEqual([]);
+    const stressedOutcome = decide({ contextSnapshot: observed }, { now: t0 + 6000 });
     expect(stressedOutcome.plan.actions.length).toBeGreaterThan(0);
     const { container: stressedContainer } = render(
       <Harness runtimeValue={runtimeValue(stressedOutcome.plan, stressedSnapshot)} />,

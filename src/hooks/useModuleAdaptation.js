@@ -19,6 +19,7 @@
 import { useCallback, useMemo } from "react";
 import { useAdaptiveBehavioralEngine } from "@/hooks/useAdaptiveBehavioralEngine";
 import { deriveModuleAdjustments } from "@/components/adaptive/AdaptiveUIRuntime.jsx";
+import { resolvePlanExecution } from "@/adaptive/execution/uiExecution";
 
 /**
  * @param {object} options
@@ -59,18 +60,27 @@ export function useModuleAdaptation({
     role4Signals,
   });
 
+  // Same execution guardrails as the app shell (Task 3): safety outcomes and
+  // requireConfirmation consent apply to module-owned (non-UI) actions too.
+  const execution = useMemo(() => {
+    if (!engine.plan || !Array.isArray(engine.plan.actions)) return null;
+    const targets = [...new Set(engine.plan.actions.map((a) => a?.target).filter((t) => t && t !== "UI"))];
+    return resolvePlanExecution(engine.plan, { trace: engine.trace, targets });
+  }, [engine.plan, engine.trace]);
+  const effectivePlan = execution?.effectivePlan ?? null;
+
   const moduleActions = useMemo(() => {
-    if (!engine.plan || !Array.isArray(engine.plan.actions)) {
+    if (!effectivePlan || !Array.isArray(effectivePlan.actions)) {
       return [];
     }
-    return engine.plan.actions.filter(
+    return effectivePlan.actions.filter(
       (action) => action && action.target !== "UI",
     );
-  }, [engine.plan]);
+  }, [effectivePlan]);
 
   const adjustments = useMemo(
-    () => deriveModuleAdjustments(engine.plan),
-    [engine.plan],
+    () => deriveModuleAdjustments(effectivePlan),
+    [effectivePlan],
   );
 
   return useMemo(
@@ -83,6 +93,7 @@ export function useModuleAdaptation({
       error: engine.error,
       moduleActions,
       adjustments,
+      execution,
       decisionTraceId: engine.decisionId,
       lastDecisionAt: engine.lastDecisionAt,
       refresh: engine.refresh,
@@ -97,6 +108,7 @@ export function useModuleAdaptation({
       engine.refresh,
       moduleActions,
       adjustments,
+      execution,
     ],
   );
 }

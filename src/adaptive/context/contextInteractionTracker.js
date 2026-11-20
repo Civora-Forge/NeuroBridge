@@ -523,12 +523,16 @@ export function getInteractionSnapshot() {
   const scrollBehavior = computeScrollBehavior(now);
   const movementBurst = computeMovementBurst(now);
 
+  // Real module switches are observed behaviour too: without counting them,
+  // a navigation-derived taskSwitchFrequency would be discarded as "no
+  // evidence" by the evidence-grounded state model.
   const behaviorConfidence =
     [
       typingMetrics.typingSpeed,
       typingMetrics.correctionRate,
       scrollBehavior,
       movementBurst?.active === true,
+      switchCount > 0,
     ].filter(Boolean).length > 0
       ? 0.7
       : 0.0;
