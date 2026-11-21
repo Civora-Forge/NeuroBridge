@@ -15,6 +15,7 @@ import SensoryResetIntervention from "./asd/SensoryResetIntervention";
 import GroundingActivityIntervention from "./asd/GroundingActivityIntervention";
 import TransitionSupportIntervention from "./asd/TransitionSupportIntervention";
 import SafeFallbackIntervention from "./fallback/SafeFallbackIntervention";
+import ContextualHelpIntervention from "./support/ContextualHelpIntervention";
 
 export const INTERVENTION_REGISTRY = {
   // Anxiety Interventions
@@ -67,6 +68,27 @@ export const INTERVENTION_REGISTRY = {
     domain: "asd",
     component: TransitionSupportIntervention,
     aliases: ["transition", "routine", "routine_support", "schedule_transition", "now_next_then"],
+  },
+
+  // Contextual-state responses (shared context-to-state inference)
+  contextual_help: {
+    id: "contextual_help",
+    title: "Contextual help",
+    description: "Different ways through when an activity keeps going wrong.",
+    domain: "general",
+    component: ContextualHelpIntervention,
+    aliases: ["contextual_assistance", "frustration_help", "interaction_assistance"],
+  },
+  // DEMO ONLY: repeated-navigation trigger — same contextual-help component,
+  // task-continuity framing, separate identity / dismissal lifecycle.
+  task_continuity_help: {
+    id: "task_continuity_help",
+    title: "Lost your place?",
+    description: "A quick way back to what you were doing.",
+    domain: "general",
+    component: ContextualHelpIntervention,
+    componentProps: { variant: "continuity" },
+    aliases: [],
   },
 };
 
@@ -156,6 +178,7 @@ export default function InterventionResolver({ recommendationId, onComplete, onC
 
   return (
     <Component
+      {...(definition.componentProps ?? {})}
       onComplete={onComplete}
       onCancel={onCancel}
       autoStart={autoStart}

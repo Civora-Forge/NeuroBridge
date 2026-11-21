@@ -25,6 +25,8 @@ import {
   subscribeExecutionStore,
 } from "@/adaptive/execution/uiExecution";
 import { usePersonalizationProfile } from "@/adaptive/personalization/usePersonalizationProfile";
+import { getInteractionEvidenceSnapshot } from "@/adaptive/context/interactionEvidence.js";
+import { useContextStateOptional } from "@/context/ContextProvider";
 
 /**
  * Hysteresis namespace for module-level decisions. The app-level runtime
@@ -64,8 +66,33 @@ export function useModuleAdaptation({
   userPreferences,
   role4Signals,
 }) {
-  const snapshotProducer =
+  const baseProducer =
     typeof getSnapshot === "function" ? getSnapshot : getAppSnapshot;
+
+  // Module-scoped interaction evidence. Both module-local snapshots (which
+  // carry none) and the app-level snapshot (which carries the all-module
+  // view) get THIS module's view of the single evidence log — never a copy,
+  // never re-ingested — so another activity's evidence cannot shape this
+  // module's inference. The app-level context value changes on every
+  // recorded interaction; depending on it keeps the page-level decision
+  // fresh even when the module-local producer is stable.
+  const appContext = useContextStateOptional()?.context ?? null;
+  // One evidence view per app-context change (not per render), so unrelated
+  // re-renders produce identical snapshot content and are de-duplicated.
+  const moduleEvidence = useMemo(
+    () => getInteractionEvidenceSnapshot({ moduleId }),
+    // appContext: refresh on new app-level evidence (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [moduleId, appContext],
+  );
+  const snapshotProducer = useMemo(() => {
+    if (typeof baseProducer !== "function") return undefined;
+    return async () => {
+      const snapshot = await baseProducer();
+      if (!snapshot || typeof snapshot !== "object") return snapshot;
+      return { ...snapshot, interactionEvidence: moduleEvidence };
+    };
+  }, [baseProducer, moduleEvidence]);
 
   // The user's persistent personalization profile applies to module-level
   // decisions exactly as it does at the app level (explicit avoided modes are

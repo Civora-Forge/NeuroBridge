@@ -31,8 +31,13 @@ import { buildUserPreferencesFragment } from "@/support/framework/userPreference
 import { usePersonalizationProfile } from "@/adaptive/personalization/usePersonalizationProfile";
 import { resolveProfileView } from "@/adaptive/personalization/profileModel";
 import { promoteFromFeedback } from "@/adaptive/personalization/profileStore";
-import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
+import { isAdaptiveDemoEnabled, isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
 import { createReEvaluationScheduler } from "@/adaptive/execution/reEvaluationScheduler";
+import {
+  baselineObservationFromUserState,
+  recordBaselineObservation,
+} from "@/adaptive/baseline/behaviouralBaseline";
+import { clearInteractionEvidence, setEvidenceScope } from "@/adaptive/context/interactionEvidence.js";
 import { bindExecutionStoreToUser } from "@/adaptive/execution/uiExecution";
 import {
   getCanonicalSupportModuleId,
@@ -82,6 +87,12 @@ export function AdaptiveRuntimeProvider({ children }) {
   const { context, refreshContext } = useContextState();
 
   const moduleId = resolveCanonicalModuleId(location.pathname) ?? null;
+  // Attribute interaction evidence to the active module (recorded once;
+  // page-level paths read only their module's view). Layout effect: set
+  // before the new page's first interactions are recorded.
+  useLayoutEffect(() => {
+    setEvidenceScope(moduleId);
+  }, [moduleId]);
   const getSnapshot = useCallback(() => context, [context]);
   const userPreferences = useMemo(
     () => buildUserPreferencesFragment(user),
@@ -106,21 +117,39 @@ export function AdaptiveRuntimeProvider({ children }) {
       },
     });
   }
-  const onDecision = useCallback((outcome) => {
-    schedulerRef.current.schedule(outcome?.plan?.reEvaluateAt);
-  }, []);
-  useEffect(() => () => schedulerRef.current?.reset(), []);
-
   // Task 5: persistent, user-owned personalization profile (local copy +
   // account sync). Read before every decision.
   const userId = user?.id ?? null;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+
+  const onDecision = useCallback((outcome) => {
+    schedulerRef.current.schedule(outcome?.plan?.reEvaluateAt);
+    // Shared behavioural baseline: ONLY this app-level path records
+    // observations (module-level paths read it but never write), and the
+    // store rejects observations made while a temporary state is active.
+    const currentUser = userIdRef.current;
+    if (currentUser) {
+      const observation = baselineObservationFromUserState(outcome?.plan?.userStateReference);
+      if (observation) recordBaselineObservation(currentUser, observation);
+    }
+  }, []);
+  useEffect(() => () => schedulerRef.current?.reset(), []);
 
   // Task 6: per-user isolation. Consent decisions / dismissals belong to the
   // signed-in user, and a re-evaluation scheduled for one user never fires
   // for the next. Layout effect: bound before the UI runtime resolves.
+  // Interaction evidence (incl. self-reports) is per tab, not per account:
+  // a different signed-in user must not inherit the previous user's
+  // corrections, task history or check-ins.
+  const evidenceOwnerRef = useRef(userId);
   useLayoutEffect(() => {
     bindExecutionStoreToUser(userId);
     schedulerRef.current?.reset();
+    if (evidenceOwnerRef.current !== userId) {
+      if (evidenceOwnerRef.current !== null && userId !== null) clearInteractionEvidence();
+      evidenceOwnerRef.current = userId;
+    }
   }, [userId]);
   const personalizationStore = usePersonalizationProfile(userId);
   const profile = personalizationStore.profile;
@@ -146,6 +175,8 @@ export function AdaptiveRuntimeProvider({ children }) {
     onDecision,
     personalizationProfile: profile,
     temporaryPreferences: temporary,
+    // DEMO ONLY (OFF by default): repeated-navigation trigger, app-level path only.
+    demoNavigationTrigger: isAdaptiveDemoEnabled(),
   });
 
   const value = useMemo(

@@ -76,6 +76,15 @@ import MicroActionExecution from "./interventions/MicroActionExecution";
 
 // Demo Scenarios & Snapshots
 import { DEMO_SCENARIO_RUNNERS } from "./demo/anxietyDemoScenarios";
+import { recordSelfReport } from "@/adaptive/context/interactionEvidence.js";
+
+/**
+ * "How are you feeling now?" after a reset is an explicit self-report. Only
+ * the answer's direction is used (never triggers, notes or location):
+ * "better" → okay, "worse" → anxious; "same" says nothing about the current
+ * state and records nothing.
+ */
+const OUTCOME_SELF_REPORT = Object.freeze({ better: "okay", worse: "anxious" });
 
 export default function AdaptiveAnxietyEngine() {
   const { user } = useAuth();
@@ -210,6 +219,9 @@ export default function AdaptiveAnxietyEngine() {
   // engine decision (Tier 9 closed loop).
   const handleSelectOutcome = (subjectiveOutcome) => {
     if (!pendingOutcomeRecord) return;
+    if (OUTCOME_SELF_REPORT[subjectiveOutcome]) {
+      recordSelfReport({ state: OUTCOME_SELF_REPORT[subjectiveOutcome], moduleId: ANXIETY_MODULE_ID, source: "anxiety_outcome_checkin" });
+    }
 
     const rating = mapSubjectiveOutcomeToRating(subjectiveOutcome);
     const completionStatus = pendingOutcomeRecord.abandoned

@@ -82,3 +82,33 @@ describe("InterventionResolver", () => {
     expect(screen.getByText("A quiet place for your senses to rest.")).toBeInTheDocument();
   });
 });
+
+describe("contextual help intervention", () => {
+  it("resolves contextual_help to its dedicated component", async () => {
+    const { resolveInterventionDefinition } = await import("@/components/interventions/InterventionResolver");
+    const { default: ContextualHelpIntervention } = await import("@/components/interventions/support/ContextualHelpIntervention");
+    expect(resolveInterventionDefinition("contextual_help").component).toBe(ContextualHelpIntervention);
+    expect(resolveInterventionDefinition("frustration_help").id).toBe("contextual_help");
+  });
+
+  it("lets the user pick a kind of help and reports only the choice", async () => {
+    const { render: r, fireEvent: fe, screen: sc } = await import("@testing-library/react");
+    const { default: ContextualHelpIntervention } = await import("@/components/interventions/support/ContextualHelpIntervention");
+    const onComplete = vi.fn();
+    const onCancel = vi.fn();
+    r(<ContextualHelpIntervention onComplete={onComplete} onCancel={onCancel} />);
+    expect(sc.queryByRole("textbox")).toBeNull(); // no free-text collection
+    fe.click(sc.getByRole("button", { name: /Make the next step smaller/ }));
+    fe.click(sc.getByRole("button", { name: /Back to my activity/ }));
+    expect(onComplete).toHaveBeenCalledWith({ completed: true, helpType: "smaller_step" });
+  });
+
+  it("can be skipped", async () => {
+    const { render: r, fireEvent: fe, screen: sc } = await import("@testing-library/react");
+    const { default: ContextualHelpIntervention } = await import("@/components/interventions/support/ContextualHelpIntervention");
+    const onCancel = vi.fn();
+    r(<ContextualHelpIntervention onCancel={onCancel} />);
+    fe.click(sc.getByRole("button", { name: "Not now" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+});

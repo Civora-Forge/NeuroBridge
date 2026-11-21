@@ -15,6 +15,9 @@ export const ROLE4_COLLECTIONS = {
   // Task 5: user-owned cross-session personalization profile (local copy /
   // offline fallback of the Supabase support_personalization_profiles row).
   ADAPTIVE_PROFILE: "adaptive_profile",
+  // Shared behavioural baseline: numeric interaction aggregates per activity
+  // type (never states, labels or event histories). Device-local.
+  BEHAVIOURAL_BASELINE: "behavioural_baseline",
   MIGRATIONS: "migrations",
 };
 

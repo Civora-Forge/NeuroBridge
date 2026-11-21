@@ -51,6 +51,7 @@ import {
   undoLastChange as undoInModel,
 } from "./profileModel.js";
 import { PREFERENCE_DIMENSIONS, isModuleId } from "./profileVocabulary.js";
+import { clearBehaviouralBaseline } from "@/adaptive/baseline/behaviouralBaseline";
 
 export const PROFILE_TABLE = "support_personalization_profiles";
 
@@ -424,6 +425,7 @@ export function resetLearnedPersonalization(userId) {
 /** Reset the whole profile; synced so other devices drop it too. */
 export function resetPersonalizationProfile(userId) {
   clearAdaptationLearning(userId);
+  clearBehaviouralBaseline(userId);
   clearTemporaryPreferences(userId);
   return mutate(userId, (profile, now) => resetProfileInModel(profile, { now }));
 }
@@ -453,6 +455,7 @@ export function deletePersonalizationData(userId) {
     } finally {
       config.local.remove(userId);
       clearAdaptationLearning(userId);
+      clearBehaviouralBaseline(userId);
       temporaryByUser.delete(userId);
       states.delete(userId);
       for (const listener of listeners.get(userId) ?? []) listener();

@@ -21,7 +21,7 @@ describe("feature flags", () => {
 
   it("runtime can be enabled without enabling UI execution", () => {
     const previous = configureAdaptiveFlags({ runtime: true });
-    expect(previous).toEqual({ runtime: false, uiExecution: false, reflection: false });
+    expect(previous).toEqual({ runtime: false, uiExecution: false, reflection: false, demo: false });
     expect(isAdaptiveRuntimeEnabled()).toBe(true);
     expect(isUIExecutionEnabled()).toBe(false);
   });
@@ -62,16 +62,19 @@ describe("env-driven defaults (resolveDefaultFlags)", () => {
       runtime: false,
       uiExecution: false,
       reflection: false,
+      demo: false,
     });
     expect(resolveDefaultFlags(undefined)).toEqual({
       runtime: false,
       uiExecution: false,
       reflection: false,
+      demo: false,
     });
     expect(resolveDefaultFlags(null)).toEqual({
       runtime: false,
       uiExecution: false,
       reflection: false,
+      demo: false,
     });
   });
 
@@ -96,6 +99,27 @@ describe("env-driven defaults (resolveDefaultFlags)", () => {
       VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME: "true",
       VITE_NEUROBRIDGE_ADAPTIVE_REFLECTION: "true",
     });
-    expect(flags).toEqual({ runtime: true, uiExecution: false, reflection: true });
+    expect(flags).toEqual({ runtime: true, uiExecution: false, reflection: true, demo: false });
+  });
+
+  it("keeps the DEMO navigation trigger OFF unless explicitly set", () => {
+    expect(resolveDefaultFlags({}).demo).toBe(false);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_DEMO: "false" }).demo).toBe(false);
+    expect(resolveDefaultFlags({ VITE_NEUROBRIDGE_ADAPTIVE_DEMO: "true" }).demo).toBe(true);
+  });
+
+  it("the current demo build (.env.production) enables demo mode and keeps Stage C OFF", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(`${process.cwd()}/.env.production`, "utf8");
+    const env = Object.fromEntries(
+      text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith("#") && line.includes("="))
+        .map((line) => [line.slice(0, line.indexOf("=")).trim(), line.slice(line.indexOf("=") + 1).trim()]),
+    );
+    expect(resolveDefaultFlags(env)).toEqual({ runtime: true, uiExecution: false, reflection: true, demo: true });
+    // Disabling it for a real production build is an explicit one-line change.
+    expect(resolveDefaultFlags({ ...env, VITE_NEUROBRIDGE_ADAPTIVE_DEMO: "false" }).demo).toBe(false);
   });
 });

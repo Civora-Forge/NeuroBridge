@@ -178,6 +178,103 @@ const FOCUS_STABILITY = Object.freeze({
   immediateActivationThreshold: 0.9, minDurationMs: 30000, cooldownMs: 30000, maxDurationMs: 900000,
 });
 
+/**
+ * Contextual-state stability (context-to-state inference redesign). These
+ * states are built from windowed, converging evidence, so they need a longer
+ * confirmation than single-signal policies; fatigue changes slowly and must
+ * not be re-offered often. A self-report needs no confirmation (the user
+ * said it) but is still gated by evidence (its decaying confidence), safety
+ * and consent like any other adaptation.
+ */
+const CONTEXTUAL_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 10000,
+  immediateActivationThreshold: 0.85, minDurationMs: 30000, cooldownMs: 60000, maxDurationMs: 600000,
+});
+const FATIGUE_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 30000,
+  immediateActivationThreshold: 0.9, minDurationMs: 60000, cooldownMs: 300000, maxDurationMs: 1200000,
+});
+const SELF_REPORT_STABILITY = Object.freeze({
+  activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 0,
+  minDurationMs: 60000, cooldownMs: 120000, maxDurationMs: 1800000,
+});
+
+/**
+ * Policies on the contextual-state dimensions. Scope USER: the rule applies
+ * everywhere, but its hysteresis state is keyed per module, so an inferred
+ * state in one activity never holds or confirms an adaptation in another.
+ * Targets are non-UI (module-owned) dimensions, so they never displace the
+ * single UI mode; within-tier priority is deliberately BELOW the curated
+ * module policies so a module's own response wins on a shared target.
+ */
+const contextualPolicies = [
+  {
+    id: "self_reported_distress_support",
+    scope: PolicyScope.USER,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 120,
+    hysteresis: SELF_REPORT_STABILITY,
+    triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "selfReportedDistress", condition: TriggerCondition.EQ, value: "present" }] }],
+    action: {
+      type: AdaptationActionType.RECOMMEND,
+      target: AdaptationDimension.ASSISTANCE,
+      parameters: { userControlledSupport: true, offerGrounding: true, supportOptions: ["grounding", "breathing", "calm_space"] },
+    },
+  },
+  {
+    id: "contextual_overload_support",
+    scope: PolicyScope.USER,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 30,
+    hysteresis: CONTEXTUAL_STABILITY,
+    triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "cognitiveOverloadState", condition: TriggerCondition.EQ, value: "present" }] }],
+    action: {
+      type: AdaptationActionType.DECOMPOSE,
+      target: AdaptationDimension.TASK,
+      parameters: { reduceInformationDensity: true, taskBreakdown: true, guidedSteps: true, stepSize: "small" },
+    },
+  },
+  {
+    id: "frustration_assistance",
+    scope: PolicyScope.USER,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 30,
+    hysteresis: CONTEXTUAL_STABILITY,
+    triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "frustrationState", condition: TriggerCondition.EQ, value: "present" }] }],
+    action: {
+      type: AdaptationActionType.GUIDE,
+      target: AdaptationDimension.ASSISTANCE,
+      parameters: { contextualAssistance: true, simplifyInteraction: true, alternativeExplanation: true },
+    },
+  },
+  {
+    id: "fragmentation_focus_support",
+    scope: PolicyScope.USER,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 30,
+    hysteresis: CONTEXTUAL_STABILITY,
+    triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "attentionFragmentationState", condition: TriggerCondition.EQ, value: "present" }] }],
+    action: {
+      type: AdaptationActionType.SIMPLIFY,
+      target: AdaptationDimension.INTERACTION,
+      parameters: { focusSupport: true, progressMarkers: true, reduceDistractions: true },
+    },
+  },
+  {
+    id: "fatigue_pause_support",
+    scope: PolicyScope.USER,
+    tier: PriorityTier.CURRENT_STATE,
+    priority: 30,
+    hysteresis: FATIGUE_STABILITY,
+    triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "cognitiveFatigueState", condition: TriggerCondition.EQ, value: "present" }] }],
+    action: {
+      type: AdaptationActionType.PAUSE,
+      target: AdaptationDimension.PACING,
+      parameters: { pauseSuggestion: true, progressSummary: true, preserveTaskState: true },
+    },
+  },
+];
+
 const rawPolicies = [
   {
     id: "critical_urgency",
@@ -335,6 +432,49 @@ const rawPolicies = [
 ];
 
 export const ADAPTATION_POLICIES = rawPolicies.map((policy) => validatePolicyRule(policy));
+
+/**
+ * Policies on the contextual-state dimensions, evaluated by `decide()`
+ * alongside ADAPTATION_POLICIES (kept separate so the migrated legacy UI
+ * ruleset keeps its contract).
+ */
+export const CONTEXTUAL_POLICIES = contextualPolicies.map((policy) => validatePolicyRule(policy));
+
+/**
+ * DEMO ONLY — repeated-navigation demonstration trigger.
+ *
+ * Evaluated by `decide()` only when the caller passes
+ * `options.demoNavigationTrigger: true` (the app-level runtime does so only
+ * while VITE_NEUROBRIDGE_ADAPTIVE_DEMO is on). It reads the demo-only
+ * `demoNavigationBurst` dimension (≥ DEMO_NAVIGATION_SWITCHES real page
+ * switches in the last 60 s) and then passes through every ordinary gate:
+ * the unchanged 0.5 evidence floor, hysteresis (minDuration / maxDuration and
+ * a 5-minute cooldown so the offer does not reappear on every navigation),
+ * conflict resolution, preferences, safety, consent and execution. With demo
+ * mode OFF neither the rule nor the dimension exists, so production
+ * navigation stays capped below the floor (NAVIGATION_ONLY_CAP).
+ */
+export const DEMO_NAVIGATION_SWITCHES = 4;
+export const DEMO_NAVIGATION_COOLDOWN_MS = 5 * 60 * 1000;
+export const DEMO_NAVIGATION_POLICY = validatePolicyRule({
+  id: "demo_navigation_continuity",
+  scope: PolicyScope.GENERIC, // state survives the page switches it counts
+  tier: PriorityTier.CURRENT_STATE,
+  priority: 20,
+  hysteresis: {
+    activationThreshold: 0.5, deactivationThreshold: 0.3, confirmationMs: 0,
+    minDurationMs: 10000, cooldownMs: DEMO_NAVIGATION_COOLDOWN_MS, maxDurationMs: 120000,
+  },
+  triggerGroups: [{ operator: TriggerGroupOperator.AND, triggers: [{ dimension: "demoNavigationBurst", condition: TriggerCondition.EQ, value: "present" }] }],
+  action: {
+    type: AdaptationActionType.SIMPLIFY,
+    target: AdaptationDimension.INTERACTION,
+    parameters: { taskContinuityHelp: true, progressMarkers: true },
+  },
+});
+
+/** Ids of the contextual-state policies. */
+export const CONTEXTUAL_POLICY_IDS = Object.freeze(CONTEXTUAL_POLICIES.map((policy) => policy.id));
 
 /**
  * Compare two triggered-policy entries by precedence.

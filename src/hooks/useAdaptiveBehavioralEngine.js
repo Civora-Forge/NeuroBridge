@@ -38,6 +38,7 @@ import { getSupportEvidenceAsync } from "@/support/evidence/supportEvidence";
 import { planSignature } from "@/adaptive/execution/uiExecution";
 import { getLearnedPreferences } from "@/adaptive/learning/adaptationLearning";
 import { resolveProfileView } from "@/adaptive/personalization/profileModel";
+import { getBehaviouralBaseline } from "@/adaptive/baseline/behaviouralBaseline";
 
 const IDLE_DECISION = {
   plan: null,
@@ -119,6 +120,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
     personalizationProfile,
     temporaryPreferences,
     stateScope,
+    demoNavigationTrigger,
   } = options;
   const enabled = enabledOverride !== undefined ? enabledOverride : isAdaptiveRuntimeEnabled();
   const hasSnapshot = typeof getSnapshot === "function";
@@ -210,7 +212,14 @@ export function useAdaptiveBehavioralEngine(options = {}) {
                 includeLearned: reflection,
               })
             : undefined;
-        const outcome = decide(input, { userId, learnedPreferences, personalization, stateScope });
+        // Shared behavioural baseline: read-only here (only the app-level
+        // runtime records observations, so module paths never write it).
+        const baseline = userId ? getBehaviouralBaseline(userId) : undefined;
+        const outcome = decide(input, {
+          userId, learnedPreferences, personalization, stateScope, baseline,
+          // DEMO ONLY: never set by module-level paths.
+          ...(demoNavigationTrigger === true ? { demoNavigationTrigger: true } : {}),
+        });
         latestTraceRef.current = outcome.trace;
         const signature = planSignature(outcome.plan);
         if (signature !== committedSignatureRef.current) {
@@ -232,7 +241,7 @@ export function useAdaptiveBehavioralEngine(options = {}) {
         return null;
       }
     },
-    [enabled, buildInput, setError, userId, moduleId, personalizationProfile, temporaryPreferences, stateScope]
+    [enabled, buildInput, setError, userId, moduleId, personalizationProfile, temporaryPreferences, stateScope, demoNavigationTrigger]
   );
 
   const runDecision = useCallback(async () => {

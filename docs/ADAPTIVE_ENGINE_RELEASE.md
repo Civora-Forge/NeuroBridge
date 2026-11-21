@@ -104,6 +104,8 @@ explicit preferences keep working. Stored data is unaffected by rollback.
 | Feedback events (Task 4) | localStorage `nb_role4:v1:<user>:adaptation_feedback` (memory fallback) | device, per user; max 300 events, 14-day half-life | sign-out wipe, "Reset learned", "Reset everything", "Delete all my data" |
 | Personalization profile (Task 5) | localStorage `…:adaptive_profile` + Supabase `support_personalization_profiles` (RLS, one row per user, cascade on account deletion) | device + account | sign-out wipes the device copy; resets sync to all devices; "Delete all my data" deletes the row |
 | Temporary "for now" state | memory only | tab session | reload, sign-out |
+| Behavioural baseline (context-to-state inference) | localStorage `…:behavioural_baseline` (memory fallback) | device, per user; numeric aggregates per activity type only (no states, labels or events); never updated while a temporary state or self-reported distress is active | sign-out wipe, "Reset everything", "Delete all my data" |
+| Interaction evidence + self-reports | memory only (`src/adaptive/context/interactionEvidence.js`) | tab; 15-min window (self-reports 60 min) | reload, user switch, sign-out |
 | Consent decisions / offer dismissals | sessionStorage `neurobridge.adaptive.execution.v1` | tab session, **bound to one user** (Task 6), ≤ 200 entries, expired pruned | user switch, sign-out |
 | Hysteresis state | memory, keyed `user|module|target` (app-level path) and `user@module:<id>|module|target` (each `useModuleAdaptation` path), ≤ 10 000 entries, idle-pruned | tab session | sign-out (all scopes of the user) |
 
@@ -134,6 +136,41 @@ and Firebase-only identities are device-local by design.
 - Scheduled re-evaluations: one timer, delay clamped to 1 s – 10 min, at most
   12 refreshes per minute.
 - Engine or input failures fall back to the baseline UI (no stale adaptation).
+
+## 4a. Context-to-state inference
+
+One shared, module-aware inference layer (`backend/adaptive/state/contextualInference.js`,
+`activityProfiles.js`) infers temporary, non-clinical states — cognitive overload,
+frustration, attention fragmentation, cognitive fatigue — from timestamped evidence
+(corrections, undo, task lifecycle outcomes, response latency, typing rhythm,
+navigation and window switching, scroll backtracks), read relative to the user's
+behavioural baseline where one exists. Explicit check-ins are a separate
+self-report channel. A state needs converging evidence from independent sensor
+families (or a persistent, activity-specific primary signal) to reach the 0.5
+trigger floor; evidence decays and states expire. The states feed five policies
+(`CONTEXTUAL_POLICIES`) on non-UI targets with per-module hysteresis; existing
+evidence, safety, consent and execution gates are unchanged.
+
+Evidence is recorded once and attributed to the active route's module;
+the app-level runtime reads the merged view and each page-level
+(`useModuleAdaptation`) path reads only its own module's view, decided in its
+own hysteresis scope. Signal sources: DOM interaction (tracker), the support
+lifecycle hook, failed emotion-decoder attempts, chat clarification requests
+(a local phrase check — only a count is kept, never the text), and explicit
+self-reports from the mood check-in and the anxiety reset "How are you
+feeling now?" (better / worse only). The frustration response opens a
+dedicated `contextual_help` intervention with its own dismissal lifecycle.
+
+**Behaviour change:** page navigation alone (task-switch rate, the complexity
+derived from it, the page's activity name) is one sensor and is capped below
+the trigger floor, so a single page switch no longer enters guided /
+minimal / focus mode or surfaces an offer. Converging contextual evidence
+(e.g. switching plus window interruptions) lifts the cap for an agreeing value.
+
+**Behaviour change:** a mood produced only by a pointer-movement burst (mood
+`basis: "interaction"`) is no longer read as an emotion; it is weak corroborating
+evidence only. A burst alone therefore no longer produces a low-stimulation
+adaptation or a support offer.
 
 ## 5. Known limitations
 

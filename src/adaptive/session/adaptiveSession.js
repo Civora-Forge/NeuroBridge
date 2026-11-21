@@ -18,6 +18,8 @@ import { resetExecutionStore } from "@/adaptive/execution/uiExecution";
 import { clearAdaptationLearning } from "@/adaptive/learning/adaptationLearning";
 import { clearPersonalizationSession } from "@/adaptive/personalization/profileStore";
 import { clearAdaptiveHysteresis, resetAdaptiveHysteresis } from "@backend/adaptive/engine/hysteresis";
+import { clearBehaviouralBaseline } from "@/adaptive/baseline/behaviouralBaseline";
+import { clearInteractionEvidence } from "@/adaptive/context/interactionEvidence.js";
 
 export function resetAdaptiveSession(userId) {
   const steps = [
@@ -25,6 +27,8 @@ export function resetAdaptiveSession(userId) {
     () => (userId ? clearAdaptiveHysteresis(userId) : resetAdaptiveHysteresis()),
     () => clearAdaptiveHysteresis("default"),
     () => userId && clearAdaptationLearning(userId),
+    () => userId && clearBehaviouralBaseline(userId),
+    () => clearInteractionEvidence(),
     () => clearPersonalizationSession(),
   ];
   for (const step of steps) {

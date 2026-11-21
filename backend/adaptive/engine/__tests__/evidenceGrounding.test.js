@@ -178,13 +178,16 @@ describe("missing evidence", () => {
     expect(state.taskComplexity).toBe("unknown");
     expect(ruleIds(decide({ contextSnapshot: idle }, { now: T0, userId: USER }))).not.toContain("focus_mode");
 
-    // With real behavioral evidence the same counters are meaningful.
-    // Focus mode must persist past its confirmation window before entering
-    // (Task 2), so evaluate twice across that window.
+    // With real behavioral evidence the same counters are meaningful — they
+    // DESCRIBE attention — but navigation counters and the page's activity
+    // name are one sensor: on their own they stay below the trigger floor,
+    // so focus mode is not entered even after its confirmation window.
     const observed = { ...idle, behavior: { ...idle.behavior, confidence: 0.7 } };
-    expect(buildUserState(observed).attentionState).toBe("focused");
+    const described = buildUserState(observed);
+    expect(described.attentionState).toBe("focused");
+    expect(described._dimensions.attentionState.confidence).toBeLessThan(0.5);
     expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0, userId: USER }))).not.toContain("focus_mode");
-    expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0 + 10000, userId: USER }))).toContain("focus_mode");
+    expect(ruleIds(decide({ contextSnapshot: observed }, { now: T0 + 10000, userId: USER }))).not.toContain("focus_mode");
   });
 
   it("grounds urgency confidence in the conversation analysis confidence", () => {

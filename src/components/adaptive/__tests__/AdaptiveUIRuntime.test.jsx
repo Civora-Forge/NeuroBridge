@@ -344,7 +344,7 @@ describe("AdaptiveUIRuntime card behavior", () => {
     expect(deriveInterventionRecommendation(plan)).toBeNull();
   });
 
-  it("lifecycle: the same engine path surfaces a recommendation once the user actually switches modules", () => {
+  it("lifecycle: one module switch alone is a single-sensor signal and surfaces no recommendation", () => {
     contextEngine.stop();
     contextStore.reset();
     resetMoodAgent();
@@ -358,7 +358,10 @@ describe("AdaptiveUIRuntime card behavior", () => {
     const { plan } = decide({ contextSnapshot: snapshot });
 
     expect(snapshot.behavior.taskSwitchFrequency).toBe(0.2);
-    expect(deriveInterventionRecommendation(plan)).not.toBeNull();
+    // The reasoning layer may describe the situation, but no state-driven,
+    // evidence-gated action exists, so the runtime surfaces nothing.
+    expect(plan.actions).toEqual([]);
+    expect(hasStateDrivenAction(plan)).toBe(false);
   });
 
   it("end-to-end: decide() on an anxious state yields a UI action the shell applies", () => {
@@ -523,13 +526,38 @@ describe("AdaptiveUIRuntime card behavior", () => {
     );
     expect(card(calmContainer)).toBeNull();
 
-    // Evidence-grounded + temporally stable (Tasks 1–2): behavioural load
-    // must come from observed interaction (the live tracker reports 0.7) and
-    // persist past the 5s confirmation window before the UI changes.
+    // Heavy page switching on its own is ONE sensor: it describes the state
+    // but never reaches the trigger floor, so no adaptation and no card even
+    // after the confirmation window.
     const observed = { ...stressedSnapshot, behavior: { ...stressedSnapshot.behavior, confidence: 0.7 } };
     const t0 = Date.parse("2026-08-01T00:00:00.000Z");
-    expect(decide({ contextSnapshot: observed }, { now: t0 }).plan.actions).toEqual([]);
-    const stressedOutcome = decide({ contextSnapshot: observed }, { now: t0 + 6000 });
+    decide({ contextSnapshot: observed }, { now: t0 });
+    const navigationOnly = decide({ contextSnapshot: observed }, { now: t0 + 11000 });
+    expect(navigationOnly.plan.actions).toEqual([]);
+    const { container: navigationContainer } = render(
+      <Harness runtimeValue={runtimeValue(navigationOnly.plan, stressedSnapshot)} />,
+    );
+    expect(card(navigationContainer)).toBeNull();
+
+    // Converging, independent evidence (page switching AND the window
+    // repeatedly losing focus) that persists past the confirmation window
+    // → engine recommendation → card.
+    const converging = (now) => ({
+      ...observed,
+      timestamp: new Date(now).toISOString(),
+      interactionEvidence: {
+        observedAt: now,
+        bucketMs: 30000,
+        buckets: [30000, 60000].map((ago) => ({
+          start: now - ago - 15000, keystroke: 0, correction: 0, undo: 0, focusInterrupt: 3,
+          navigationSwitch: 3, scrollBacktrack: 0, typingGapSumMs: 0, typingGapCount: 0,
+        })),
+        taskEvents: [], latencySamples: [], selfReports: [],
+      },
+    });
+    const t1 = t0 + 120000;
+    expect(decide({ contextSnapshot: converging(t1) }, { now: t1 }).plan.actions).toEqual([]);
+    const stressedOutcome = decide({ contextSnapshot: converging(t1 + 11000) }, { now: t1 + 11000 });
     expect(stressedOutcome.plan.actions.length).toBeGreaterThan(0);
     const { container: stressedContainer } = render(
       <Harness runtimeValue={runtimeValue(stressedOutcome.plan, stressedSnapshot)} />,
@@ -688,5 +716,31 @@ describe("support offers require a state-driven action", () => {
     const { container } = render(<Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />);
     expect(card(container)).not.toBeNull();
     expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
+  });
+});
+
+// Dedicated frustration response: its own intervention identity and dismissal lifecycle.
+describe("contextual help (frustration) offer", () => {
+  const helpAction = () => uiAction("frustration_assistance", { contextualAssistance: true, simplifyInteraction: true },
+    { target: AdaptationDimension.ASSISTANCE, type: AdaptationActionType.GUIDE, tier: PriorityTier.CURRENT_STATE });
+  const overloadAction = () => uiAction("contextual_overload_support", { taskBreakdown: true, stepSize: "small" },
+    { target: AdaptationDimension.TASK, type: AdaptationActionType.DECOMPOSE, tier: PriorityTier.CURRENT_STATE });
+
+  it("maps to the dedicated contextual_help intervention (not transition support)", () => {
+    const rec = deriveInterventionRecommendation(planWith([helpAction()]));
+    expect(rec.id).toBe("contextual_help");
+    expect(deriveInterventionRecommendation(planWith([overloadAction()])).id).toBe("transition_support");
+  });
+
+  it("dismissing contextual help never hides the overload offer", () => {
+    const { container, rerender } = render(<Harness runtimeValue={runtimeValue(planWith([helpAction()]), stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
+    fireEvent.click(container.querySelector('[aria-label="Dismiss support suggestion"]'));
+    expect(card(container)).toBeNull();
+    rerender(<Harness runtimeValue={runtimeValue(planWith([helpAction()], { planId: "plan-2" }), stressedSnapshot)} />);
+    expect(card(container)).toBeNull(); // same offer stays dismissed
+    rerender(<Harness runtimeValue={runtimeValue(planWith([overloadAction()], { planId: "plan-3" }), stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
+    expect(screen.getByText(/Now · Next · Then/)).toBeInTheDocument();
   });
 });

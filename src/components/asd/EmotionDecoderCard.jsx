@@ -52,6 +52,7 @@ import {
   PROGRESS_EVENTS,
 } from "@/components/asd/ui";
 import { useSensoryReducedMotion } from "@/hooks/useSensoryReducedMotion";
+import { recordTaskEvent, TaskEventType } from "@/adaptive/context/interactionEvidence.js";
 
 const CHARACTER_TONES = ["teal", "sky", "amber", "violet", "rose"];
 const QUICK_FEELINGS = ["Happy", "Worried", "Excited", "Nervous", "Proud", "Frustrated", "Calm", "Confused"];
@@ -182,6 +183,12 @@ export default function EmotionDecoderCard() {
     if (!evaluation.answered) return;
     setResult(evaluation);
     setAttempts((current) => current + 1);
+    // An answered-but-incorrect attempt is a failed action for the shared
+    // inference (practice profile: weighted low — mistakes are part of
+    // practising). Only the outcome is recorded, never the answer text.
+    if (!evaluation.correct) {
+      try { recordTaskEvent({ type: TaskEventType.FAILED, moduleId: EMOTION_DECODER_MODULE_ID }); } catch { /* evidence only */ }
+    }
     if (evaluation.correct) {
       setCorrectCount((current) => current + 1);
       recordEvent(PROGRESS_EVENTS.EMOTION_SOLVED);

@@ -200,12 +200,35 @@ function objectSnapshotField(snapshot, key) {
 //  Per-signal normalizers
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Mood bases that represent what the user SAID or wrote. Any other basis
+ * (a pointer-movement burst, the page being visited, a carried-over previous
+ * mood) is behaviour, not an emotion: it is withheld from emotional-state
+ * inference and only corroborates the contextual inference layer.
+ * Snapshots without a `basis` (older producers, fixtures) keep the previous
+ * behaviour.
+ */
+export const EMOTIONAL_MOOD_BASES = Object.freeze(["explicit_checkin", "conversation"]);
+
+function behaviouralMoodBasis(mood) {
+  const basis = typeof mood.basis === "string" && mood.basis ? mood.basis : null;
+  return basis !== null && !EMOTIONAL_MOOD_BASES.includes(basis) ? basis : null;
+}
+
+function withheldBehavioural(signal, basis) {
+  return { ...signal, withheld: "behavioural_basis", withheldSource: `mood.basis:${basis}` };
+}
+
 function normalizeEmotion(snapshot) {
   const mood = objectSnapshotField(snapshot, "mood");
   const raw = String(mood.primaryMood || "").toLowerCase().trim();
 
   if (!raw) {
     return categoricalUnavailable();
+  }
+  const behavioural = behaviouralMoodBasis(mood);
+  if (behavioural) {
+    return withheldBehavioural(categoricalUnavailable(), behavioural);
   }
 
   const mapped = MOOD_TO_EMOTION_MAP[raw];
@@ -224,6 +247,10 @@ function normalizeEmotion(snapshot) {
 
 function normalizeEmotionIntensity(snapshot) {
   const mood = objectSnapshotField(snapshot, "mood");
+  const behavioural = behaviouralMoodBasis(mood);
+  if (behavioural) {
+    return withheldBehavioural(numericUnavailable(), behavioural);
+  }
   const baseConfidence = isPresentNumber(mood.confidence) ? mood.confidence : 0.5;
 
   if (isPresentNumber(mood.intensity)) {

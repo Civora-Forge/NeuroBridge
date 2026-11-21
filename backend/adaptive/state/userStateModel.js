@@ -56,6 +56,87 @@ import {
   isNonNullObject,
 } from "@/adaptive/context/contextSnapshot.js";
 import { normalizeContextSnapshot } from "./snapshotNormalizer.js";
+import { CONTEXTUAL_DIMENSIONS, inferContextualStates } from "./contextualInference.js";
+import { resolveActivityProfile } from "./activityProfiles.js";
+
+/** Values of the `selfReportedDistress` dimension. */
+export const SELF_REPORT_DISTRESS_VALUES = Object.freeze(["present", "none", "unknown"]);
+
+/**
+ * Sources that all come from ONE sensor: page navigation. The task-switch
+ * rate, the complexity estimate derived from it, and the activity name set
+ * on navigation are one signal, not three.
+ */
+export const NAVIGATION_ONLY_SOURCES = Object.freeze([
+  "behavior.taskSwitchFrequency",
+  "derived:taskSwitchFrequency",
+  "activity.activity",
+  "derived:lowSwitchAndTask",
+]);
+
+/**
+ * Navigation on its own may describe a dimension, but it must not reach the
+ * policy trigger floor (0.5): same single-family cap as the contextual
+ * inference layer. It is lifted only when the contextual layer has
+ * independently established the matching state from converging evidence.
+ */
+export const NAVIGATION_ONLY_CAP = 0.45;
+
+function capNavigationOnly(result, corroboration, corroboratedValues = [], { nonDeciding = [] } = {}) {
+  // Judge by the sources that DECIDED the value: a source that is merely
+  // listed (e.g. a neutral mood next to task switching) is not evidence for it.
+  const sources = (Array.isArray(result.sources) ? result.sources : []).filter((source) => !nonDeciding.includes(source));
+  const navigationOnly = sources.length > 0 && sources.every((source) => NAVIGATION_ONLY_SOURCES.includes(source));
+  if (!navigationOnly || result.value === "unknown") return result;
+  // Corroboration only when the contextual state AGREES with the value
+  // (fragmentation never corroborates "focused").
+  if (corroboration && corroboration.value === "present" && corroboratedValues.includes(result.value)) {
+    return {
+      ...result,
+      confidence: normalizeConfidence(Math.max(result.confidence, corroboration.confidence)),
+      reasons: [...result.reasons, `Corroborated by converging contextual evidence (${corroboration.id})`],
+      sources: [...result.sources, `contextual:${corroboration.id}`],
+    };
+  }
+  if (result.confidence <= NAVIGATION_ONLY_CAP) return result;
+  return {
+    ...result,
+    confidence: NAVIGATION_ONLY_CAP,
+    reasons: [...result.reasons, "Page navigation is the only evidence — not enough on its own to adapt"],
+  };
+}
+
+/** Self-report confidence at/above which `selfReportedDistress` is "present". */
+const SELF_REPORT_PRESENT_AT = 0.5;
+
+/**
+ * Turn the contextual inference output into DimensionResults. Inferred
+ * states and the explicit self-report stay separate dimensions, each with
+ * its full record attached (`state`) for explainability.
+ */
+function contextualDimensions(contextual) {
+  const out = {};
+  for (const [stateId, dimension] of Object.entries(CONTEXTUAL_DIMENSIONS)) {
+    const record = contextual.states[stateId];
+    const result = dim(record.value, record.confidence, record.reasons, record.provenance);
+    result.state = record;
+    out[dimension] = result;
+  }
+  const report = contextual.selfReport;
+  if (!report) {
+    out.selfReportedState = unknown("No recent self-report");
+    out.selfReportedDistress = unknown("No recent self-report");
+  } else {
+    const reason = `User reported feeling "${report.state}" (${report.source})`;
+    out.selfReportedState = { ...dim(report.state, report.confidence, [reason], [`explicit:${report.source}`]), state: report };
+    const value = report.distress ? (report.confidence >= SELF_REPORT_PRESENT_AT ? "present" : "none") : "none";
+    out.selfReportedDistress = {
+      ...dim(value, report.distress ? report.confidence : 0, [reason], [`explicit:${report.source}`]),
+      state: report,
+    };
+  }
+  return out;
+}
 
 // ─────────────────────────────────────────────────────────────────
 //  UserState schema
@@ -253,6 +334,9 @@ function inferEmotionalState(signals) {
 
   if (emotion?.stale) {
     return unknown(`Emotion evidence from ${emotion.staleSource} is stale — not used for current state`);
+  }
+  if (emotion?.withheld === "behavioural_basis") {
+    return unknown(`Mood from ${emotion.withheldSource} is behavioural evidence, not a reported or expressed emotion — not used as emotional state`);
   }
   if (!signalAvailable(signals, "emotion") || label === "unknown") {
     return unknown("No emotion signal provided");
@@ -770,15 +854,28 @@ function inferEngagementLevel(signals) {
  * const state = buildUserState();
  * // state.overallConfidence === 0
  */
-export function buildUserState(snapshot = null) {
+export function buildUserState(snapshot = null, options = {}) {
   const safe = isNonNullObject(snapshot) ? snapshot : {};
   const signals = normalizeContextSnapshot(safe);
+  const moduleContext = isNonNullObject(options?.moduleContext) ? options.moduleContext : null;
+  // Shared, module-aware context-to-state inference (additive dimensions).
+  const contextual = inferContextualStates(safe, {
+    profile: resolveActivityProfile(moduleContext),
+    baseline: isNonNullObject(options?.baseline) ? options.baseline : undefined,
+    moduleId: moduleContext?.moduleId,
+  });
 
-  // Infer each dimension
+  // Infer each dimension. Navigation-only attention / load evidence is
+  // capped below the trigger floor unless the contextual layer corroborates.
   const emotionalState = inferEmotionalState(signals);
-  const cognitiveLoad = inferCognitiveLoad(signals);
+  // Emotion decides cognitive load only in its "overwhelming" branch; for every
+  // other value (switching / derived complexity) it is listed but not deciding.
+  const rawCognitiveLoad = inferCognitiveLoad(signals);
+  const cognitiveLoad = capNavigationOnly(rawCognitiveLoad, contextual.states.cognitiveOverload, ["high", "overwhelming"], {
+    nonDeciding: rawCognitiveLoad.value === "overwhelming" ? [] : [signals.emotion?.source].filter(Boolean),
+  });
   const energyLevel = inferEnergyLevel(signals);
-  const attentionState = inferAttentionState(signals);
+  const attentionState = capNavigationOnly(inferAttentionState(signals), contextual.states.attentionFragmentation, ["scattered", "fragmented"]);
   const stressLevel = inferStressLevel(signals);
   const motivationLevel = inferMotivationLevel(signals);
   const urgency = inferUrgency(signals);
@@ -827,6 +924,15 @@ export function buildUserState(snapshot = null) {
     timestamp: safe.timestamp || new Date().toISOString(),
     sources: allSources,
     staleSignals,
+    contextualDimensions: contextualDimensions(contextual),
+    contextual: {
+      available: contextual.available,
+      activityType: contextual.activityType,
+      moduleId: contextual.moduleId,
+      observedAt: contextual.observedAt,
+      metrics: contextual.metrics,
+      selfReport: contextual.selfReport,
+    },
   };
 
   // Backward-compatible convenience accessors
@@ -914,6 +1020,12 @@ function createUserStateProxy(state) {
     sources: state.sources,
     staleSignals: state.staleSignals,
 
+    // Contextual states (inferred) and self-report (explicit) — separate
+    // dimensions; `overallConfidence` above intentionally covers only the
+    // nine core dimensions.
+    ...Object.fromEntries(Object.entries(state.contextualDimensions).map(([name, d]) => [name, d.value])),
+    contextual: state.contextual,
+
     _dimensions: {
       emotionalState: emotionalStateDim,
       cognitiveLoad: cognitiveLoadDim,
@@ -924,6 +1036,7 @@ function createUserStateProxy(state) {
       urgency: urgencyDim,
       taskComplexity: taskComplexityDim,
       engagementLevel: engagementLevelDim,
+      ...state.contextualDimensions,
     },
   };
 }

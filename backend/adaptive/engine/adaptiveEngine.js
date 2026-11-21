@@ -40,7 +40,13 @@
 
 import { buildUserState } from "../state/userStateModel.js";
 import { reasonAboutUserState } from "../reasoning/cognitiveReasoning.js";
-import { evaluatePolicies, ADAPTATION_POLICIES } from "../reasoning/adaptationPolicy.js";
+import {
+  evaluatePolicies,
+  ADAPTATION_POLICIES,
+  CONTEXTUAL_POLICIES,
+  DEMO_NAVIGATION_POLICY,
+  DEMO_NAVIGATION_SWITCHES,
+} from "../reasoning/adaptationPolicy.js";
 import { buildAdaptationPlan } from "../reasoning/planner.js";
 import {
   validateAdaptiveEngineInput,
@@ -123,6 +129,33 @@ function resolvePolicyState(userState, strategyEffectiveness) {
     return userState;
   }
   return { ...userState, ...learned };
+}
+
+/** Confidence of the demo navigation dimension (above the unchanged 0.5 floor). */
+const DEMO_NAVIGATION_CONFIDENCE = 0.6;
+
+/**
+ * DEMO ONLY: overlay the `demoNavigationBurst` dimension on the policy state.
+ * Reads only the switch COUNT in the snapshot's app-level evidence view;
+ * a missing count stays missing ("unknown", confidence 0).
+ */
+function withDemoNavigationDimension(state, contextSnapshot) {
+  const count = contextSnapshot?.interactionEvidence?.recentNavigationSwitches?.count;
+  const known = typeof count === "number" && Number.isFinite(count) && count >= 0;
+  const value = !known ? "unknown" : count >= DEMO_NAVIGATION_SWITCHES ? "present" : "none";
+  const dimension = {
+    value,
+    confidence: value === "present" ? DEMO_NAVIGATION_CONFIDENCE : 0,
+    reasons: [known
+      ? `DEMO: ${count} page switch(es) in the last 60 s (trigger at ${DEMO_NAVIGATION_SWITCHES})`
+      : "DEMO: no navigation count available"],
+    sources: ["interactionEvidence.recentNavigationSwitches"],
+  };
+  return {
+    ...state,
+    demoNavigationBurst: value,
+    _dimensions: { ...(state?._dimensions ?? {}), demoNavigationBurst: dimension },
+  };
 }
 
 function isFiniteIn01(value) {
@@ -319,6 +352,13 @@ function aggregateSafety(entries) {
  * @param {string} [options.userId]
  *   Normalized Role 4 userId used to key per-user hysteresis state and
  *   recorded on the trace when present.
+ * @param {object} [options.baseline]
+ *   The user's shared behavioural baseline (src/adaptive/baseline). Lets the
+ *   contextual inference read evidence relative to the user's own normal;
+ *   without it, conservative population thresholds apply.
+ * @param {boolean} [options.demoNavigationTrigger]
+ *   DEMO ONLY. Evaluate the repeated-navigation demonstration rule
+ *   (DEMO_NAVIGATION_POLICY). Never set outside demo mode.
  * @param {string} [options.stateScope]
  *   Optional decision-path namespace for hysteresis state (e.g. "module").
  *   Callers running an additional, independent decision path for the same
@@ -344,7 +384,14 @@ export function decide(input = {}, options = {}) {
 
   const normalized = validateAdaptiveEngineInput({
     contextSnapshot,
-    userState: isNonNullObject(raw.userState) ? raw.userState : buildUserState(contextSnapshot),
+    userState: isNonNullObject(raw.userState)
+      ? raw.userState
+      : buildUserState(contextSnapshot, {
+          // Module-aware interpretation of behavioural evidence and the
+          // user's own behavioural baseline (contextualInference.js).
+          moduleContext,
+          baseline: isNonNullObject(options.baseline) ? options.baseline : undefined,
+        }),
     role4Signals: isNonNullObject(raw.role4Signals) ? raw.role4Signals : undefined,
     userPreferences: isNonNullObject(raw.userPreferences) ? raw.userPreferences : undefined,
     moduleContext: moduleContext ?? { moduleId: "generic" },
@@ -379,15 +426,26 @@ export function decide(input = {}, options = {}) {
 
   // ── 3 POLICY APPLY (existing Phase 1 evaluator) ──
   const modulePolicies = Array.isArray(context?.modulePolicies) ? context.modulePolicies : [];
-  const rules = [...ADAPTATION_POLICIES, ...modulePolicies];
+  // DEMO ONLY: the repeated-navigation rule exists only when the caller
+  // explicitly asks for it (app-level runtime, demo flag on).
+  const demoNavigation = options.demoNavigationTrigger === true;
+  const rules = [
+    ...ADAPTATION_POLICIES,
+    ...CONTEXTUAL_POLICIES,
+    ...(demoNavigation ? [DEMO_NAVIGATION_POLICY] : []),
+    ...modulePolicies,
+  ];
   // Tier 9 only: learned personalization surfaces as derived resolved-state
   // dimensions; the existing evaluator and its precedence order are unchanged.
-  const policyState = resolvePolicyState(
+  const learnedPolicyState = resolvePolicyState(
     userState,
     isEffectivenessRecord(normalized.role4Signals)
       ? normalized.role4Signals.strategyEffectiveness
       : undefined,
   );
+  const policyState = demoNavigation
+    ? withDemoNavigationDimension(learnedPolicyState, contextSnapshot)
+    : learnedPolicyState;
   // Evidence-grounded evaluation: rules whose trigger values matched but whose
   // evidence was stale or too weak are returned as `suppressed` and recorded
   // in the trace; they never reach the plan.
@@ -545,7 +603,7 @@ export function decide(input = {}, options = {}) {
   if (normalized.userPreferences !== undefined) {
     sourceTags.add("user_preferences");
   }
-  if (policyState !== userState) {
+  if (learnedPolicyState !== userState) {
     sourceTags.add("learned_personalization");
   }
   if (influences.learning.length > 0) {
@@ -553,6 +611,10 @@ export function decide(input = {}, options = {}) {
   }
   if (personalizationView !== undefined) {
     sourceTags.add("personalization_profile");
+  }
+  // Observable: every decision made with the demo trigger enabled says so.
+  if (demoNavigation) {
+    sourceTags.add("demo_navigation_trigger");
   }
 
   const trace = {
