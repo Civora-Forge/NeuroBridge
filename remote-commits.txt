@@ -1,0 +1,12 @@
+﻿6fddf16 (origin/adaptive-engine-release) chore(adaptive): harden production release
+9941a3c feat(adaptive): add persistent user personalization
+f8e578c feat(adaptive): learn from adaptation feedback
+98fae70 feat(adaptive): add guarded UI execution
+d332545 feat(adaptive): add temporal stability and hysteresis
+b7e5e36 feat(adaptive): ground decisions in reliable evidence
+a33737b Merge branch 'main' of https://github.com/AnitaGeorge404/Neuro_Bridge
+f6800f7 feat(docs): Add comprehensive Google integration architecture, execution tracker, setup guide, and verification report
+7452d2c fix: improve mobile anxiety toolkit accessibility and Firebase hosting
+1b56ca2 chore(storage): remove obsolete storage rules file
+b955b63 feat(gcp): Google Cloud Run deployment, preflight scripts, and Firebase configuration
+eeece4d feat(bri): Bri Agent V2 ΓÇö follow-up state, action policy, verification, optional Gemini Live
