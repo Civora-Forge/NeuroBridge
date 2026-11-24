@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { decide, adaptiveEngine } from "../adaptiveEngine.js";
+import { resetAdaptiveHysteresis } from "../hysteresis.js";
 import * as cognitiveReasoning from "../../reasoning/cognitiveReasoning.js";
 import * as adaptationPolicyModule from "../../reasoning/adaptationPolicy.js";
 import * as plannerModule from "../../reasoning/planner.js";
@@ -28,6 +29,12 @@ function overloadSnapshot() {
     conversation: { urgency: "high" },
   };
 }
+
+// Task 2: adaptation state now persists across decide() calls (temporal
+// stability). Each test is an independent decision, so isolate that state.
+beforeEach(() => {
+  resetAdaptiveHysteresis();
+});
 
 /** Snapshot that yields a focused attention state. */
 function focusedSnapshot() {
@@ -489,7 +496,8 @@ describe("safety extension point", () => {
     expect(outcome.plan.actions[0].safety.level).toBe(SafetyLevel.STANDARD);
     expect(outcome.trace.safetyResult.disposition).toBe("ALLOW");
     expect(outcome.trace.safetyResult.level).toBe(SafetyLevel.STANDARD);
-    expect(outcome.trace.overrides).toEqual([]);
+    // Only temporal-stability (hysteresis) notes; the safety stage adds none.
+    expect(outcome.trace.overrides.filter((o) => o.kind === "safety")).toEqual([]);
   });
 
   it("blocks actions when the extension returns BLOCK", () => {

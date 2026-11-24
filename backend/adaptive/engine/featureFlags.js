@@ -9,19 +9,20 @@
  * Activation is explicit and config-driven, never hardcoded ON: each switch's
  * product default is read from the Vite environment (`VITE_NEUROBRIDGE_ADAPTIVE_*`)
  * at module load and defaults to OFF when unset. Production activation is
- * expressed in `.env.production` (currently only stage A: `runtime`), so it
- * can be rolled back by editing config without touching code.
+ * expressed in `.env.production`. Values are inlined by Vite at BUILD time:
+ * changing or rolling back a flag requires a rebuild + redeploy (there is no
+ * runtime kill switch). See docs/ADAPTIVE_ENGINE_RELEASE.md.
  *
- * Staged activation plan:
- *   - Stage A (current): `runtime` ON for production builds via config. The
- *     live app produces decisions + traces only; it never auto-executes
- *     (execution is the explicit `execute()` step, gated by `uiExecution`).
- *   - Stage B (future): `reflection` — learned signals feeding Tier 9.
- *   - Stage C (future): `uiExecution` — UI executor applying actions to live
- *     rendering. Deliberately OFF: changing live rendering behind a flag still
- *     needs the executor integration review; unsupported executors (timing /
- *     notification / assistance / content / task / interaction / pacing) have
- *     no implementation and stay OFF.
+ * Staged activation (production state as of Task 6):
+ *   - Stage A `runtime`: ON. Decisions + traces; support-card offers.
+ *   - Stage B `reflection`: ON. Learned feedback / promoted profile stances
+ *     act as bounded supporting evidence.
+ *   - Stage C `uiExecution`: OFF (unset). UI actions are resolved as
+ *     REJECTED before any consent prompt, so the live UI mode never changes.
+ *     Kept off pending a live-browser verification and a per-user cohort
+ *     gate (see the release doc). Non-UI executors (timing / notification /
+ *     assistance / content / task / interaction / pacing) are not
+ *     implemented.
  *
  * The pure resolver `resolveDefaultFlags(env)` is exported for tests; the
  * module default reads the real environment. `decide()` itself is flag-free:
@@ -60,6 +61,10 @@ export function resolveDefaultFlags(env = readEnv()) {
     runtime: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_RUNTIME"),
     uiExecution: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_UI_EXECUTION"),
     reflection: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_REFLECTION"),
+    // DEMO ONLY: repeated-navigation trigger (see adaptationPolicy
+    // DEMO_NAVIGATION_POLICY). OFF unless set; the current demo build sets
+    // it in .env.production (set it to false there for a real release).
+    demo: flagFromEnv(env, "VITE_NEUROBRIDGE_ADAPTIVE_DEMO"),
   };
 }
 
@@ -96,6 +101,17 @@ export function isReflectionEnabled() {
 }
 
 /**
+ * DEMO ONLY. Whether the app-level runtime may evaluate the repeated-
+ * navigation demonstration trigger. OFF unless VITE_NEUROBRIDGE_ADAPTIVE_DEMO
+ * is explicitly set (the demo build sets it in .env.production); production
+ * evidence rules are unaffected when OFF.
+ * @returns {boolean}
+ */
+export function isAdaptiveDemoEnabled() {
+  return state.demo;
+}
+
+/**
  * Set flags explicitly. Returns the previous state so callers can restore it.
  * @param {{ runtime?: boolean, uiExecution?: boolean, reflection?: boolean }} [overrides]
  * @returns {{ runtime: boolean, uiExecution: boolean, reflection: boolean }}
@@ -105,6 +121,7 @@ export function configureAdaptiveFlags(overrides = {}) {
     runtime: state.runtime,
     uiExecution: state.uiExecution,
     reflection: state.reflection,
+    demo: state.demo,
   };
   if (typeof overrides.runtime === "boolean") {
     state.runtime = overrides.runtime;
@@ -114,6 +131,9 @@ export function configureAdaptiveFlags(overrides = {}) {
   }
   if (typeof overrides.reflection === "boolean") {
     state.reflection = overrides.reflection;
+  }
+  if (typeof overrides.demo === "boolean") {
+    state.demo = overrides.demo;
   }
   return previous;
 }

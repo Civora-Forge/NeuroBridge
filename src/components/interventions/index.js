@@ -6,6 +6,7 @@ export { default as InterventionModal } from "./InterventionModal";
 export { default as InterventionResolver, resolveInterventionDefinition, getInterventionMeta, INTERVENTION_REGISTRY } from "./InterventionResolver";
 export { default as AdaptiveRecommendationPopup } from "./AdaptiveRecommendationPopup";
 export { default as SafeFallbackIntervention } from "./fallback/SafeFallbackIntervention";
+export { default as ContextualHelpIntervention } from "./support/ContextualHelpIntervention";
 
 // ASD Interventions
 export { default as SensoryResetIntervention } from "./asd/SensoryResetIntervention";

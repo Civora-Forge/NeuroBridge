@@ -10,6 +10,14 @@ export const ROLE4_COLLECTIONS = {
   MEMORIES: "memories",
   PERSONALIZATION_PROFILES: "personalization_profiles",
   ADAPTATION_DECISIONS: "adaptation_decisions",
+  // Task 4: explicit feedback on adaptive UI decisions (learning loop).
+  ADAPTATION_FEEDBACK: "adaptation_feedback",
+  // Task 5: user-owned cross-session personalization profile (local copy /
+  // offline fallback of the Supabase support_personalization_profiles row).
+  ADAPTIVE_PROFILE: "adaptive_profile",
+  // Shared behavioural baseline: numeric interaction aggregates per activity
+  // type (never states, labels or event histories). Device-local.
+  BEHAVIOURAL_BASELINE: "behavioural_baseline",
   MIGRATIONS: "migrations",
 };
 

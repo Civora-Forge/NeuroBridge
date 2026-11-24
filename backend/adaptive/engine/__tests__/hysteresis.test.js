@@ -38,7 +38,7 @@ function hystRuleFixture(overrides = {}) {
     triggerGroups: [
       {
         operator: TriggerGroupOperator.AND,
-        triggers: [{ dimension: "urgency", condition: TriggerCondition.EQ, value: "critical" }],
+        triggers: [{ dimension: "taskComplexity", condition: TriggerCondition.EQ, value: "complex" }],
       },
     ],
     action: {
@@ -56,7 +56,9 @@ function hystRuleFixture(overrides = {}) {
   };
 }
 
-function runDecision({ now, urgency = "critical", confidence, extraPolicies = [], ruleOverrides = {} }) {
+// The fixture triggers on taskComplexity, a dimension no shipped policy uses,
+// so shipped (now hysteresis-governed) policies never share its target state.
+function runDecision({ now, taskComplexity = "complex", confidence, extraPolicies = [], ruleOverrides = {} }) {
   const rule = hystRuleFixture(ruleOverrides);
   if (confidence !== undefined) {
     rule.confidence = confidence;
@@ -69,8 +71,8 @@ function runDecision({ now, urgency = "critical", confidence, extraPolicies = []
     attentionState: "unknown",
     stressLevel: "none",
     motivationLevel: "high",
-    urgency,
-    taskComplexity: "simple",
+    urgency: "low",
+    taskComplexity,
     engagementLevel: "high",
   };
   return decide(
@@ -188,7 +190,7 @@ describe("hysteresis stage (D6)", () => {
       triggerGroups: [
         {
           operator: TriggerGroupOperator.AND,
-          triggers: [{ dimension: "urgency", condition: TriggerCondition.EQ, value: "critical" }],
+          triggers: [{ dimension: "taskComplexity", condition: TriggerCondition.EQ, value: "complex" }],
         },
       ],
       action: {
@@ -209,19 +211,20 @@ describe("hysteresis stage (D6)", () => {
     expect(hasRule(outcome, RULE_ID)).toBe(false);
   });
 
-  it("is a no-op when no policy declares hysteresis (shipped policies unchanged)", () => {
+  it("is a no-op for rules that declare no hysteresis", () => {
     resetAdaptiveHysteresis();
+    // Shipped policies now declare temporal stability (Task 2); a rule without
+    // a hysteresis config must still pass straight through.
+    const { hysteresis: _omit, ...plainRule } = hystRuleFixture();
     const outcome = decide(
       {
-        contextSnapshot: {
-          timestamp: "2026-08-01T00:00:00.000Z",
-          mood: { primaryMood: "overwhelmed", confidence: 0.9 },
-          conversation: { urgency: "high" },
-        },
+        contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z" },
+        userState: { urgency: "low", taskComplexity: "complex" },
+        moduleContext: { moduleId: MODULE, modulePolicies: [plainRule] },
       },
       { now: T0, userId: USER },
     );
-    expect(outcome.plan.actions.length).toBeGreaterThan(0);
+    expect(hasRule(outcome, RULE_ID)).toBe(true);
     expect(outcome.trace.overrides.filter((o) => o.kind === "hysteresis")).toEqual([]);
     expect(adaptationStateCount()).toBe(0);
   });

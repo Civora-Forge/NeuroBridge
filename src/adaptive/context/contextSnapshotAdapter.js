@@ -168,6 +168,10 @@ function buildMood(mood = {}) {
     moodTrend: mood.moodTrend || "stable",
     confidence: typeof mood.confidence === "number" ? mood.confidence : 0.5,
     sources: Array.isArray(mood.sources) ? [...mood.sources] : [],
+    // Which candidate actually produced primaryMood (explicit_checkin /
+    // conversation / interaction / activity / previous_mood / ...). `sources`
+    // lists every candidate considered; `basis` is the winner.
+    basis: typeof mood.basis === "string" ? mood.basis : null,
   };
 }
 
@@ -266,6 +270,7 @@ export function toContextSnapshot(unifiedContext, options = {}) {
     deviceInteraction: liveInteractionSnapshot.deviceInteraction,
     explicitRequests: liveInteractionSnapshot.explicitRequests,
     biometrics: liveInteractionSnapshot.biometrics,
+    interactionEvidence: liveInteractionSnapshot.evidence ?? null,
     metadata: {
       snapshotVersion: metadata.snapshotVersion,
       lastUpdated: metadata.lastUpdated,

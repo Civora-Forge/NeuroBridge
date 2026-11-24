@@ -40,7 +40,13 @@
 
 import { buildUserState } from "../state/userStateModel.js";
 import { reasonAboutUserState } from "../reasoning/cognitiveReasoning.js";
-import { evaluatePolicies, ADAPTATION_POLICIES } from "../reasoning/adaptationPolicy.js";
+import {
+  evaluatePolicies,
+  ADAPTATION_POLICIES,
+  CONTEXTUAL_POLICIES,
+  DEMO_NAVIGATION_POLICY,
+  DEMO_NAVIGATION_SWITCHES,
+} from "../reasoning/adaptationPolicy.js";
 import { buildAdaptationPlan } from "../reasoning/planner.js";
 import {
   validateAdaptiveEngineInput,
@@ -51,10 +57,16 @@ import {
 } from "@/support/schemas/supportSchemas";
 import { isNonNullObject } from "@/adaptive/context/contextSnapshot.js";
 import { safetyGate } from "./safetyGate.js";
-import { runHysteresisStage } from "./hysteresis.js";
+import { runHysteresisStage, stabilizeCandidates } from "./hysteresis.js";
 import { resolveConflicts } from "./conflictResolution.js";
 import { applyUserPreferences } from "./preferences.js";
 import { recommendFocusConfiguration } from "../reasoning/focusConfiguration.js";
+import { applyLearnedPreferences } from "./learning.js";
+import {
+  applyProfileConstraints,
+  buildPreferenceEvidence,
+  partitionInfluences,
+} from "./personalization.js";
 
 const DEFAULT_SAFETY_RESULT = {
   level: SafetyLevel.STANDARD,
@@ -117,6 +129,33 @@ function resolvePolicyState(userState, strategyEffectiveness) {
     return userState;
   }
   return { ...userState, ...learned };
+}
+
+/** Confidence of the demo navigation dimension (above the unchanged 0.5 floor). */
+const DEMO_NAVIGATION_CONFIDENCE = 0.6;
+
+/**
+ * DEMO ONLY: overlay the `demoNavigationBurst` dimension on the policy state.
+ * Reads only the switch COUNT in the snapshot's app-level evidence view;
+ * a missing count stays missing ("unknown", confidence 0).
+ */
+function withDemoNavigationDimension(state, contextSnapshot) {
+  const count = contextSnapshot?.interactionEvidence?.recentNavigationSwitches?.count;
+  const known = typeof count === "number" && Number.isFinite(count) && count >= 0;
+  const value = !known ? "unknown" : count >= DEMO_NAVIGATION_SWITCHES ? "present" : "none";
+  const dimension = {
+    value,
+    confidence: value === "present" ? DEMO_NAVIGATION_CONFIDENCE : 0,
+    reasons: [known
+      ? `DEMO: ${count} page switch(es) in the last 60 s (trigger at ${DEMO_NAVIGATION_SWITCHES})`
+      : "DEMO: no navigation count available"],
+    sources: ["interactionEvidence.recentNavigationSwitches"],
+  };
+  return {
+    ...state,
+    demoNavigationBurst: value,
+    _dimensions: { ...(state?._dimensions ?? {}), demoNavigationBurst: dimension },
+  };
 }
 
 function isFiniteIn01(value) {
@@ -313,6 +352,28 @@ function aggregateSafety(entries) {
  * @param {string} [options.userId]
  *   Normalized Role 4 userId used to key per-user hysteresis state and
  *   recorded on the trace when present.
+ * @param {object} [options.baseline]
+ *   The user's shared behavioural baseline (src/adaptive/baseline). Lets the
+ *   contextual inference read evidence relative to the user's own normal;
+ *   without it, conservative population thresholds apply.
+ * @param {boolean} [options.demoNavigationTrigger]
+ *   DEMO ONLY. Evaluate the repeated-navigation demonstration rule
+ *   (DEMO_NAVIGATION_POLICY). Never set outside demo mode.
+ * @param {string} [options.stateScope]
+ *   Optional decision-path namespace for hysteresis state (e.g. "module").
+ *   Callers running an additional, independent decision path for the same
+ *   user pass a scope so their temporal state is isolated from the app-level
+ *   runtime. Omitted → the shared default slot (unchanged behaviour).
+ * @param {Record<string, object>} [options.learnedPreferences]
+ *   Learned preferences (src/adaptive/learning getLearnedPreferences) used as
+ *   bounded supporting evidence; their influence is recorded in trace.learning.
+ * @param {object} [options.personalization]
+ *   Resolved persistent personalization profile (Task 5,
+ *   src/adaptive/personalization resolveProfileView). Explicit preferred
+ *   modes become bounded supporting evidence, explicitly avoided modes become
+ *   constraints, presentation preferences shape UI parameters (calmer only),
+ *   and promoted learned stances back-fill missing live feedback. Never
+ *   touches safety or explicit tiers. Recorded in trace.personalization.
  * @returns {{ plan: import("../../../support/schemas/supportSchemas.js").AdaptationPlanSchema, trace: import("../../../support/schemas/supportSchemas.js").DecisionTraceSchema }}
  */
 export function decide(input = {}, options = {}) {
@@ -323,7 +384,14 @@ export function decide(input = {}, options = {}) {
 
   const normalized = validateAdaptiveEngineInput({
     contextSnapshot,
-    userState: isNonNullObject(raw.userState) ? raw.userState : buildUserState(contextSnapshot),
+    userState: isNonNullObject(raw.userState)
+      ? raw.userState
+      : buildUserState(contextSnapshot, {
+          // Module-aware interpretation of behavioural evidence and the
+          // user's own behavioural baseline (contextualInference.js).
+          moduleContext,
+          baseline: isNonNullObject(options.baseline) ? options.baseline : undefined,
+        }),
     role4Signals: isNonNullObject(raw.role4Signals) ? raw.role4Signals : undefined,
     userPreferences: isNonNullObject(raw.userPreferences) ? raw.userPreferences : undefined,
     moduleContext: moduleContext ?? { moduleId: "generic" },
@@ -345,29 +413,77 @@ export function decide(input = {}, options = {}) {
     typeof options.userId === "string" && options.userId.trim().length > 0
       ? options.userId
       : undefined;
+  // Independent decision paths (app-level runtime vs module-level consumers)
+  // keep separate temporal state so they never advance or reset each other's
+  // confirmation windows / withdrawals from different snapshots.
+  const stateScope =
+    typeof options.stateScope === "string" && options.stateScope.trim().length > 0
+      ? options.stateScope.trim()
+      : undefined;
 
   // ── 2 REASON (existing Cognitive Reasoning Core) ──
   const reasoning = reasonAboutUserState(userState);
 
   // ── 3 POLICY APPLY (existing Phase 1 evaluator) ──
   const modulePolicies = Array.isArray(context?.modulePolicies) ? context.modulePolicies : [];
-  const rules = [...ADAPTATION_POLICIES, ...modulePolicies];
+  // DEMO ONLY: the repeated-navigation rule exists only when the caller
+  // explicitly asks for it (app-level runtime, demo flag on).
+  const demoNavigation = options.demoNavigationTrigger === true;
+  const rules = [
+    ...ADAPTATION_POLICIES,
+    ...CONTEXTUAL_POLICIES,
+    ...(demoNavigation ? [DEMO_NAVIGATION_POLICY] : []),
+    ...modulePolicies,
+  ];
   // Tier 9 only: learned personalization surfaces as derived resolved-state
   // dimensions; the existing evaluator and its precedence order are unchanged.
-  const policyState = resolvePolicyState(
+  const learnedPolicyState = resolvePolicyState(
     userState,
     isEffectivenessRecord(normalized.role4Signals)
       ? normalized.role4Signals.strategyEffectiveness
       : undefined,
   );
-  const { triggered } = evaluatePolicies(rules, policyState);
+  const policyState = demoNavigation
+    ? withDemoNavigationDimension(learnedPolicyState, contextSnapshot)
+    : learnedPolicyState;
+  // Evidence-grounded evaluation: rules whose trigger values matched but whose
+  // evidence was stale or too weak are returned as `suppressed` and recorded
+  // in the trace; they never reach the plan.
+  const evaluated = evaluatePolicies(rules, policyState);
+
+  // ── 3a LEARNED PREFERENCES (Task 4) — bounded supporting evidence from the
+  // user's explicit feedback history; current-state tiers only, never safety
+  // or explicit preferences. No-op unless `options.learnedPreferences` given.
+  // Task 5: the persistent profile contributes evidence by type — explicit
+  // preferred modes outrank live feedback, which outranks promoted stances.
+  const personalizationView = isNonNullObject(options.personalization) ? options.personalization : undefined;
+  const preferenceEvidence = buildPreferenceEvidence(options.learnedPreferences, personalizationView);
+  const learning = applyLearnedPreferences(
+    { triggered: evaluated.triggered, suppressed: evaluated.suppressed ?? [] },
+    preferenceEvidence.learned,
+  );
+  const influences = partitionInfluences(learning.influences, preferenceEvidence);
+  const triggered = learning.triggered;
+  const evidenceSuppressed = learning.suppressed;
   const focusRecommendation = recommendFocusConfiguration(normalized.role4Signals?.supportEvidence);
   const learnedFocusEntry = context?.moduleId === "support.focus_session" && focusRecommendation
     ? [{ ruleId: "role4.focus_configuration", version: 1, scope: "user", tier: 9, priority: 0, confidence: focusRecommendation.confidence, action: { type: "MODIFY", target: "PACING", parameters: { focusConfiguration: focusRecommendation } }, matchedTriggers: [], reversal: "auto" }]
     : [];
 
+  // ── 3b TEMPORAL STABILITY (Task 2) — consult recent adaptation state before
+  // precedence is applied: reinstate still-valid incumbents (maintained on
+  // weaker evidence / held through brief contradiction), withdraw those whose
+  // evidence is lost, and defer unconfirmed challengers to a supported mode.
+  // Reinstated entries still pass restriction, conflict, preference and safety.
+  const temporal = stabilizeCandidates(
+    { triggered, suppressed: evidenceSuppressed, rules, userState: policyState },
+    { now, userId, moduleId: context?.moduleId, reasoningConfidence: reasoning.confidence, stateScope },
+  );
+  const maintainedIds = new Set(temporal.maintainedIds);
+  const reportedSuppressed = evidenceSuppressed.filter((entry) => !maintainedIds.has(entry.ruleId));
+
   // Hard module boundary: restricted dimensions are never adapted.
-  const restricted = applyRestrictedDimensions([...triggered, ...learnedFocusEntry], context);
+  const restricted = applyRestrictedDimensions([...temporal.entries, ...learnedFocusEntry], context);
 
   // ── 4 CONFLICT (D4) — per-target, highest-precedence candidate wins ──
   const conflict = resolveConflicts(restricted.kept);
@@ -379,15 +495,36 @@ export function decide(input = {}, options = {}) {
     options.preference,
   );
 
+  // ── 5a PERSONALIZATION PROFILE (Task 5) — explicitly avoided modes are
+  // constraints; presentation preferences shape UI parameters (calmer only).
+  // Runs before safety, so safety still has the final word.
+  const profileStage = applyProfileConstraints(preference.entries, personalizationView);
+
   // ── 6 SAFETY (production default reuses assessSupportSafety; DI preserved) ──
-  const safety = runSafetyStage(preference.entries, context, options.safety ?? safetyGate);
+  const safety = runSafetyStage(profileStage.kept, context, options.safety ?? safetyGate);
 
   // ── 7 HYSTERESIS (D6) — per (user, module, target) state; safety first ──
+  // Why an active adaptation disappeared before the hysteresis stage (trace).
+  const droppedBy = {};
+  const markDropped = (list, stage) => {
+    for (const entry of list) {
+      if (entry?.ruleId && droppedBy[entry.ruleId] === undefined) droppedBy[entry.ruleId] = stage;
+    }
+  };
+  markDropped(restricted.rejected, "a module-restricted dimension");
+  markDropped(conflict.rejected, "conflict resolution (higher-precedence candidate)");
+  markDropped(preference.dropped, "an explicit user preference");
+  markDropped(profileStage.dropped, "an explicit personalization preference");
+  markDropped(safety.blocked, "the safety stage");
+
   const hysteresis = runHysteresisStage(safety.kept, {
     now: () => now,
     reasoningConfidence: reasoning.confidence,
     userId,
     moduleId: context?.moduleId,
+    stateScope,
+    temporal,
+    droppedBy,
   });
 
   // ── 8 PLAN (existing Phase 2 planner) ──
@@ -429,13 +566,33 @@ export function decide(input = {}, options = {}) {
 
   // ── 9 TRACE (structural linkage only; no persistence) ──
   const rejectedEntries = [
+    ...reportedSuppressed,
     ...restricted.rejected,
     ...conflict.rejected,
     ...preference.dropped,
+    ...profileStage.dropped,
     ...safety.blocked,
     ...hysteresis.rejected,
   ];
-  const overrides = [...preference.overrides, ...safety.overrides, ...hysteresis.overrides];
+  const evidenceOverrides = reportedSuppressed.map((entry) => ({
+    kind: "evidence",
+    applied: false,
+    detail: `rule "${entry.ruleId}" not applied: ${entry.evidenceReason}${
+      typeof entry.confidence === "number" ? ` (confidence ${entry.confidence})` : ""
+    }`,
+  }));
+  const profileOverrides = profileStage.dropped.map((entry) => ({
+    kind: "preference",
+    applied: true,
+    detail: `rule "${entry.ruleId}" not applied: support mode avoided in the personalization profile`,
+  }));
+  const overrides = [
+    ...evidenceOverrides,
+    ...preference.overrides,
+    ...profileOverrides,
+    ...safety.overrides,
+    ...hysteresis.overrides,
+  ];
 
   // Spec §5 availability rules: the trace records which optional input
   // fragments were present at runtime (role4Signals / userPreferences).
@@ -446,8 +603,18 @@ export function decide(input = {}, options = {}) {
   if (normalized.userPreferences !== undefined) {
     sourceTags.add("user_preferences");
   }
-  if (policyState !== userState) {
+  if (learnedPolicyState !== userState) {
     sourceTags.add("learned_personalization");
+  }
+  if (influences.learning.length > 0) {
+    sourceTags.add("learned_preferences");
+  }
+  if (personalizationView !== undefined) {
+    sourceTags.add("personalization_profile");
+  }
+  // Observable: every decision made with the demo trigger enabled says so.
+  if (demoNavigation) {
+    sourceTags.add("demo_navigation_trigger");
   }
 
   const trace = {
@@ -471,7 +638,16 @@ export function decide(input = {}, options = {}) {
     finalActions: plan.actions,
     confidence: plan.overallConfidence,
     sources: [...sourceTags],
+    learning: influences.learning,
   };
+  if (personalizationView !== undefined) {
+    trace.personalization = {
+      profileRevision: Number.isInteger(personalizationView.revision) && personalizationView.revision >= 0
+        ? personalizationView.revision
+        : 0,
+      applied: [...influences.applied, ...profileStage.applied],
+    };
+  }
   if (typeof userState?.timestamp === "string") {
     trace.inputRef.userStateRef = userState.timestamp;
   }

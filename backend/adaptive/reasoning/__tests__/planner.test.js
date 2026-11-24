@@ -428,9 +428,12 @@ describe("confidence", () => {
 describe("reEvaluateAt", () => {
   it("is absent when no policy declares timing", () => {
     const state = makeState({ cognitiveLoad: "overwhelming" });
+    // Shipped policies declare temporal stability (Task 2); strip timing to
+    // test the "no declared timing" contract itself.
+    const untimed = ADAPTATION_POLICIES.map(({ hysteresis: _h, ...rule }) => rule);
     const plan = buildAdaptationPlan({
       reasoning: makeReasoning(),
-      triggeredRules: triggerRules(ADAPTATION_POLICIES, state),
+      triggeredRules: triggerRules(untimed, state),
       userState: state,
     });
     expect(plan).not.toHaveProperty("reEvaluateAt");

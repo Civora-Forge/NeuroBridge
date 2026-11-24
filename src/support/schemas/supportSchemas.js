@@ -692,8 +692,26 @@ export const HysteresisSchema = z
     deactivationThreshold: confidenceRange,
     cooldownMs: z.number().int().nonnegative(),
     minDurationMs: z.number().int().nonnegative(),
+    // Temporal stability (Task 2, all optional / additive):
+    // entry evidence must persist this long before the adaptation is entered,
+    confirmationMs: z.number().int().nonnegative().optional(),
+    // ...unless it reaches this strength (important changes are not delayed),
+    immediateActivationThreshold: confidenceRange.optional(),
+    // and maintenance on weaker evidence is capped at this long without fresh
+    // entry-level evidence (adaptations never stay active indefinitely).
+    maxDurationMs: z.number().int().positive().optional(),
   })
   .superRefine((hysteresis, ctx) => {
+    if (
+      hysteresis.immediateActivationThreshold !== undefined &&
+      hysteresis.immediateActivationThreshold < hysteresis.activationThreshold
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["immediateActivationThreshold"],
+        message: "immediateActivationThreshold must not be below activationThreshold",
+      });
+    }
     if (
       hysteresis.deactivationThreshold >
       hysteresis.activationThreshold
@@ -752,7 +770,9 @@ export const ConflictRecordSchema = z.object({
 });
 
 export const OverrideRecordSchema = z.object({
-  kind: z.enum(["preference", "safety", "hysteresis"]),
+  // "evidence": a value-matched rule withheld because its supporting
+  // evidence was stale or below the confidence threshold (Task 1).
+  kind: z.enum(["preference", "safety", "hysteresis", "evidence"]),
   actionId: idSchema.optional(),
   applied: z.boolean(),
   detail: z.string().trim().optional(),
@@ -853,6 +873,47 @@ export const DecisionTraceSchema = z.object({
   confidence: confidenceRange,
   reEvaluateAt: epochNumber.optional(),
   sources: tagsSchema,
+
+  // Task 4: learned preferences that influenced this decision (supporting
+  // evidence only). Keys are adaptation identities (target:ruleId); no
+  // user-identifying or snapshot content is recorded.
+  learning: z
+    .array(
+      z.object({
+        key: z.string().trim().min(1),
+        ruleId: idSchema,
+        scope: z.enum(["context", "global"]),
+        score: confidenceRange,
+        confidence: confidenceRange,
+        evidenceCount: z.number().int().nonnegative(),
+        effect: z.enum(["supported", "changed", "suppressed"]),
+        evidenceBefore: confidenceRange,
+        evidenceAfter: confidenceRange,
+        // Task 5: "profile" = a stance promoted into the persistent
+        // personalization profile (absent = live Task 4 feedback).
+        source: z.enum(["feedback", "profile"]).optional(),
+      }),
+    )
+    .default([]),
+
+  // Task 5: how the persistent personalization profile shaped this decision.
+  // Field ids come from the closed profile vocabulary; no user content.
+  personalization: z
+    .object({
+      profileRevision: z.number().int().nonnegative(),
+      applied: z
+        .array(
+          z.object({
+            field: z.string().trim().min(1),
+            layer: z.enum(["explicit", "learned", "temporary"]),
+            scope: z.enum(["context", "global"]),
+            ruleId: idSchema,
+            effect: z.enum(["supported", "changed", "suppressed", "shaped"]),
+          }),
+        )
+        .default([]),
+    })
+    .optional(),
 });
 
 export const AdaptiveEngineInputSchema = z.object({

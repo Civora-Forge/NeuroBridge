@@ -6,6 +6,18 @@
  */
 
 import { contextEventBus } from "./events/contextEventBus.js";
+import {
+  clearInteractionEvidence,
+  getInteractionEvidenceSnapshot,
+  recordCorrection as recordCorrectionEvidence,
+  recordFocusInterrupt as recordFocusInterruptEvidence,
+  recordKeystroke as recordKeystrokeEvidence,
+  recordNavigationSwitch as recordNavigationSwitchEvidence,
+  recordResponseLatency as recordResponseLatencyEvidence,
+  recordScrollBacktrack as recordScrollBacktrackEvidence,
+  recordUndo as recordUndoEvidence,
+  subscribeInteractionEvidence,
+} from "./interactionEvidence.js";
 import { ContextEvents } from "./events/contextEvents.js";
 import { contextStore } from "./contextStore.js";
 
@@ -26,6 +38,7 @@ const POINTER_BURST_DECAY_MS = 1200;
 
 let _isTracking = false;
 let _listeners = [];
+let _evidenceUnsub = null;
 let _emitTimer = null;
 
 let _lastInteractionAt = null;
@@ -115,6 +128,7 @@ function recordInteraction({ countLatency = true } = {}) {
     !_firstInteractionAfterNavigationAt
   ) {
     _firstInteractionAfterNavigationAt = now;
+    recordResponseLatencyEvidence(Math.max(0, (now - _lastNavigationAt) / 1000));
   }
 }
 
@@ -235,11 +249,33 @@ function recordTypingEvent(event) {
 
   if (isCorrection) {
     _typingCorrectionCount += 1;
+    recordCorrectionEvidence();
+  }
+
+  const isUndo =
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    typeof key === "string" &&
+    key.toLowerCase() === "z";
+  if (isUndo) {
+    recordUndoEvidence();
+    scheduleEmit("undo");
+    return;
   }
 
   if (!isPrintableKey(event)) {
     return;
   }
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+
+  const previousPrintableAt = _lastPrintableKeyAt;
+  recordKeystrokeEvidence(
+    previousPrintableAt !== null && now - previousPrintableAt <= FAST_TYPING_GAP_MS
+      ? now - previousPrintableAt
+      : undefined,
+  );
 
   if (
     _typingSessionStartAt === null ||
@@ -265,6 +301,11 @@ function recordScrollEvent() {
   const now = getNowMs();
   const scrollTop = window.scrollY || window.pageYOffset || 0;
   const delta = _lastScrollTop == null ? 0 : scrollTop - _lastScrollTop;
+
+  const viewport = window.innerHeight || 0;
+  if (viewport > 0 && delta < -0.8 * viewport) {
+    recordScrollBacktrackEvidence();
+  }
 
   _scrollEvents.push({ timestamp: now, scrollTop, delta });
   _scrollEvents = _scrollEvents.slice(-40);
@@ -294,6 +335,9 @@ function recordNavigationInteraction(pathname) {
 
   if (!isRepeated) {
     _lastPath = pathname;
+  }
+  if (!isInitialLanding && !isRepeated) {
+    recordNavigationSwitchEvidence();
   }
 
   _navigationEvents = _navigationEvents.filter(
@@ -349,7 +393,12 @@ export function startInteractionTracking() {
     ) {
       recordInteraction();
       _typingCorrectionCount += 1;
+      recordCorrectionEvidence();
       scheduleEmit("correction");
+    } else if (isEditableTarget(event.target) && event.inputType === "historyUndo") {
+      recordInteraction();
+      recordUndoEvidence();
+      scheduleEmit("undo");
     }
   };
   const scrollHandler = () => recordScrollEvent();
@@ -361,11 +410,23 @@ export function startInteractionTracking() {
   const visibilityHandler = () => {
     if (document.hidden) {
       recordFocusInterrupt();
+      recordFocusInterruptEvidence();
     } else {
       recordInteraction();
     }
   };
-  const blurHandler = () => recordFocusInterrupt();
+  // The legacy counter counts every blur (including an input field losing
+  // focus inside the page, because the listener runs in the capture phase).
+  // Only the window itself losing focus is evidence of an interruption.
+  const blurHandler = (event) => {
+    recordFocusInterrupt();
+    const target = event?.target;
+    // `target.window === target` identifies a Window object (jsdom hands
+    // listeners the inner Window rather than the global proxy).
+    if (target === window || target === document || (target != null && target.window === target)) {
+      recordFocusInterruptEvidence();
+    }
+  };
   const focusHandler = () => recordInteraction();
 
   window.addEventListener("keydown", keydownHandler, true);
@@ -388,6 +449,8 @@ export function startInteractionTracking() {
     ["visibilitychange", visibilityHandler, true],
   ];
 
+  _evidenceUnsub = subscribeInteractionEvidence(() => scheduleEmit("explicit_evidence"));
+
   _isTracking = true;
 }
 
@@ -406,6 +469,10 @@ export function stopInteractionTracking() {
 
   _listeners = [];
   _isTracking = false;
+  if (typeof _evidenceUnsub === "function") {
+    _evidenceUnsub();
+    _evidenceUnsub = null;
+  }
 
   if (_emitTimer) {
     clearTimeout(_emitTimer);
@@ -523,12 +590,16 @@ export function getInteractionSnapshot() {
   const scrollBehavior = computeScrollBehavior(now);
   const movementBurst = computeMovementBurst(now);
 
+  // Real module switches are observed behaviour too: without counting them,
+  // a navigation-derived taskSwitchFrequency would be discarded as "no
+  // evidence" by the evidence-grounded state model.
   const behaviorConfidence =
     [
       typingMetrics.typingSpeed,
       typingMetrics.correctionRate,
       scrollBehavior,
       movementBurst?.active === true,
+      switchCount > 0,
     ].filter(Boolean).length > 0
       ? 0.7
       : 0.0;
@@ -576,6 +647,9 @@ export function getInteractionSnapshot() {
         : null,
     },
     biometrics: null,
+    // Timestamped, windowed evidence for context-to-state inference
+    // (interactionEvidence.js). Observational only.
+    evidence: getInteractionEvidenceSnapshot(),
     metadata: {
       lastUpdated: nowIso(),
       sourceMap: {
@@ -596,6 +670,7 @@ export function getExplicitRequestSnapshot() {
 
 export function resetInteractionTracker() {
   stopInteractionTracking();
+  clearInteractionEvidence();
   _lastInteractionAt = null;
   _lastNavigationAt = null;
   _firstInteractionAfterNavigationAt = null;

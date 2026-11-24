@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import AdaptiveUIRuntime, {
   deriveInterventionRecommendation,
   deriveModuleAdjustments,
   deriveUIModeFromPlan,
+  hasStateDrivenAction,
   MODE_LABELS,
 } from "../AdaptiveUIRuntime.jsx";
 import {
@@ -13,6 +14,7 @@ import {
 import {
   AdaptationActionType,
   AdaptationDimension,
+  PriorityTier,
 } from "@/support/schemas/supportSchemas";
 import { buildModuleContext } from "@/support/framework/moduleContextAdapter";
 import { decide } from "@backend/adaptive/engine/adaptiveEngine";
@@ -20,6 +22,20 @@ import { contextEngine } from "@/adaptive/context";
 import { contextStore } from "@/adaptive/context/contextStore.js";
 import { resetMoodAgent } from "@/adaptive/context/moodAgent.js";
 import { resetInteractionTracker } from "@/adaptive/context/contextInteractionTracker.js";
+import { resetExecutionStore } from "@/adaptive/execution/uiExecution";
+import { resetAdaptiveHysteresis } from "@backend/adaptive/engine/hysteresis";
+import { configureAdaptiveFlags, resetAdaptiveFlags } from "@backend/adaptive/engine/featureFlags";
+
+// Task 3: the shell applies UI actions only when the uiExecution flag is ON,
+// and dismissals / consent persist for the session — isolate both per test.
+beforeEach(() => {
+  resetExecutionStore();
+  resetAdaptiveHysteresis();
+  configureAdaptiveFlags({ uiExecution: true });
+});
+afterEach(() => {
+  resetAdaptiveFlags();
+});
 
 vi.mock("@/components/interventions/InterventionModal", () => ({
   __esModule: true,
@@ -328,7 +344,7 @@ describe("AdaptiveUIRuntime card behavior", () => {
     expect(deriveInterventionRecommendation(plan)).toBeNull();
   });
 
-  it("lifecycle: the same engine path surfaces a recommendation once the user actually switches modules", () => {
+  it("lifecycle: one module switch alone is a single-sensor signal and surfaces no recommendation", () => {
     contextEngine.stop();
     contextStore.reset();
     resetMoodAgent();
@@ -342,7 +358,10 @@ describe("AdaptiveUIRuntime card behavior", () => {
     const { plan } = decide({ contextSnapshot: snapshot });
 
     expect(snapshot.behavior.taskSwitchFrequency).toBe(0.2);
-    expect(deriveInterventionRecommendation(plan)).not.toBeNull();
+    // The reasoning layer may describe the situation, but no state-driven,
+    // evidence-gated action exists, so the runtime surfaces nothing.
+    expect(plan.actions).toEqual([]);
+    expect(hasStateDrivenAction(plan)).toBe(false);
   });
 
   it("end-to-end: decide() on an anxious state yields a UI action the shell applies", () => {
@@ -507,7 +526,38 @@ describe("AdaptiveUIRuntime card behavior", () => {
     );
     expect(card(calmContainer)).toBeNull();
 
-    const stressedOutcome = decide({ contextSnapshot: stressedSnapshot });
+    // Heavy page switching on its own is ONE sensor: it describes the state
+    // but never reaches the trigger floor, so no adaptation and no card even
+    // after the confirmation window.
+    const observed = { ...stressedSnapshot, behavior: { ...stressedSnapshot.behavior, confidence: 0.7 } };
+    const t0 = Date.parse("2026-08-01T00:00:00.000Z");
+    decide({ contextSnapshot: observed }, { now: t0 });
+    const navigationOnly = decide({ contextSnapshot: observed }, { now: t0 + 11000 });
+    expect(navigationOnly.plan.actions).toEqual([]);
+    const { container: navigationContainer } = render(
+      <Harness runtimeValue={runtimeValue(navigationOnly.plan, stressedSnapshot)} />,
+    );
+    expect(card(navigationContainer)).toBeNull();
+
+    // Converging, independent evidence (page switching AND the window
+    // repeatedly losing focus) that persists past the confirmation window
+    // → engine recommendation → card.
+    const converging = (now) => ({
+      ...observed,
+      timestamp: new Date(now).toISOString(),
+      interactionEvidence: {
+        observedAt: now,
+        bucketMs: 30000,
+        buckets: [30000, 60000].map((ago) => ({
+          start: now - ago - 15000, keystroke: 0, correction: 0, undo: 0, focusInterrupt: 3,
+          navigationSwitch: 3, scrollBacktrack: 0, typingGapSumMs: 0, typingGapCount: 0,
+        })),
+        taskEvents: [], latencySamples: [], selfReports: [],
+      },
+    });
+    const t1 = t0 + 120000;
+    expect(decide({ contextSnapshot: converging(t1) }, { now: t1 }).plan.actions).toEqual([]);
+    const stressedOutcome = decide({ contextSnapshot: converging(t1 + 11000) }, { now: t1 + 11000 });
     expect(stressedOutcome.plan.actions.length).toBeGreaterThan(0);
     const { container: stressedContainer } = render(
       <Harness runtimeValue={runtimeValue(stressedOutcome.plan, stressedSnapshot)} />,
@@ -615,5 +665,82 @@ describe("AdaptiveUIRuntime card behavior", () => {
 
     expect(card(container).getAttribute("data-adaptive-card-state")).toBe("recommendation");
     expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
+  });
+});
+// H5: an explicit-preference action alone (Tier 2–7) is the user's own
+// setting, not an engine-detected opportunity — it must never surface the
+// evidence-ungated situation fallback as a support offer.
+describe("support offers require a state-driven action", () => {
+  const preferenceOnlyPlan = () =>
+    planWith(
+      [uiAction("accessibility.reduceMotion", { reduceMotion: true }, { tier: PriorityTier.EXPLICIT_PREFERENCE })],
+      { situation: "attention_fragmentation" },
+    );
+
+  it("hasStateDrivenAction distinguishes explicit tiers from state / safety tiers", () => {
+    expect(hasStateDrivenAction(null)).toBe(false);
+    expect(hasStateDrivenAction(planWith([]))).toBe(false);
+    expect(hasStateDrivenAction(preferenceOnlyPlan())).toBe(false);
+    expect(hasStateDrivenAction(planWith([uiAction("s", { mode: "focus" }, { tier: PriorityTier.CURRENT_STATE })]))).toBe(true);
+    expect(hasStateDrivenAction(planWith([uiAction("l", { mode: "focus" }, { tier: PriorityTier.LEARNED_PERSONALIZATION })]))).toBe(true);
+    expect(hasStateDrivenAction(planWith([uiAction("x", { mode: "focus" }, { tier: PriorityTier.SAFETY })]))).toBe(true);
+  });
+
+  it("does not show a card when the only action is an explicit preference", () => {
+    const { container } = render(<Harness runtimeValue={runtimeValue(preferenceOnlyPlan(), stressedSnapshot)} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("real engine: reduceMotion preference + one page switch yields no offer", () => {
+    resetAdaptiveHysteresis();
+    const { plan } = decide(
+      {
+        contextSnapshot: { timestamp: "2026-08-01T00:00:00.000Z", behavior: { taskSwitchFrequency: 0.2, confidence: 0.7 } },
+        userPreferences: { accessibility: { reduceMotion: true } },
+      },
+      { now: Date.parse("2026-08-01T00:00:00.000Z"), userId: "h5-user" },
+    );
+    // The engine still records the preference action and the situation...
+    expect(plan.actions.some((a) => a.tier === PriorityTier.EXPLICIT_PREFERENCE)).toBe(true);
+    expect(plan.situation).toBe("attention_fragmentation");
+    // ...but the runtime does not surface an offer from it.
+    const { container } = render(<Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />);
+    expect(card(container)).toBeNull();
+  });
+
+  it("a state-driven action next to an explicit preference still surfaces its offer", () => {
+    const plan = planWith([
+      uiAction("accessibility.reduceMotion", { reduceMotion: true }, { tier: PriorityTier.EXPLICIT_PREFERENCE }),
+      uiAction("low_stimulation", { mode: "low_stimulation", reduceColorIntensity: true }, { tier: PriorityTier.CURRENT_STATE }),
+    ]);
+    const { container } = render(<Harness runtimeValue={runtimeValue(plan, stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
+    expect(screen.getByText(/Sensory Reset/)).toBeInTheDocument();
+  });
+});
+
+// Dedicated frustration response: its own intervention identity and dismissal lifecycle.
+describe("contextual help (frustration) offer", () => {
+  const helpAction = () => uiAction("frustration_assistance", { contextualAssistance: true, simplifyInteraction: true },
+    { target: AdaptationDimension.ASSISTANCE, type: AdaptationActionType.GUIDE, tier: PriorityTier.CURRENT_STATE });
+  const overloadAction = () => uiAction("contextual_overload_support", { taskBreakdown: true, stepSize: "small" },
+    { target: AdaptationDimension.TASK, type: AdaptationActionType.DECOMPOSE, tier: PriorityTier.CURRENT_STATE });
+
+  it("maps to the dedicated contextual_help intervention (not transition support)", () => {
+    const rec = deriveInterventionRecommendation(planWith([helpAction()]));
+    expect(rec.id).toBe("contextual_help");
+    expect(deriveInterventionRecommendation(planWith([overloadAction()])).id).toBe("transition_support");
+  });
+
+  it("dismissing contextual help never hides the overload offer", () => {
+    const { container, rerender } = render(<Harness runtimeValue={runtimeValue(planWith([helpAction()]), stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
+    fireEvent.click(container.querySelector('[aria-label="Dismiss support suggestion"]'));
+    expect(card(container)).toBeNull();
+    rerender(<Harness runtimeValue={runtimeValue(planWith([helpAction()], { planId: "plan-2" }), stressedSnapshot)} />);
+    expect(card(container)).toBeNull(); // same offer stays dismissed
+    rerender(<Harness runtimeValue={runtimeValue(planWith([overloadAction()], { planId: "plan-3" }), stressedSnapshot)} />);
+    expect(card(container)).not.toBeNull();
+    expect(screen.getByText(/Now · Next · Then/)).toBeInTheDocument();
   });
 });

@@ -106,3 +106,13 @@ export {
   teardownContextLogger,
   isDebugEnabled,
 } from "./contextLogger.js";
+
+// Timestamped behavioural evidence + explicit self-reports (context-to-state inference)
+export {
+  recordTaskEvent,
+  recordSelfReport,
+  getInteractionEvidenceSnapshot,
+  clearInteractionEvidence,
+  TaskEventType,
+  SELF_REPORT_STATES,
+} from "./interactionEvidence.js";

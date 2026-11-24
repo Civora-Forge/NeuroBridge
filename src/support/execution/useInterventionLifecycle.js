@@ -10,6 +10,28 @@ import {
   rateSupportModule,
   resumeSupportModule,
 } from "./executionApi";
+import { recordTaskEvent, TaskEventType } from "@/adaptive/context/interactionEvidence.js";
+
+/**
+ * Lifecycle commands that are behavioural evidence for the shared
+ * context-to-state inference (task abandonment, retries, failures,
+ * interruptions, completion time). Recorded only when the command succeeded.
+ */
+const COMMAND_EVIDENCE = new Map([
+  [pauseSupportModule, TaskEventType.PAUSED],
+  [resumeSupportModule, TaskEventType.RESUMED],
+  [completeSupportModule, TaskEventType.COMPLETED],
+  [abandonSupportModule, TaskEventType.ABANDONED],
+  [failSupportModule, TaskEventType.FAILED],
+]);
+
+function recordLifecycleEvidence(type, moduleId, interventionId) {
+  try {
+    recordTaskEvent({ type, moduleId, taskId: interventionId ?? undefined });
+  } catch {
+    // Evidence collection must never affect the lifecycle itself.
+  }
+}
 
 const TERMINAL_STATUSES = new Set([
   "completed",
@@ -114,6 +136,7 @@ export function useInterventionLifecycle({
         configuration: configurationOverride ?? configuration,
         metadata: { ...metadata, planId },
       });
+      if (result?.ok) recordLifecycleEvidence(TaskEventType.STARTED, moduleId, result.interventionId);
       return applyResult(result);
     } finally {
       operationRef.current = false;
@@ -140,6 +163,8 @@ export function useInterventionLifecycle({
         moduleId,
         ...options,
       });
+      const evidenceType = COMMAND_EVIDENCE.get(command);
+      if (result?.ok && evidenceType) recordLifecycleEvidence(evidenceType, moduleId, interventionIdRef.current);
       return applyResult(result);
     } finally {
       operationRef.current = false;

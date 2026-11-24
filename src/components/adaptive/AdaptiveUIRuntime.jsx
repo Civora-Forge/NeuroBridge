@@ -26,21 +26,56 @@
  *     recommendation). An unchanged persistent recommendation from the engine
  *     does NOT re-show the card after dismissal.
  *   - When the user dismisses or completes the intervention, the card is
- *     hidden. It stays hidden as long as the engine continues to carry the
- *     same recommendation. A genuinely new future recommendation (different id
- *     or changed content) will appear normally.
+ *     hidden and the dismissal is kept in the session execution store, so it
+ *     survives unrelated state changes (plan flicker, re-decisions, remounts).
+ *     A recommendation with a different id appears normally.
+ *
+ * Execution (Task 3): the shell never applies a raw plan. Every plan goes
+ * through `resolvePlanExecution` (src/adaptive/execution/uiExecution.js),
+ * which enforces the uiExecution flag, safety outcomes, requireConfirmation
+ * consent and reducedIntensity, and the result is recorded in an idempotent
+ * execution ledger. When nothing may be applied the wrapper is the baseline.
  *   - The engine's hysteresis stage keeps a sustained target from
  *     re-activating repeatedly, so the same opportunity is not re-emitted.
  *
  * Ownership: Adaptive Experience Engineer
  */
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { useAdaptiveRuntime } from "./adaptiveRuntimeContext.jsx";
-import { AdaptationDimension, AdaptationActionType } from "@/support/schemas/supportSchemas";
+import { AdaptationDimension, AdaptationActionType, PriorityTier } from "@/support/schemas/supportSchemas";
 import InterventionModal from "@/components/interventions/InterventionModal";
 import AdaptiveSupportCard from "./AdaptiveSupportCard.jsx";
 import { getInterventionMeta } from "@/components/interventions/InterventionResolver";
+import {
+  createExecutionLedger,
+  declineConsent,
+  dismissRecommendation as persistDismissal,
+  getExecutionStoreVersion,
+  grantConsent,
+  isRecommendationDismissed,
+  resolvePlanExecution,
+  subscribeExecutionStore,
+} from "@/adaptive/execution/uiExecution";
+import {
+  FeedbackOutcome,
+  getLearnedPreferences,
+  preferenceKey,
+  recommendationPreferenceKey,
+  recordAdaptationFeedback,
+} from "@/adaptive/learning/adaptationLearning";
+import { LEARNING_INFLUENCE } from "@backend/adaptive/engine/learning";
+import { isReflectionEnabled } from "@backend/adaptive/engine/featureFlags";
+import { isLearnedAvoided } from "@backend/adaptive/engine/personalization";
+import { promoteFromFeedback } from "@/adaptive/personalization/profileStore";
+
+/**
+ * A user-actionable prompt (consent prompt / support card) that was visible at
+ * least this long and then disappeared without any response is recorded as
+ * "ignored" (a weak signal). Shorter exposures record nothing: silence and
+ * flicker are never treated as rejection.
+ */
+export const IGNORED_AFTER_MS = 8000;
 
 /** Human-readable labels for the engine's UI modes. */
 export const MODE_LABELS = {
@@ -142,6 +177,60 @@ export function deriveInterventionRecommendation(plan) {
   if (Array.isArray(plan.actions)) {
     for (const action of plan.actions) {
       const params = action?.parameters || {};
+      // Contextual-state responses (context-to-state inference). Offers only:
+      // the user decides whether to start anything.
+      if (params.taskContinuityHelp) {
+        // DEMO ONLY (repeated-navigation trigger): its own identity, so its
+        // dismissal never hides the production contextual-help offer.
+        return {
+          id: "task_continuity_help",
+          title: "Lost your place?",
+          description: "You've switched pages several times in the last minute. A quick way back to what you were doing.",
+          reason: action.reason || "Repeated page switching (demo trigger).",
+        };
+      }
+      if (params.offerGrounding) {
+        return {
+          id: "grounding_activity",
+          title: "Support options",
+          description: "You mentioned things feel hard right now. A short grounding pause is here if you want it.",
+          reason: action.reason || "You reported feeling distressed.",
+        };
+      }
+      if (params.pauseSuggestion) {
+        return {
+          id: "calm_space",
+          title: "Take a pause",
+          description: "You've been at this a while. Your progress is kept — a short pause might help.",
+          reason: action.reason || "Interaction has slowed during this task.",
+        };
+      }
+      if (params.contextualAssistance) {
+        // Dedicated intervention with its own identity, so dismissing it
+        // never hides the overload offer (and vice versa).
+        return {
+          id: "contextual_help",
+          title: "Contextual help",
+          description: "This seems to be fighting back. Let's take it one clear step at a time.",
+          reason: action.reason || "Repeated corrections or failed attempts.",
+        };
+      }
+      if (params.focusSupport) {
+        return {
+          id: "grounding_exercise",
+          title: "Find your place again",
+          description: "Attention keeps getting pulled away. A quick reset can help you pick up where you were.",
+          reason: action.reason || "Frequent switching away from the activity.",
+        };
+      }
+      if (params.taskBreakdown) {
+        return {
+          id: "transition_support",
+          title: "Now · Next · Then",
+          description: "Break the current activity into smaller, clearer steps.",
+          reason: action.reason || "Signs of overload in this activity.",
+        };
+      }
       if (params.guidedBreathing) {
         return {
           id: "guided_breathing",
@@ -225,6 +314,38 @@ export function deriveInterventionRecommendation(plan) {
 }
 
 /**
+ * Whether the plan carries at least one adaptation the ENGINE triggered from
+ * the user's state (Tier 8 current state / Tier 9 learned) or from safety
+ * (Tier 1). Explicit preference / request / restriction / goal / module /
+ * task tiers (2–7) are the user's own settings, not a detected opportunity:
+ * on their own they must never surface a support offer — otherwise a
+ * standing preference such as `accessibility.reduceMotion` would make the
+ * evidence-ungated situation fallback of `deriveInterventionRecommendation`
+ * reachable without any evidence-gated trigger. Actions without a tier
+ * (hand-built plans) are treated as state-driven.
+ */
+export function hasStateDrivenAction(plan) {
+  if (!plan || !Array.isArray(plan.actions)) return false;
+  return plan.actions.some((action) => {
+    if (!action) return false;
+    const tier = action.tier;
+    return tier === undefined || tier === PriorityTier.SAFETY || tier >= PriorityTier.CURRENT_STATE;
+  });
+}
+
+/**
+ * Only the state-driven actions of a plan (see hasStateDrivenAction); the
+ * support offer is derived from these alone.
+ */
+function stateDrivenPlan(plan) {
+  const actions = plan.actions.filter((action) => {
+    const tier = action?.tier;
+    return tier === undefined || tier === PriorityTier.SAFETY || tier >= PriorityTier.CURRENT_STATE;
+  });
+  return { ...plan, actions };
+}
+
+/**
  * Human-readable labels for module-targeted engine actions.
  */
 const MODULE_ACTION_LABELS = {
@@ -244,6 +365,8 @@ const MODULE_ACTION_LABELS = {
   "ASSISTANCE:MODIFY": "Extra support",
   "TIMING:MODIFY": "Timing adjusted",
   "NOTIFICATIONS:MODIFY": "Fewer prompts",
+  "PACING:PAUSE": "Pause suggestion",
+  "ASSISTANCE:RECOMMEND": "Support options",
 };
 
 /**
@@ -273,80 +396,176 @@ export function deriveModuleAdjustments(plan) {
 }
 
 /**
+ * App-level shell: resolves the live plan through the execution guardrails,
+ * applies the effective UI state to the subtree, and surfaces consent prompts
+ * and the Role 3 support card.
+ *
  * @param {object} props
  * @param {import("react").ReactNode} props.children
+ * @param {(entry: object) => void} [props.onExecution] - Receives each new
+ *   execution-ledger entry (applied / modified / deferred / rejected /
+ *   dismissed, with reasons).
  */
-export default function AdaptiveUIRuntime({ children }) {
+export default function AdaptiveUIRuntime({ children, onExecution }) {
   const runtime = useAdaptiveRuntime();
-  const derived = useMemo(() => deriveUIModeFromPlan(runtime.plan), [runtime.plan]);
+  const storeVersion = useSyncExternalStore(
+    subscribeExecutionStore,
+    getExecutionStoreVersion,
+    getExecutionStoreVersion,
+  );
+
+  const rawPlan = runtime.enabled ? runtime.plan : null;
+  const userId = runtime.userId ?? null;
+  const feedbackModuleId = runtime.moduleId ?? "generic";
+  const decisionId = rawPlan?.decisionTraceId ?? null;
+
+  // Task 4 feedback capture — written to the learning store from event
+  // handlers / one-shot effects only (no React state → no render loops); one
+  // outcome per exposure (duplicates are dropped by the store).
+  const feedback = (key, outcome, exposureId) => {
+    if (!userId || !key || !exposureId) return;
+    const result = recordAdaptationFeedback({ userId, key, outcome, exposureId, moduleId: feedbackModuleId, decisionId });
+    // Task 5: feedback that has become reliable and stable is promoted into
+    // the persistent profile (no-op until the promotion gates are met).
+    if (result?.recorded && isReflectionEnabled()) promoteFromFeedback(userId).catch(() => {});
+  };
+  const resolution = useMemo(
+    () =>
+      resolvePlanExecution(rawPlan, {
+        trace: runtime.trace,
+        runtimeEnabled: runtime.enabled !== false,
+      }),
+    // storeVersion: consent decisions change the resolution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawPlan, runtime.trace, runtime.enabled, storeVersion],
+  );
+
+  // Deterministic, update-free application: an equivalent resolution (same
+  // signature) reuses the previous derived state object.
+  const derivedRef = useRef({ signature: null, derived: null });
+  if (derivedRef.current.signature !== resolution.signature) {
+    derivedRef.current = {
+      signature: resolution.signature,
+      derived: deriveUIModeFromPlan(resolution.effectivePlan),
+    };
+  }
+  const derived = derivedRef.current.derived;
+
+  // Traceability: record each effective change once (idempotent ledger).
+  const ledgerRef = useRef(null);
+  if (ledgerRef.current === null) ledgerRef.current = createExecutionLedger();
+  const [lastExecution, setLastExecution] = useState(null);
+  const onExecutionRef = useRef(onExecution);
+  onExecutionRef.current = onExecution;
+  const appliedRef = useRef({ actions: [], at: null });
+  useEffect(() => {
+    const { duplicate, entry } = ledgerRef.current.commit(resolution, rawPlan);
+    if (!duplicate && entry) {
+      setLastExecution(entry);
+      onExecutionRef.current?.(entry);
+    }
+    // Explicit override: a state-driven adaptation that was applied is
+    // replaced on the same target by the user's explicit preference.
+    const previous = appliedRef.current;
+    const explicitTargets = new Set(
+      (rawPlan?.actions ?? [])
+        .filter((a) => a.tier >= PriorityTier.EXPLICIT_USER_REQUEST && a.tier <= PriorityTier.EXPLICIT_PREFERENCE)
+        .map((a) => a.target),
+    );
+    for (const action of previous.actions) {
+      if (explicitTargets.has(action.target)) {
+        feedback(preferenceKey(action), FeedbackOutcome.OVERRIDDEN, `applied:${previous.at}`);
+      }
+    }
+    const applied = (resolution.effectivePlan?.actions ?? []).filter(
+      (a) => (a.tier ?? 0) >= PriorityTier.CURRENT_STATE,
+    );
+    const sameAdaptations =
+      applied.map(preferenceKey).join("|") === previous.actions.map(preferenceKey).join("|");
+    appliedRef.current = sameAdaptations ? previous : { actions: applied, at: Date.now() };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolution.signature]);
 
   // An intervention opportunity exists only when the engine actually triggered
-  // an adaptation action. Persistent reasoning labels (plan.situation,
-  // adaptiveState, etc.) do NOT by themselves constitute an opportunity — the
-  // card is hidden by default and appears only while the engine carries an
-  // active, adapted event. Without a triggered action the specific situation
-  // label is irrelevant.
+  // a state-driven (evidence-gated) adaptation action, and never while a
+  // safety outcome overrides ordinary adaptation. Explicit-preference actions
+  // alone (Tier 2–7) never count. Recommendations are offers (user-started),
+  // so they are not gated by the UI execution flag.
   const recommendation = useMemo(() => {
-    const plan = runtime.plan;
-    if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
+    const plan = rawPlan;
+    if (!hasStateDrivenAction(plan)) {
       return null;
     }
-    return deriveInterventionRecommendation(plan);
-  }, [runtime.plan]);
+    if (resolution.suppressRecommendations) return null;
+    return deriveInterventionRecommendation(stateDrivenPlan(plan));
+  }, [rawPlan, resolution.suppressRecommendations]);
 
-  // Session-scoped dismissal: "Not now" (or starting) suppresses that same
-  // recommendation id until a genuinely NEW intervention opportunity arrives.
-  // A new opportunity is detected when the recommendation id or its content
-  // (title, description, reason) changes from the previously shown
-  // recommendation. An unchanged persistent recommendation from the engine
-  // does NOT re-show the card after dismissal — maintaining the
-  // intervention-event lifecycle (hidden → new event → visible → consumed →
-  // hidden).
-  const [dismissedRecommendationIds, setDismissedRecommendationIds] = useState(
-    () => new Set(),
-  );
+  // Learned preference for this offer (Task 4): an offer the user has
+  // repeatedly declined in this context, with sufficient evidence, is not
+  // re-surfaced. Offers only — never an explicit setting.
+  const recommendationLearning = useMemo(() => {
+    if (!recommendation || !userId || !isReflectionEnabled()) return null;
+    const key = recommendationPreferenceKey(recommendation.id);
+    const learned = getLearnedPreferences(userId, {
+      moduleId: feedbackModuleId,
+      since: runtime.personalization?.learnedSince,
+    })[key];
+    if (learned?.sufficient && learned.score <= LEARNING_INFLUENCE.opposeAt) return learned;
+    // Task 5: a declined offer promoted into the profile stays declined on
+    // every device and in later sessions — the user is not asked again.
+    return isLearnedAvoided(runtime.personalization, key) ? { key, source: "profile" } : null;
+  }, [recommendation, userId, feedbackModuleId, runtime.personalization]);
+
+  // Task 5: the user explicitly opted out of unrequested support offers.
+  const offersAllowed = runtime.personalization?.presentation?.allowUnrequestedOffers !== false;
+
   const [activeInterventionModal, setActiveInterventionModal] = useState(null);
 
-  const dismissRecommendation = (id) => {
-    if (!id) return;
-    setDismissedRecommendationIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  };
-
   const activeRecommendation =
-    recommendation && !dismissedRecommendationIds.has(recommendation.id)
+    recommendation && offersAllowed && !isRecommendationDismissed(recommendation.id) && !recommendationLearning
       ? recommendation
       : null;
 
-  // Track the previously surfaced recommendation to detect whether the engine
-  // has produced a NEW intervention opportunity (as opposed to an unchanged
-  // persistent recommendation, which must NOT re-show a dismissed card).
-  const prevRecommendationRef = useRef(null);
+  const pending = resolution.pendingConsent[0] ?? null;
 
-  useEffect(() => {
-    const prev = prevRecommendationRef.current;
-    const now = recommendation;
-
-    const sameOpportunity =
-      prev !== null &&
-      now !== null &&
-      prev.id === now.id &&
-      prev.title === now.title &&
-      prev.description === now.description &&
-      prev.reason === now.reason;
-
-    if (!sameOpportunity) {
-      // A genuinely new recommendation (or clear) restores the dismissed set so
-      // the new opportunity can be surfaced to the user.
-      setDismissedRecommendationIds(() => new Set());
+  // Exposure tracking for prompts the user can act on (consent + card).
+  const consentExposure = useRef(null);
+  const cardExposure = useRef(null);
+  // Task 6: on a user switch, forget the previous user's exposures and applied
+  // adaptations WITHOUT recording feedback — otherwise their unanswered prompt
+  // would be logged as "ignored" (or an override) in the new user's history.
+  const feedbackOwnerRef = useRef(userId);
+  useLayoutEffect(() => {
+    if (feedbackOwnerRef.current === userId) return;
+    feedbackOwnerRef.current = userId;
+    consentExposure.current = null;
+    cardExposure.current = null;
+    appliedRef.current = { actions: [], at: null };
+  }, [userId]);
+  const trackExposure = (ref, key) => {
+    const current = ref.current;
+    if (current && current.key === key) return;
+    if (current && !current.handled && Date.now() - current.shownAt >= IGNORED_AFTER_MS) {
+      feedback(current.key, FeedbackOutcome.IGNORED, current.id);
     }
-
-    prevRecommendationRef.current = now;
-  }, [recommendation]);
+    ref.current = key ? { key, shownAt: Date.now(), id: `shown:${key}:${Date.now()}`, handled: false } : null;
+  };
+  const pendingFeedbackKey = pending ? preferenceKey(pending.action) : null;
+  const cardFeedbackKey = activeRecommendation ? recommendationPreferenceKey(activeRecommendation.id) : null;
+  useEffect(() => {
+    trackExposure(consentExposure, pendingFeedbackKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFeedbackKey]);
+  useEffect(() => {
+    trackExposure(cardExposure, cardFeedbackKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardFeedbackKey]);
+  const respond = (ref, outcome) => {
+    const exposure = ref.current;
+    if (!exposure || exposure.handled) return;
+    exposure.handled = true;
+    feedback(exposure.key, outcome, exposure.id);
+  };
 
   const wrapperProps = {
     "data-adaptive-root": "true",
@@ -356,6 +575,8 @@ export default function AdaptiveUIRuntime({ children }) {
     "data-adaptive-focus": String(derived.flags.focus),
     "data-adaptive-guide": String(derived.flags.guide),
     "data-adaptive-simplify-nav": String(derived.flags.simplifyNav),
+    "data-adaptive-execution": resolution.status,
+    "data-adaptive-execution-reason": (lastExecution?.reason ?? resolution.reason) || undefined,
   };
 
   if (!runtime.enabled) {
@@ -379,6 +600,46 @@ export default function AdaptiveUIRuntime({ children }) {
     <div {...wrapperProps} className="adaptive-root">
       {children}
 
+      {/* Consent: adaptations the safety stage marked requireConfirmation are
+          only applied after the user explicitly accepts them. */}
+      {pending && (
+        <div
+          role="region"
+          aria-live="polite"
+          aria-label="Suggested adaptation"
+          data-adaptive-consent="pending"
+          className="fixed bottom-4 left-4 z-40 max-w-sm rounded-lg border bg-background p-3 shadow"
+        >
+          <p className="text-sm">
+            {pending.action.target === AdaptationDimension.UI
+              ? `Switch to ${MODE_LABELS[pending.action.parameters?.mode] ?? "a calmer interface"}?`
+              : `Apply "${MODULE_ACTION_LABELS[`${pending.action.target}:${pending.action.type}`] ?? "this adjustment"}" to this activity?`}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="neuro-btn"
+              onClick={() => {
+                respond(consentExposure, FeedbackOutcome.ACCEPTED);
+                grantConsent(pending.key);
+              }}
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              className="neuro-btn-ghost"
+              onClick={() => {
+                respond(consentExposure, FeedbackOutcome.REJECTED);
+                declineConsent(pending.key);
+              }}
+            >
+              Keep current view
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Role 3: Non-intrusive Adaptive Support Card — mirrors the engine plan
           exactly: mounted while the plan carries a recommendation, hidden the
           moment it clears. */}
@@ -387,10 +648,14 @@ export default function AdaptiveUIRuntime({ children }) {
           recommendation={cardRecommendation}
           onStartSupport={(id) => {
             // Start Support opens the intervention and suppresses the same offer.
-            dismissRecommendation(id);
+            respond(cardExposure, FeedbackOutcome.ACCEPTED);
+            persistDismissal(id);
             setActiveInterventionModal(id);
           }}
-          onDismiss={(id) => dismissRecommendation(id)}
+          onDismiss={(id) => {
+            respond(cardExposure, FeedbackOutcome.DISMISSED);
+            persistDismissal(id);
+          }}
         />
       )}
 
@@ -402,7 +667,7 @@ export default function AdaptiveUIRuntime({ children }) {
         onComplete={() => {
           setActiveInterventionModal(null);
           if (activeInterventionModal) {
-            dismissRecommendation(activeInterventionModal);
+            persistDismissal(activeInterventionModal);
           }
         }}
         autoStart

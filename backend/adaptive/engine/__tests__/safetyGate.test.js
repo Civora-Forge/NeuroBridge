@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decide } from "../adaptiveEngine.js";
+import { resetAdaptiveHysteresis } from "../hysteresis.js";
 import { safetyGate, engineSafety } from "../safetyGate.js";
 import * as interventionSelection from "@/support/framework/interventionSelection";
 import {
@@ -124,6 +125,11 @@ describe("safetyGate (production default, D5)", () => {
 });
 
 describe("safety gate in the engine pipeline", () => {
+  // Task 2: adaptation state persists across decide() calls; isolate tests.
+  beforeEach(() => {
+    resetAdaptiveHysteresis();
+  });
+
   it("uses the production gate by default and reports ALLOW for benign input", () => {
     const outcome = decide({ contextSnapshot: overloadSnapshot() });
     expect(outcome.plan.actions.length).toBeGreaterThan(0);
@@ -132,7 +138,8 @@ describe("safety gate in the engine pipeline", () => {
       expect(action.safety.level).toBe(SafetyLevel.STANDARD);
     }
     expect(outcome.trace.safetyResult.disposition).toBe("ALLOW");
-    expect(outcome.trace.overrides).toEqual([]);
+    // Only temporal-stability (hysteresis) notes; the safety stage adds none.
+    expect(outcome.trace.overrides.filter((o) => o.kind === "safety")).toEqual([]);
   });
 
   it("removes every candidate when the module declares safetyLevel ESCALATE", () => {

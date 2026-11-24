@@ -39,6 +39,7 @@ import {
   normalizeConfidence,
   isNonNullObject,
 } from "@/adaptive/context/contextSnapshot.js";
+import { SIGNAL_TTL_SECONDS } from "@/adaptive/context/validation/signalValidator.js";
 
 // ─────────────────────────────────────────────────────────────────
 //  Controlled vocabularies (mirror userStateModel.js exports)
@@ -199,12 +200,35 @@ function objectSnapshotField(snapshot, key) {
 //  Per-signal normalizers
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Mood bases that represent what the user SAID or wrote. Any other basis
+ * (a pointer-movement burst, the page being visited, a carried-over previous
+ * mood) is behaviour, not an emotion: it is withheld from emotional-state
+ * inference and only corroborates the contextual inference layer.
+ * Snapshots without a `basis` (older producers, fixtures) keep the previous
+ * behaviour.
+ */
+export const EMOTIONAL_MOOD_BASES = Object.freeze(["explicit_checkin", "conversation"]);
+
+function behaviouralMoodBasis(mood) {
+  const basis = typeof mood.basis === "string" && mood.basis ? mood.basis : null;
+  return basis !== null && !EMOTIONAL_MOOD_BASES.includes(basis) ? basis : null;
+}
+
+function withheldBehavioural(signal, basis) {
+  return { ...signal, withheld: "behavioural_basis", withheldSource: `mood.basis:${basis}` };
+}
+
 function normalizeEmotion(snapshot) {
   const mood = objectSnapshotField(snapshot, "mood");
   const raw = String(mood.primaryMood || "").toLowerCase().trim();
 
   if (!raw) {
     return categoricalUnavailable();
+  }
+  const behavioural = behaviouralMoodBasis(mood);
+  if (behavioural) {
+    return withheldBehavioural(categoricalUnavailable(), behavioural);
   }
 
   const mapped = MOOD_TO_EMOTION_MAP[raw];
@@ -223,6 +247,10 @@ function normalizeEmotion(snapshot) {
 
 function normalizeEmotionIntensity(snapshot) {
   const mood = objectSnapshotField(snapshot, "mood");
+  const behavioural = behaviouralMoodBasis(mood);
+  if (behavioural) {
+    return withheldBehavioural(numericUnavailable(), behavioural);
+  }
   const baseConfidence = isPresentNumber(mood.confidence) ? mood.confidence : 0.5;
 
   if (isPresentNumber(mood.intensity)) {
@@ -243,7 +271,14 @@ function normalizeUrgency(snapshot) {
   const raw = String(conversation.urgency || "").toLowerCase().trim();
 
   if (raw && raw !== "unknown" && URGENCY_LEVELS.includes(raw)) {
-    return makeSignal(raw, 0.8, "conversation.urgency", ["conversation.urgency"]);
+    // The urgency label is only as reliable as the analysis that produced it:
+    // cap the historical 0.8 at the conversation analysis confidence when
+    // Role 1 reports one (e.g. 0.3 for a heuristic no-keyword match).
+    const analysisConfidence = conversation.analysis?.confidence;
+    const confidence = isPresentNumber(analysisConfidence)
+      ? Math.min(0.8, normalizeConfidence(analysisConfidence))
+      : 0.8;
+    return makeSignal(raw, confidence, "conversation.urgency", ["conversation.urgency"]);
   }
 
   // Secondary signal: Role 1 already maps intent + urgency to a priority.
@@ -259,13 +294,31 @@ function normalizeUrgency(snapshot) {
 
 function readTaskSwitchRate(snapshot) {
   const behavior = objectSnapshotField(snapshot, "behavior");
+  if (!behaviorHasEvidence(snapshot)) {
+    return null;
+  }
   return isPresentNumber(behavior.taskSwitchFrequency) ? behavior.taskSwitchFrequency : null;
 }
 
+/**
+ * Behavior-channel confidence. When Role 1 reports a confidence it is used
+ * as-is — including 0, which the live interaction tracker reports when it
+ * has observed no typing, scrolling or movement yet. Only a snapshot that
+ * carries no confidence field at all (legacy / hand-built) falls back to the
+ * historical 0.6 default.
+ */
 function behaviorConfidence(snapshot) {
   const behavior = objectSnapshotField(snapshot, "behavior");
-  const confidence = isPresentNumber(behavior.confidence) ? behavior.confidence : 0;
-  return confidence > 0 ? confidence : 0.6;
+  return isPresentNumber(behavior.confidence) ? normalizeConfidence(behavior.confidence) : 0.6;
+}
+
+/**
+ * False when Role 1 explicitly reports zero behavioral evidence. In that case
+ * zero-valued counters (e.g. `taskSwitchFrequency: 0`) describe an absence of
+ * observation, not "no task switching", and must not become positive signals.
+ */
+function behaviorHasEvidence(snapshot) {
+  return behaviorConfidence(snapshot) > 0;
 }
 
 function normalizeTaskSwitchRate(snapshot) {
@@ -296,7 +349,7 @@ function normalizeComplexity(snapshot) {
 
 function normalizeNumericBehaviorField(snapshot, field) {
   const behavior = objectSnapshotField(snapshot, "behavior");
-  if (!isPresentNumber(behavior[field])) {
+  if (!behaviorHasEvidence(snapshot) || !isPresentNumber(behavior[field])) {
     return numericUnavailable();
   }
   return makeSignal(behavior[field], behaviorConfidence(snapshot), `behavior.${field}`, [`behavior.${field}`]);
@@ -333,7 +386,7 @@ function normalizeSessionDuration(snapshot) {
 
 function normalizeIdleDuration(snapshot) {
   const behavior = objectSnapshotField(snapshot, "behavior");
-  if (isPresentNumber(behavior.idleDuration)) {
+  if (behaviorHasEvidence(snapshot) && isPresentNumber(behavior.idleDuration)) {
     return makeSignal(behavior.idleDuration, behaviorConfidence(snapshot), "behavior.idleDuration", [
       "behavior.idleDuration",
     ]);
@@ -390,7 +443,7 @@ function normalizeTimeOfDay(snapshot) {
 
 function normalizeScrollBehavior(snapshot) {
   const behavior = objectSnapshotField(snapshot, "behavior");
-  if (isNonNullObject(behavior.scrollBehavior)) {
+  if (behaviorHasEvidence(snapshot) && isNonNullObject(behavior.scrollBehavior)) {
     return makeSignal(behavior.scrollBehavior, behaviorConfidence(snapshot), "behavior.scrollBehavior", [
       "behavior.scrollBehavior",
     ]);
@@ -468,6 +521,73 @@ function deriveEngagement(inputs) {
  */
 export function normalizeContextSnapshot(snapshot = null) {
   const source = isNonNullObject(snapshot) ? snapshot : {};
+  const signals = normalizeFreshSignals(source);
+
+  // Freshness (Task 1): point-in-time inferences that Role 1 has flagged as
+  // stale are withdrawn from inference. They become unavailable (so they can
+  // neither drive an adaptation nor be read as a positive signal) and carry
+  // `stale: true` + `staleSource` for explainability.
+  for (const [key, category] of Object.entries(STALENESS_CATEGORY_BY_SIGNAL)) {
+    if (isCategoryStale(source, category)) {
+      signals[key] = withdrawStale(signals[key]);
+    }
+  }
+  if (isExplicitRequestStale(source)) {
+    signals.explicitRequest = withdrawStale(signals.explicitRequest);
+  }
+
+  return signals;
+}
+
+/**
+ * Signals whose evidence is a point-in-time Role 1 inference, mapped to the
+ * ContextSnapshot category whose `metadata.stalenessFlags` entry governs it.
+ * Live behavior/device counters are recomputed on every snapshot and carry
+ * their own confidence, so they are not subject to category staleness.
+ */
+export const STALENESS_CATEGORY_BY_SIGNAL = Object.freeze({
+  emotion: "mood",
+  emotionIntensity: "mood",
+  urgency: "conversation",
+});
+
+function isCategoryStale(snapshot, category) {
+  const flags = snapshot?.metadata?.stalenessFlags;
+  return isNonNullObject(flags) && flags[category] === true;
+}
+
+function parseEpoch(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+/**
+ * The live tracker keeps the last explicit request for the whole session.
+ * Relative to the snapshot's own timestamp (deterministic — no wall clock),
+ * a request older than the conversation TTL no longer reflects the user's
+ * current state.
+ */
+function isExplicitRequestStale(snapshot) {
+  const explicit = objectSnapshotField(snapshot, "explicitRequests");
+  const requestedAt = parseEpoch(explicit.timestamp);
+  const observedAt = parseEpoch(snapshot?.timestamp);
+  if (requestedAt === null || observedAt === null) return false;
+  return observedAt - requestedAt > SIGNAL_TTL_SECONDS.conversation * 1000;
+}
+
+function withdrawStale(signal) {
+  if (!signal || signal.source === "unavailable") {
+    return signal;
+  }
+  const base = typeof signal.value === "string" ? categoricalUnavailable() : numericUnavailable();
+  return { ...base, stale: true, staleSource: signal.source };
+}
+
+function normalizeFreshSignals(source) {
 
   const taskSwitchRate = normalizeTaskSwitchRate(source);
   const readingSpeed = normalizeNumericBehaviorField(source, "readingSpeed");

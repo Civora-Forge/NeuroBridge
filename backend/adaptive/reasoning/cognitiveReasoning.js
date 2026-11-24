@@ -93,6 +93,10 @@ export const SITUATIONS = {
   cognitive_overload: "cognitive_overload",
   attention_fragmentation: "attention_fragmentation",
   low_energy: "low_energy",
+  // Contextual inference (contextualInference.js) and explicit self-report.
+  self_reported_distress: "self_reported_distress",
+  frustration: "frustration",
+  cognitive_fatigue: "cognitive_fatigue",
   stable: "stable",
   insufficient_information: "insufficient_information",
 };
@@ -103,6 +107,9 @@ export const PRIMARY_NEEDS = {
   task_simplification: "task_simplification",
   attention_support: "attention_support",
   low_effort_support: "low_effort_support",
+  user_controlled_support: "user_controlled_support",
+  interaction_assistance: "interaction_assistance",
+  rest_and_preserve_progress: "rest_and_preserve_progress",
   maintain_current_state: "maintain_current_state",
   gather_information: "gather_information",
 };
@@ -113,6 +120,9 @@ export const STRATEGIES = {
   reduce_cognitive_complexity: "reduce_cognitive_complexity",
   reduce_distractions_and_focus: "reduce_distractions_and_focus",
   reduce_task_demand: "reduce_task_demand",
+  offer_user_controlled_support: "offer_user_controlled_support",
+  simplify_and_assist: "simplify_and_assist",
+  suggest_pause_and_preserve: "suggest_pause_and_preserve",
   normal_support: "normal_support",
   wait_and_observe: "wait_and_observe",
 };
@@ -200,6 +210,8 @@ export const SITUATION_REGISTRY = {
     conditions: [
       { dimension: "cognitiveLoad", values: ["high", "overwhelming"] },
     ],
+    // Contextual inference can establish the same situation independently.
+    alternatives: [[{ dimension: "cognitiveOverloadState", values: ["present"] }]],
     primaryNeed: PRIMARY_NEEDS.task_simplification,
     strategy: STRATEGIES.reduce_cognitive_complexity,
     description: "The user is cognitively overloaded and needs reduced complexity.",
@@ -210,6 +222,7 @@ export const SITUATION_REGISTRY = {
     conditions: [
       { dimension: "attentionState", values: ["fragmented", "scattered", "absent"] },
     ],
+    alternatives: [[{ dimension: "attentionFragmentationState", values: ["present"] }]],
     primaryNeed: PRIMARY_NEEDS.attention_support,
     strategy: STRATEGIES.reduce_distractions_and_focus,
     description: "The user's attention is fragmented, scattered, or absent.",
@@ -224,6 +237,33 @@ export const SITUATION_REGISTRY = {
     primaryNeed: PRIMARY_NEEDS.low_effort_support,
     strategy: STRATEGIES.reduce_task_demand,
     description: "The user has low energy and low motivation.",
+  },
+  // Explicit self-report: what the user said, ranked above behavioural
+  // distress. Offers user-controlled support only (policy + consent gates
+  // still apply).
+  self_reported_distress: {
+    id: SITUATIONS.self_reported_distress,
+    priority: 95,
+    conditions: [{ dimension: "selfReportedDistress", values: ["present"] }],
+    primaryNeed: PRIMARY_NEEDS.user_controlled_support,
+    strategy: STRATEGIES.offer_user_controlled_support,
+    description: "The user reported feeling distressed; offer support they can choose to use.",
+  },
+  frustration: {
+    id: SITUATIONS.frustration,
+    priority: 75,
+    conditions: [{ dimension: "frustrationState", values: ["present"] }],
+    primaryNeed: PRIMARY_NEEDS.interaction_assistance,
+    strategy: STRATEGIES.simplify_and_assist,
+    description: "Interaction appears to be repeatedly going wrong (corrections, failed attempts).",
+  },
+  cognitive_fatigue: {
+    id: SITUATIONS.cognitive_fatigue,
+    priority: 65,
+    conditions: [{ dimension: "cognitiveFatigueState", values: ["present"] }],
+    primaryNeed: PRIMARY_NEEDS.rest_and_preserve_progress,
+    strategy: STRATEGIES.suggest_pause_and_preserve,
+    description: "Interaction is slowing relative to the user's usual pattern during an active task.",
   },
   stable: {
     id: SITUATIONS.stable,
@@ -264,6 +304,11 @@ const CONTRIBUTION_BY_VALUE = {
   },
   taskComplexity: { complex: 0.7, moderate: 0.4, simple: 0.15 },
   engagementLevel: { disengaged: 0.85, low: 0.7, normal: 0.35, high: 0.2 },
+  cognitiveOverloadState: { present: 0.8, emerging: 0.5, recovering: 0.3, none: 0.1 },
+  frustrationState: { present: 0.75, emerging: 0.5, recovering: 0.3, none: 0.1 },
+  attentionFragmentationState: { present: 0.75, emerging: 0.5, recovering: 0.3, none: 0.1 },
+  cognitiveFatigueState: { present: 0.7, emerging: 0.45, recovering: 0.3, none: 0.1 },
+  selfReportedDistress: { present: 0.9, none: 0.1 },
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -303,6 +348,9 @@ const NEED_FAMILIES = {
   emotional_regulation: ["emotional_regulation"],
   low_effort_support: ["low_effort_support"],
   attention_support: ["attention_support"],
+  user_controlled_support: ["user_controlled_support", "emotional_regulation"],
+  interaction_assistance: ["interaction_assistance"],
+  rest_and_preserve_progress: ["rest_and_preserve_progress", "low_effort_support"],
   maintain_current_state: ["maintain_current_state"],
   gather_information: ["gather_information"],
 };
@@ -494,13 +542,22 @@ function detectSituations(state) {
     // explicitly in reasonAboutUserState, never auto-detected. Requiring at
     // least one condition excludes them here.
     .filter((def) => def.conditions.length > 0)
-    .filter((def) =>
-      def.conditions.every(({ dimension, values }) =>
-        values.includes(dimensionValue(state, dimension)),
-      ),
-    )
-    .sort((a, b) => b.priority - a.priority)
-    .map((def) => ({ id: def.id, def }));
+    .map((def) => {
+      const matches = (conditions) =>
+        conditions.every(({ dimension, values }) => values.includes(dimensionValue(state, dimension)));
+      if (matches(def.conditions)) return { def, matchedConditions: def.conditions };
+      // Alternative condition sets (e.g. a contextual state establishing the
+      // same situation from independent evidence).
+      const alternative = (def.alternatives ?? []).find((conditions) => conditions.length > 0 && matches(conditions));
+      return alternative ? { def, matchedConditions: alternative } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.def.priority - a.def.priority)
+    .map(({ def, matchedConditions }) => ({
+      id: def.id,
+      // The situation is explained by the conditions that actually matched.
+      def: matchedConditions === def.conditions ? def : { ...def, conditions: matchedConditions },
+    }));
 }
 
 /**
